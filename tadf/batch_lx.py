@@ -57,7 +57,7 @@ try:
             newcommand = newcommand.replace('MMMM','{:.0f}'.format(num*nproc/newcommand.count('qchem')))
             with open('cmd_{}_.sh'.format(batch_num), 'w') as q:
                 q.write(newcommand)
-            a = subprocess.call(['bash',batch_file, 'cmd.sh'])
+            a = subprocess.call(['bash',batch_file, 'cmd_{}_.sh'.format(batch_num)])
             queue = 0
             newcommand = ''
         rodando.append(input)

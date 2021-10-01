@@ -434,18 +434,21 @@ def andamento():
     coms = [file for file in os.listdir("Geometries") if 'Geometr' in file and '.com' in file]
     logs = [file for file in os.listdir("Geometries") if 'Geometr' in file and '.log' in file]
     factor = 1
-    with open('Geometries/'+coms[0], 'r') as f:
-        for line in f:
-            if 'Link1' in line:
-                factor = 2
-    count = 0
-    for file in logs:
-        with open('Geometries/'+file, 'r') as f:
+    try:
+        with open('Geometries/'+coms[0], 'r') as f:
             for line in f:
-                if "Have a nice day" in line:
-                    count += 1
-    print("\n\nThere are", int(count/factor), "completed calculations out of", len(coms), "inputs")                
-    print("It is", np.round(100*count/(factor*len(coms)),1), "% done.")                
+                if 'Link1' in line:
+                    factor = 2
+        count = 0
+        for file in logs:
+            with open('Geometries/'+file, 'r') as f:
+                for line in f:
+                    if "Have a nice day" in line:
+                        count += 1
+        print("\n\nThere are", int(count/factor), "completed calculations out of", len(coms), "inputs")                
+        print("It is", np.round(100*count/(factor*len(coms)),1), "% done.")
+    except:
+        print('No files found! Check the folder!')                
 ###############################################################
 
 
