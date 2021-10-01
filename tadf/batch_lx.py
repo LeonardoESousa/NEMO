@@ -44,7 +44,7 @@ try:
         print('No jobs left to run! Goodbye!')
         sys.exit()
     rodando = []
-    queue, batch_num = 0, 1
+    queue, batch_num = 0, 0
     newcommand = ''
     leftover = len(inputs)%num
     for input in inputs:
