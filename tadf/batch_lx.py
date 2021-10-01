@@ -54,7 +54,7 @@ try:
         queue += 1
         if queue == num or (queue == leftover and batch_num == len(inputs) - leftover):
             newcommand += 'wait'
-            newcommand.replace('MMMM','{:.0f}'.format(num*nproc/newcommand.count('qchem')))
+            newcommand = newcommand.replace('MMMM','{:.0f}'.format(num*nproc/newcommand.count('qchem')))
             with open('cmd_{}_.sh'.format(batch_num), 'w') as q:
                 q.write(newcommand)
             a = subprocess.call(['bash',batch_file, 'cmd.sh'])
