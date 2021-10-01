@@ -708,7 +708,7 @@ def ld():
         print('Not employing correction!')
     
     print('Computing...')
-    import lx.ld 
+    import tadf.ld 
     try:
         ld.run_ld(Abs, Emi, alpha, rmin, kappa, Phi)
         print('Results can be found in the ld.lx file')

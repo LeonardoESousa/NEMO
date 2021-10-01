@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 import sys
-from lx.tools import *
+from tadf.tools import *
 
 
 def main():
