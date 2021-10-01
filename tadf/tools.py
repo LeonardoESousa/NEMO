@@ -442,7 +442,7 @@ def andamento():
     for file in logs:
         with open('Geometries/'+file, 'r') as f:
             for line in f:
-                if "Normal termination" in line:
+                if "Have a nice day" in line:
                     count += 1
     print("\n\nThere are", int(count/factor), "completed calculations out of", len(coms), "inputs")                
     print("It is", np.round(100*count/(factor*len(coms)),1), "% done.")                
@@ -473,9 +473,13 @@ def fetch_file(frase,ends):
 ##RUNS TASK MANAGER############################################
 def batch():
     script = fetch_file('batch script?',['.sh'])    
-    limite = input("Maximum number of jobs to be submitted simultaneously?\n")
+    limite = input("Maximum number of batches to be submitted simultaneously?\n")
+    nproc  = input('Number of processors for each individual job')
+    num    = input('Number of jobs in each batch')
     try:
-        limite = float(limite)
+        limite = int(limite)
+        int(nproc)
+        int(num)
     except:
         fatal_error("It must be an integer. Goodbye!")
     
@@ -483,7 +487,7 @@ def batch():
     folder = os.path.dirname(os.path.realpath(__file__)) 
     with open('limit.lx','w') as f:
         f.write(str(limite))
-    subprocess.Popen(['nohup', 'python3', folder+'/batch_lx.py', script, '&'])
+    subprocess.Popen(['nohup', 'python3', folder+'/batch_lx.py', script, nproc, num, '&'])
 ###############################################################
 
 

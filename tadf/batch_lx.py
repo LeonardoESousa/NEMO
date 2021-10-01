@@ -29,7 +29,10 @@ def limite():
 ##MAIN LOOP####################################################
 try:
     batch_file = sys.argv[1]
-    scripts = [i for i in os.listdir('.') if '.sh' in i]
+    nproc      = sys.argv[2]
+    num        = int(sys.argv[3])
+    command    = 'qchem -nt {}'.format(nproc)
+    scripts    = [i for i in os.listdir('.') if '.sh' in i]
     for file in scripts:
         shutil.copy(file,'Geometries')
 
@@ -44,12 +47,20 @@ try:
         print('No jobs left to run! Goodbye!')
         sys.exit()
     rodando = []
+    queue = 0
+    newcommand = ''
     for input in inputs:
         rodando = watcher(rodando,factor)
         nlim = limite()
-        a = subprocess.call(['bash',batch_file, input])
+        newcommand += '{} {} {}.log\n'.format(command, input, input[:-3])
+        queue += 1
+        if queue == num:
+            newcommand += 'wait'
+            a = subprocess.call(['bash',batch_file, newcommand])
+            queue = 0
+            newcommand = ''
         rodando.append(input)
-        while len(rodando) >= nlim:
+        while len(rodando)/num >= nlim:
             time.sleep(20)
             rodando = watcher(rodando,factor)
             nlim = limite()
