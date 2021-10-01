@@ -474,8 +474,8 @@ def fetch_file(frase,ends):
 def batch():
     script = fetch_file('batch script?',['.sh'])    
     limite = input("Maximum number of batches to be submitted simultaneously?\n")
-    nproc  = input('Number of processors for each individual job')
-    num    = input('Number of jobs in each batch')
+    nproc  = input('Number of processors for each individual job\n')
+    num    = input('Number of jobs in each batch\n')
     try:
         limite = int(limite)
         int(nproc)

@@ -9,7 +9,7 @@ n_state = int(sys.argv[1])
 #n_triplet = int(sys.argv[2])
 
 def pega_energias(file):
-    with open(file, 'r') as f:
+    with open('Geometries/'+file, 'r') as f:
         energies, spins, corrected, oscs, ind = [], [], [], [], []
         exc, pcm, SO = False, True, False
         s0t1, s1t1 = False, False
@@ -54,7 +54,7 @@ def pega_energias(file):
 
 def pega_dipolos(file, ind,frase, state):
     mu = np.zeros((1,1))
-    with open(file, 'r') as f:
+    with open('Geometries/'+file, 'r') as f:
         dip = False
         for line in f:
             if frase in line:
@@ -104,7 +104,7 @@ def pega_dipolos(file, ind,frase, state):
 def pega_soc(file):
     soc = np.nan
     socs = []
-    with open(file, 'r') as f:
+    with open('Geometries/'+file, 'r') as f:
         catch = False
         for line in f:
             if "Total SOC between the S1 state and excited triplet states:" in line:
@@ -119,7 +119,7 @@ def pega_soc(file):
         
 def soc_s0(file,m):
     socs = np.zeros((1,2))
-    with open(file, 'r') as f:
+    with open('Geometries/'+file, 'r') as f:
         read = False
         for line in f:
             if "SOC between the singlet ground state and excited triplet states (ms="+m in line:
@@ -137,7 +137,7 @@ def soc_s0(file,m):
                     
 def soc_t1(file,m,n_triplet):
     socs = np.zeros((1,2))
-    with open(file, 'r') as f:
+    with open('Geometries/'+file, 'r') as f:
         read = False
         for line in f:
             if "SOC between the S" in line and "(ms="+m in line:
@@ -181,18 +181,14 @@ def moment(file,ess,ets,dipss,dipts,n_triplet):
     Ms = np.sum(Ms)
     return Ms
 
-file = 'soc.out'
          
-folders =  [x[0] for x in os.walk('.') if 'geom' in x[0] and x[0].count('/') < 2 and 'txt' not in x[0]]    
-folders = sorted(folders, key=lambda pair: float(pair.split('_')[1]))
+files =  [i for i in os.listdir('Geometries') if '.log' in i]    
+files = sorted(files, key=lambda pair: float(pair.split('_')[1]))
 
 import sys
 Ms = np.zeros((1,2))
 
-
-for folder in folders:
-    #print(folder)
-    os.chdir(folder) 
+for file in files:
     singlets, triplets, oscs, ind_s, ind_t = pega_energias(file)            
     zero = ['0']
     zero.extend(ind_s)
@@ -211,7 +207,6 @@ for folder in folders:
     MMs = np.array(MMs)
     MMs = MMs[np.newaxis,:]
     Ms = np.vstack((Ms,MMs))
-    #Ms.append(ms)
     
     socs = pega_soc(file)
     
@@ -224,11 +219,7 @@ for folder in folders:
         Oscs     = np.vstack((Oscs,oscs))
         Socs     = np.vstack((Socs,socs))
     except:
-        print('Entrei', folder)
-        #print(np.shape(MT1))
-        #print(MT1)
-        #print(np.shape(MS0))
-        #print(np.shape(MT1))
+        print('Entrei', file)
         print(np.shape(singlets))
         print(np.shape(triplets))
         print(np.shape(oscs))
