@@ -52,11 +52,11 @@ try:
     for input in inputs:
         rodando = watcher(rodando,factor)
         nlim = limite()
-        newcommand += '{} {} {}.log &\n'.format(command, input, input[:-3])
+        newcommand += '{} {} {}log &\n'.format(command, input, input[:-3])
         queue += 1
         if queue == num:
             newcommand += 'wait'
-            with open('cmd.txt', 'w') as q:
+            with open('cmd.sh', 'w') as q:
                 q.write(newcommand)
             a = subprocess.call(['bash',batch_file, newcommand])
             queue = 0
