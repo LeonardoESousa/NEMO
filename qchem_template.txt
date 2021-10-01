@@ -1,0 +1,41 @@
+$comment
+PMMA
+$end
+
+$rem
+mem_total  = 20000
+mem_static = 1000
+jobtype               sp
+exchange              wb97xd
+LRC_DFT               true
+omega                 119
+COMBINE_K             TRUE
+basis                 6-31G(d,p)
+cis_n_roots             5
+cis_singlets            true
+cis_triplets            true
+RPA                     false
+calc_soc                true
+STS_MOM                 true
+max_cis_cycles          200
+symmetry=false
+sym_ignore=true
+thresh 11
+solvent_method          PCM
+$end
+
+$pcm
+theory                  IEFPCM
+$end
+
+$solvent
+Dielectric              2.38
+OpticalDielectric       2.24
+$end
+
+$molecule
+0 1
+DDDD
+$end
+
+
