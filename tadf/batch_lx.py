@@ -58,7 +58,7 @@ try:
             newcommand += 'wait'
             with open('cmd.sh', 'w') as q:
                 q.write(newcommand)
-            a = subprocess.call(['bash',batch_file, newcommand])
+            a = subprocess.call(['bash',batch_file, 'cmd.sh'])
             queue = 0
             newcommand = ''
         rodando.append(input)
