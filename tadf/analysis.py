@@ -233,7 +233,7 @@ def analysis():
     Ms = Ms[1:,:]
 
     Ms /= (1/0.529177)*1e10
-    term = e*(hbar**2)/Triplets[:,:2]
+    term = e*(hbar**2)/Triplets
     Os = (2*mass)*(Ms**2)/(3*term)
 
     return Os, Singlets, Triplets, Oscs, Socs
