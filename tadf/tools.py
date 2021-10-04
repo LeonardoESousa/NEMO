@@ -269,7 +269,7 @@ def sample_geom(freqlog, num_geoms, T, header):
 
             
 ##COLLECTS RESULTS############################################## 
-def gather_data(opc, tipo):
+def gather_data(opc):
     files = [file for file in os.listdir('Geometries') if ".log" in file and "Geometr" in file ]    
     files = sorted(files, key=lambda file: float(file.split("-")[1])) 
     from tadf.analysis import analysis
