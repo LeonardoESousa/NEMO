@@ -382,6 +382,7 @@ def spectra(tipo, num_ex, nr):
 
 ##CHECKS THE FREQUENCY LOG'S LEVEL OF THEORY###################
 def busca_input(freqlog):
+    spec = 'ABSSPCT'
     with open(freqlog, 'r') as f:
         search = False
         molec  = False
@@ -389,8 +390,10 @@ def busca_input(freqlog):
             if 'User input:' in line:
                 rem = ''    
                 search = True
-            elif search and 'jobtype' not in line.lower() and '$molecule' not in line.lower() and '-----' not in line:
+            elif search and 'jobtype' not in line.lower() and '$molecule' not in line.lower() and '-----' not in line and 'cis_' not in line.lower():
                 rem += line
+            elif 'cis_n_roots' in line.lower():
+                spec = 'EMISPCT'
             elif search and '$molecule' in line.lower():
                 molec = True
                 search = False
@@ -403,10 +406,7 @@ def busca_input(freqlog):
                     search = True
             elif '--------------------------------------------------------------' in line and search and rem != '':
                 search = False
-    spec = 'ABSSPCT'
-    for elem in rem.lower().split('\n'):
-        if 'cis_n_roots' in elem:
-            spec = 'EMISPCT'    
+    
     return rem, cm, spec                
 ###############################################################
 
