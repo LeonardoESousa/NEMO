@@ -92,7 +92,7 @@ def pega_dipolos(file, ind,frase, state):
         muf = mu    
     return muf            
 
-def pega_soc(file):
+def pega_soc(file,n_state):
     soc = np.nan
     socs = []
     with open('Geometries/'+file, 'r') as f:
@@ -200,7 +200,7 @@ def analysis():
         MMs = MMs[np.newaxis,:]
         Ms = np.vstack((Ms,MMs))
 
-        socs = pega_soc(file)
+        socs = pega_soc(file,n_state)
      
         singlets = np.array([singlets[:n_state]])
         triplets = np.array([triplets[:n_state]])
