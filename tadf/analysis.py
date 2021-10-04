@@ -223,11 +223,11 @@ def analysis():
 
     Ms = Ms[1:,:]
 
-
+    print('Shpae:', np.shape(Ms))
     #term = e*(hbar**2)/V
     #O = (2*mass)*(dipoles**2)/(3*term)
     Ms /= (1/0.529177)*1e10
-    term = e*(hbar**2)/Triplets
+    term = e*(hbar**2)/Triplets[:,0]
     Os = (2*mass)*(Ms**2)/(3*term)
 
     #np.savetxt('RTP.txt', Ms , delimiter='\t', fmt="%5.7e")     
