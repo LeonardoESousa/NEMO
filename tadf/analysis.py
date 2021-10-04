@@ -175,7 +175,7 @@ def moment(file,ess,ets,dipss,dipts,n_triplet):
 
 def analysis():         
     files =  [i for i in os.listdir('Geometries') if '.log' in i]    
-    files = sorted(files, key=lambda pair: float(pair.split('_')[1]))
+    files = sorted(files, key=lambda pair: float(pair.split('-')[1]))
 
     Ms = np.zeros((1,2))
 
