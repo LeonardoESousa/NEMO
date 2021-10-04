@@ -220,7 +220,6 @@ def analysis():
             Triplets = triplets
             Oscs     = oscs
             Socs     = socs
-        os.chdir('..')
 
     Ms = Ms[1:,:]
 
