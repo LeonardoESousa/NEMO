@@ -108,6 +108,7 @@ def main():
     elif op == '4':
         andamento()
     elif op == '5':
+        from lx.tools import ld
         ld()
     elif op == '6':
         omega_tuning()

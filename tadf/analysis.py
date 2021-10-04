@@ -91,20 +91,54 @@ def pega_dipolos(file, ind,frase, state):
         muf = mu    
     return muf            
 
-def pega_soc(file,n_state):
+def pega_soc_S(file,n_state):
     socs = []
     with open('Geometries/'+file, 'r') as f:
         catch = False
         for line in f:
-            if "Total SOC between the S1 state and excited triplet states:" in line:
+            if "Total SOC between the S"+str(n_state)+" state and excited triplet states:" in line:
                 catch = True
-            elif catch and len(socs) < n_state:
-                socs.append(float(line.split()[1]))
-            elif len(socs) == n_state:
-                catch = False
+            elif catch and 'T' in line: #len(socs) < n_state:
+                try:
+                    socs.append(float(line.split()[1]))
+                except:
+                    catch = False
     socs = np.array(socs)
-    return socs[np.newaxis,:]            
+    return socs[np.newaxis,:]*0.12398/1000            
         
+def pega_soc_T(file,n_state):
+    socs = []
+    with open('Geometries/'+file, 'r') as f:
+        catch = False
+        for line in f:
+            if "Total SOC between the S" in line and "state and excited triplet states:" in line:
+                catch = True
+            elif catch and  'T'+str(n_state)+' ' in line: #len(socs) < n_state:
+                try:
+                    socs.append(float(line.split()[1]))
+                except:
+                    catch = False
+    socs = np.array(socs)
+    return socs[np.newaxis,:]*0.12398/1000
+
+
+
+def avg_socs(tipo,n_state):
+    files =  [i for i in os.listdir('Geometries') if '.log' in i]    
+    files = sorted(files, key=lambda pair: float(pair.split('-')[1]))
+    if tipo == 'singlet':
+        pega_soc = pega_soc_S
+    elif tipo == 'triplet':
+        pega_soc = pega_soc_T
+    for file in files:
+        socs = pega_soc(file,n_state)
+        try:
+            Socs     = np.vstack((Socs,socs))
+        except:
+            Socs     = socs
+    return Socs*0.12398/1000  
+
+
 def soc_s0(file,m):
     socs = np.zeros((1,2))
     with open('Geometries/'+file, 'r') as f:
@@ -181,7 +215,7 @@ def read_cis(file):
                     except:
                         pass
     return n_state                
-
+      
 
 def analysis():         
     files =  [i for i in os.listdir('Geometries') if '.log' in i]    
@@ -209,8 +243,6 @@ def analysis():
         MMs = MMs[np.newaxis,:]
         Ms = np.vstack((Ms,MMs))
 
-        socs = pega_soc(file,n_state)
-     
         singlets = np.array([singlets[:n_state]])
         triplets = np.array([triplets[:n_state]])
         oscs     = np.array([oscs[:n_state]]).astype(float)
@@ -218,7 +250,6 @@ def analysis():
             Singlets = np.vstack((Singlets,singlets))
             Triplets = np.vstack((Triplets,triplets))
             Oscs     = np.vstack((Oscs,oscs))
-            Socs     = np.vstack((Socs,socs))
         except:
             #print('Entrei', file)
             #print(np.shape(singlets))
@@ -228,50 +259,49 @@ def analysis():
             Singlets = singlets
             Triplets = triplets
             Oscs     = oscs
-            Socs     = socs
 
     Ms = Ms[1:,:]
-
     Ms /= (1/0.529177)*1e10
     term = e*(hbar**2)/Triplets
     Os = (2*mass)*(Ms**2)/(3*term)
+    return Os, Singlets, Triplets, Oscs
 
-    return Os, Singlets, Triplets, Oscs, Socs
 
-
-def isc(tipo,n_triplet):
+def isc(initial):
     T = 300 #K
-    socs_complete = np.loadtxt(tipo+'\SOCs.txt')*0.12398/1000
-    exs = np.loadtxt(tipo+'\ENGs.txt')
-    n = np.shape(exs)[1]
-    n = int(n/2)
-    total = 0
-    rates = []
-    for j in range(np.shape(socs_complete)[1]):
-        try:
-            lambdas = np.loadtxt(tipo+'\lambda.txt')[j]    #(tipo+'\opt\lambdas.txt')[0]
-        except:
+    n_state = int(initial[1:]) -1
+    if 's' in initial.lower():
+        tipo = 'singlet'
+        final = 'T'
+    elif 't' in initial.lower():
+        tipo = 'triplet'
+        final = 'S'    
+    _, Singlets, Triplets, _ = analysis()
+    socs_complete = avg_socs(tipo,n_state+1)
+    lambdas_list = np.loadtxt('lambdas.txt')
+    with open('ISC_rates.txt', 'w') as f:
+        for j in range(np.shape(socs_complete)[1]):
             try:
-                lambdas = np.loadtxt(tipo+'\lambda.txt')[0]
+                lambdas = lambdas_list[j]
             except:
-                lambdas = np.loadtxt(tipo+'\lambda.txt')    
-        if tipo == 'S1':
-            delta = exs[:,n+j] - exs[:,0]  #Tn (final) - S1 (initial)    
-        elif tipo == 'T1' or tipo == 'T2':
-            delta = exs[:,0] - exs[:,n+j] #S1 (final) - Tn (initial)
+                break
+            if tipo == 'singlet':
+                delta =  Triplets[:,j] - Singlets[:,n_state]   #Tn (final) - S1 (initial)    
+            elif tipo == 'triplet':
+                delta = Singlets[:,j] - Triplets[:,n_state]    #S1 (final) - Tn (initial)
 
-        delta = delta.flatten()
-        const = (2*np.pi/hbar)
-        rate = 0
-        socs = socs_complete[:,j]
-        sigma = np.sqrt(2*lambdas*kb*T + (kb*T)**2)
-        for i in range(np.shape(socs)[0]):
-            rate += (socs[i]**2)*gauss(delta[i]+lambdas,0,sigma)
-        rate /= len(socs)
-        rate *= const
-        rates.append(rate)
-        total += rate
-        print(np.round(np.mean(delta),2),'ISC rate:',tipo, j+1,format(rate, "5.2e"),'s^-1')    
-    print('Total',format(total, "5.2e"))
-    print('---------------------------------------------------------')
-    return rates[n_triplet-1]  #[0]
+            delta = delta.flatten()
+            socs = socs_complete[:,j]
+            sigma = np.sqrt(2*lambdas*kb*T + (kb*T)**2)
+
+            y  = []
+            for i in range(np.shape(socs)[0]):
+                contribution = (2*np.pi/hbar)*(socs[i]**2)*gauss(delta[i]+lambdas,0,sigma)
+                y.append(contribution)
+            y = np.array(y)
+            N = len(Singlets)
+            rate  = np.sum(y)/N 
+            #Error estimate
+            error = np.sqrt(np.sum((y-rate)**2)/(N*(N-1)))
+            f.write('{} -> {}{} : {:5.2e} p/m {:5.2e} s^-1\n'.format(initial.upper(),final,j+1,rate,error))
+    
