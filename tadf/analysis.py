@@ -268,8 +268,8 @@ def analysis():
 
 
 def isc(initial):
-    T = 300 #K
     n_state = int(initial[1:]) -1
+    kbT = detect_sigma()
     if 's' in initial.lower():
         tipo = 'singlet'
         final = 'T'
@@ -289,11 +289,8 @@ def isc(initial):
                 delta =  Triplets[:,j] - Singlets[:,n_state]   #Tn (final) - S1 (initial)    
             elif tipo == 'triplet':
                 delta = Singlets[:,j] - Triplets[:,n_state]    #S1 (final) - Tn (initial)
-
-            delta = delta.flatten()
             socs = socs_complete[:,j]
-            sigma = np.sqrt(2*lambdas*kb*T + (kb*T)**2)
-
+            sigma = np.sqrt(2*lambdas*kbT + (kbT)**2)
             y  = []
             for i in range(np.shape(socs)[0]):
                 contribution = (2*np.pi/hbar)*(socs[i]**2)*gauss(delta[i]+lambdas,0,sigma)

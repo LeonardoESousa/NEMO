@@ -18,13 +18,15 @@ def main():
     print("\t2 - Run the spectrum calculations")
     print("\t3 - Generate the spectrum")
     print("\t4 - Check the progress of the calculations")
+    print("RATE ESTIMATES:")
+    print("\t5 - Estimate available rates")
     print('EXCITON ANALYSIS:')
-    print("\t5 - Estimate Förster radius, fluorescence lifetime and exciton diffusion lengths")
+    print("\t6 - Estimate Förster radius, fluorescence lifetime and exciton diffusion lengths")
     print('OTHER FEATURES:')
-    print("\t6 - Perform long-range parameter tuning") 
-    print("\t7 - Retrieve last geometry from log file") 
-    print("\t8 - Distort a molecule in the direction of imaginary normal modes")
-    print("\t9 - Abort my calculations")
+    print("\t7 - Perform long-range parameter tuning") 
+    print("\t8 - Retrieve last geometry from log file") 
+    print("\t9 - Distort a molecule in the direction of imaginary normal modes")
+    print("\t10 - Abort my calculations")
     op = input()
     if op == '1':
         freqlog = fetch_file("frequency",['.out'])
@@ -108,11 +110,14 @@ def main():
     elif op == '4':
         andamento()
     elif op == '5':
+        from tadf.analysis import isc
+        isc()    
+    elif op == '6':
         from lx.tools import ld
         ld()
-    elif op == '6':
-        omega_tuning()
     elif op == '7':
+        omega_tuning()
+    elif op == '8':
         freqlog = fetch_file("log",['.log'])
         base, _, nproc, mem, scrf, _ = busca_input(freqlog)
         cm = get_cm(freqlog)
@@ -120,14 +125,14 @@ def main():
         G, atomos = pega_geom(freqlog)
         write_input(atomos,G,header,'','geom.lx')
         print('Geometry saved in the geom.lx file.')    
-    elif op == '8':
+    elif op == '9':
         freqlog = fetch_file("frequency",['.log'])
         base, temtd, nproc, mem, scrf, _ = busca_input(freqlog)
         cm = get_cm(freqlog)
         header = '%nproc={}\n%mem={}\n# {} FREQ=noraman {} {}\n\nTITLE\n\n{}\n'.format(nproc,mem,base,temtd,scrf,cm)
         T = float(input("Magnitude of the displacement in Å? \n")) #K
         shake(freqlog,T,header)
-    elif op == '9':
+    elif op == '10':
         abort_batch()
     else:
         fatal_error("It must be one of the options... Goodbye!")

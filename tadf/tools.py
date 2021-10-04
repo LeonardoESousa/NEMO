@@ -273,7 +273,7 @@ def gather_data(opc):
     files = [file for file in os.listdir('Geometries') if ".log" in file and "Geometr" in file ]    
     files = sorted(files, key=lambda file: float(file.split("-")[1])) 
     from tadf.analysis import analysis
-    Os, Singlets, Triplets, Oscs, _ = analysis()
+    Os, Singlets, Triplets, Oscs = analysis()
     num = np.shape(Singlets)[1]
     with open("Samples.lx", 'w') as f:
         for i in range(np.shape(Singlets)[0]):
