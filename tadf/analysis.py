@@ -182,7 +182,7 @@ def analysis():
         zero.extend(ind_s)
 
         MMs = []
-        for n_triplet in range(2):
+        for n_triplet in range(n_state):
             MS0 = pega_dipolos(file, zero,"Electron Dipole Moments of Ground State",0)            
             MS0resto = pega_dipolos(file, zero,"Transition Moments Between Ground and Singlet Excited States",0) 
             MS0 = np.vstack((MS0,MS0resto))
@@ -224,3 +224,41 @@ def analysis():
     Os = (2*mass)*(Ms**2)/(3*term)
 
     return Os, Singlets, Triplets, Oscs, Socs
+
+
+def isc(tipo,n_triplet):
+    T = 300 #K
+    socs_complete = np.loadtxt(tipo+'\SOCs.txt')*0.12398/1000
+    exs = np.loadtxt(tipo+'\ENGs.txt')
+    n = np.shape(exs)[1]
+    n = int(n/2)
+    total = 0
+    rates = []
+    for j in range(np.shape(socs_complete)[1]):
+        try:
+            lambdas = np.loadtxt(tipo+'\lambda.txt')[j]    #(tipo+'\opt\lambdas.txt')[0]
+        except:
+            try:
+                lambdas = np.loadtxt(tipo+'\lambda.txt')[0]
+            except:
+                lambdas = np.loadtxt(tipo+'\lambda.txt')    
+        if tipo == 'S1':
+            delta = exs[:,n+j] - exs[:,0]  #Tn (final) - S1 (initial)    
+        elif tipo == 'T1' or tipo == 'T2':
+            delta = exs[:,0] - exs[:,n+j] #S1 (final) - Tn (initial)
+
+        delta = delta.flatten()
+        const = (2*np.pi/hbar)
+        rate = 0
+        socs = socs_complete[:,j]
+        sigma = np.sqrt(2*lambdas*kb*T + (kb*T)**2)
+        for i in range(np.shape(socs)[0]):
+            rate += (socs[i]**2)*gauss(delta[i]+lambdas,0,sigma)
+        rate /= len(socs)
+        rate *= const
+        rates.append(rate)
+        total += rate
+        print(np.round(np.mean(delta),2),'ISC rate:',tipo, j+1,format(rate, "5.2e"),'s^-1')    
+    print('Total',format(total, "5.2e"))
+    print('---------------------------------------------------------')
+    return rates[n_triplet-1]  #[0]
