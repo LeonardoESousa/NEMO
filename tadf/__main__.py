@@ -95,20 +95,16 @@ def main():
             tipo = input("What kind of spectrum? Type abs (absorption) or emi (emission)\n")
             if tipo != 'abs' and tipo != 'emi':
                 fatal_error('It must be either one. Goodbye!')
+        tipo = tipo[:3]
+        gather_data(opc)
+        if tipo == 'abs':
+            estados = ask_states("How many excited states in the absorption spectrum?\n")
+            spectra('abs', estados, nr)
         else:
-            tipo = tipo[:3]
-            if tipo == 'abs':
-                estados = input("How many excited states?\n")
-                try:
-                    estados = int(estados)
-                except:
-                    fatal_error("It must be an integer! Goodbye!")
-            else:
-                estados = 1
-        num_ex = range(0,estados+1)
-        num_ex = list(map(int,num_ex))
-        gather_data(opc, tipo)
-        spectra(tipo, num_ex, nr)
+            estados = ask_states("Fluorescence from which excited state (1,2, etc)?\n")
+            spectra('fluor', estados, nr)
+            estados = ask_states("Phosphorescence from which excited state (1,2, etc)?\n")
+            spectra('phosph', estados, nr)    
     elif op == '4':
         andamento()
     elif op == '5':

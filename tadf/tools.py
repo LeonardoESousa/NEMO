@@ -274,19 +274,13 @@ def gather_data(opc, tipo):
     files = sorted(files, key=lambda file: float(file.split("-")[1])) 
     from tadf.analysis import analysis
     Os, Singlets, Triplets, Oscs, _ = analysis()
-    if tipo == 'emi':
-        num = 1
-        num2 = 1
-    else:
-        num = np.shape(Singlets)[1]   
-        num2 = 0
-
+    num = np.shape(Singlets)[1]
     with open("Samples.lx", 'w') as f:
         for i in range(np.shape(Singlets)[0]):
             f.write("Geometry "+str(i)+":  Vertical transition (eV) Oscillator strength Broadening Factor (eV) Spin \n")
             for j in range(num):
                 f.write("Excited State {}:\t{}\t{}\t{}\t{}\n".format(j+1,Singlets[i,j],Oscs[i,j],opc,'Singlet'))        
-            for j in range(num2):
+            for j in range(num):
                 f.write("Excited State {}:\t{}\t{}\t{}\t{}\n".format(j+1,Triplets[i,j],Os[i,j],opc,'Triplet'))
 ############################################################### 
 
@@ -323,11 +317,28 @@ def naming(arquivo):
     return new_arquivo        
 ###############################################################
 
+def ask_states(frase):
+    estados = input(frase)
+    try:
+        estados = int(estados)
+    except:
+        fatal_error("It must be an integer! Goodbye!")
+    return estados
+
 ##COMPUTES SPECTRA############################################# 
 def spectra(tipo, num_ex, nr):
     if tipo == "abs":
+        spin = 'Singlet'
+        num_ex = range(0,num_ex+1)
+        num_ex = list(map(int,num_ex))
         constante = (np.pi*(e**2)*hbar)/(2*nr*mass*c*epsilon0)*10**(20)
-    elif tipo == 'emi':
+    elif tipo == 'fluor':
+        spin = 'Singlet'
+        num_ex = [num_ex]
+        constante = ((nr**2)*(e**2)/(2*np.pi*hbar*mass*(c**3)*epsilon0))
+    elif tipo == 'phosph':
+        spin = 'Triplet'
+        num_ex = [num_ex]
         constante = ((nr**2)*(e**2)/(2*np.pi*hbar*mass*(c**3)*epsilon0))
     V, O, S = [], [], []
     N = 0
@@ -335,7 +346,7 @@ def spectra(tipo, num_ex, nr):
         for line in f:
             if "Geometry" in line:
                 N += 1
-            elif "Excited State" in line and int(line.split()[2][:-1]) in num_ex:
+            elif "Excited State" in line and int(line.split()[2][:-1]) in num_ex and spin in line:
                 line = line.split()
                 V.append(float(line[3]))
                 O.append(float(line[4]))
@@ -359,7 +370,7 @@ def spectra(tipo, num_ex, nr):
         arquivo = 'cross_section.lx'
         primeira = "{:8s} {:8s} {:8s}\n".format("#Energy(ev)", "cross_section(A^2)", "error")
     else:
-        arquivo = 'differential_rate.lx'
+        arquivo = tipo+'_differential_rate.lx'
         primeira = "{:4s} {:4s} {:4s} TDM={:.3f} au\n".format("#Energy(ev)", "diff_rate", "error",tdm)
     arquivo = naming(arquivo)
     for i in range(0,len(espectro)):

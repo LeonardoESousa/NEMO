@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 import numpy as np
 import os
-import sys
 from tadf.tools import *
 
 
@@ -93,16 +92,14 @@ def pega_dipolos(file, ind,frase, state):
     return muf            
 
 def pega_soc(file,n_state):
-    soc = np.nan
     socs = []
     with open('Geometries/'+file, 'r') as f:
         catch = False
         for line in f:
             if "Total SOC between the S1 state and excited triplet states:" in line:
                 catch = True
-            elif catch and len(socs) < n_state:# and line.split()[0] == 'T1':
+            elif catch and len(socs) < n_state:
                 socs.append(float(line.split()[1]))
-                #catch = False
             elif len(socs) == n_state:
                 catch = False
     socs = np.array(socs)
@@ -164,7 +161,6 @@ def moment(file,ess,ets,dipss,dipts,n_triplet):
                 p1 = np.sum(p1)
                 p2 = (socst1[:,j]/(ets[n_triplet]-ess))*dipss[:,i]
                 p2 = np.sum(p2)
-                #print(i,p1,p2)
                 Ps.append((p1+p2)*conversion)
             Ms.append(Ps[0]**2+Ps[1]**2)    
     
@@ -211,11 +207,11 @@ def analysis():
             Oscs     = np.vstack((Oscs,oscs))
             Socs     = np.vstack((Socs,socs))
         except:
-            print('Entrei', file)
-            print(np.shape(singlets))
-            print(np.shape(triplets))
-            print(np.shape(oscs))
-            print(np.shape(socs))
+            #print('Entrei', file)
+            #print(np.shape(singlets))
+            #print(np.shape(triplets))
+            #print(np.shape(oscs))
+            #print(np.shape(socs))
             Singlets = singlets
             Triplets = triplets
             Oscs     = oscs
@@ -223,20 +219,8 @@ def analysis():
 
     Ms = Ms[1:,:]
 
-    #term = e*(hbar**2)/V
-    #O = (2*mass)*(dipoles**2)/(3*term)
     Ms /= (1/0.529177)*1e10
     term = e*(hbar**2)/Triplets[:,:2]
     Os = (2*mass)*(Ms**2)/(3*term)
 
-    #np.savetxt('RTP.txt', Ms , delimiter='\t', fmt="%5.7e")     
-
-    #engs = np.hstack((Singlets,Triplets))
-    #np.savetxt("ENGs.txt", engs, delimiter='\t', fmt='%6.3f' )     
-
-    #np.savetxt("OSCs.txt", Oscs, delimiter='\t', fmt='%6.3f' )    
-
-    #np.savetxt("SOCs.txt", Socs, delimiter='\t', fmt='%6.3f' )
-
-    #print(np.shape(engs))     
     return Os, Singlets, Triplets, Oscs, Socs
