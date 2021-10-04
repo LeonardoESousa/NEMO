@@ -272,41 +272,22 @@ def sample_geom(freqlog, num_geoms, T, header):
 def gather_data(opc, tipo):
     files = [file for file in os.listdir('Geometries') if ".log" in file and "Geometr" in file ]    
     files = sorted(files, key=lambda file: float(file.split("-")[1])) 
+    from tadf.analysis import analysis
+    Os, Singlets, Triplets, Oscs, _ = analysis()
+    if tipo == 'emi':
+        num = 1
+        num2 = 1
+    else:
+        num = np.shape(Singlets)[1]   
+        num2 = 0
+
     with open("Samples.lx", 'w') as f:
-        for file in files:
-            num = file.split("-")[1]
-            broadening = opc
-            numeros, energies, fs, scfs = [], [], [], []
-            corrected, total_corrected = -1, -1
-            with open('Geometries/'+file, 'r') as g:
-                for line in g: 
-                    if "Excited State" in line:
-                        line = line.split()
-                        numeros.append(line[2])
-                        energies.append(line[4])
-                        fs.append(line[8][2:])
-                    elif "Corrected transition energy" in line:
-                        line = line.split()
-                        corrected = line[4]
-                    elif "Total energy after correction" in line:
-                        line = line.split()
-                        total_corrected = 27.2114*float(line[5])
-                    elif "SCF Done:" in line:
-                        line = line.split()
-                        scfs.append(27.2114*float(line[4]))
-                if len(numeros) > 0:
-                    f.write("Geometry "+num+":  Vertical transition (eV) Oscillator strength Broadening Factor (eV) \n")
-                    if corrected != -1 and tipo == 'abs': #abspcm
-                        f.write("Excited State {}\t{}\t{}\t{}\n".format(numeros[0],corrected, fs[0], broadening))
-                    elif corrected != -1 and tipo == 'emi': #emipcm     
-                        energy = total_corrected - scfs[-1]
-                        f.write("Excited State {}\t{:.3f}\t{}\t{}\n".format(numeros[0],energy,fs[0],broadening))
-                    elif corrected == -1 and tipo == 'emi':
-                        f.write("Excited State {}\t{}\t{}\t{}\n".format(numeros[0],energies[0],fs[0],broadening))
-                    else:
-                        for i in range(len(energies)):
-                            f.write("Excited State {}\t{}\t{}\t{}\n".format(numeros[i],energies[i],fs[i],broadening))
-                    f.write("\n")   
+        for i in range(np.shape(Singlets)[0]):
+            f.write("Geometry "+str(i)+":  Vertical transition (eV) Oscillator strength Broadening Factor (eV) Spin \n")
+            for j in range(num):
+                f.write("Excited State {}\t{}\t{}\t{}\t{}\n".format(j+1,Singlets[i,j],Oscs[i,j],opc,'Singlet'))        
+            for j in range(num2):
+                f.write("Excited State {}\t{}\t{}\t{}\t{}\n".format(j+1,Triplets[i,j],Os[i,j],opc,'Triplet'))
 ############################################################### 
 
 
@@ -556,24 +537,19 @@ def get_spec():
 
 ##FETCHES REFRACTIVE INDEX##################################### 
 def get_nr():
-    buscar = False
+    nr = 1
     coms = [file for file in os.listdir("Geometries") if 'Geometr' in file and '.com' in file]
     with open('Geometries/'+coms[0],'r') as f:
         for line in f:
-            if 'SCRF' in line.upper():
-                buscar = True
-                break
-    if buscar:
-        logs = [file for file in os.listdir("Geometries") if 'Geometr' in file and '.log' in file]
-        for log in logs:
-            with open('Geometries/'+log,'r') as f:
-                for line in f:
-                    if 'Solvent' in line and 'Eps' in line:
-                        line = line.split()
-                        nr = np.sqrt(float(line[6]))
-                        return nr
-    else:
-        return 1                
+            if 'opticaldielectric' in line.lower():
+                line = line.split()
+                for elem in line:
+                    try:
+                        nr = np.sqrt(float(elem))
+                        break
+                    except:
+                        pass
+    return nr                
 ###############################################################
 
 ##FETCHES CHARGE AND MULTIPLICITY##############################
@@ -715,7 +691,7 @@ def ld():
         print('Not employing correction!')
     
     print('Computing...')
-    import tadf.ld 
+    import lx.ld 
     try:
         ld.run_ld(Abs, Emi, alpha, rmin, kappa, Phi)
         print('Results can be found in the ld.lx file')

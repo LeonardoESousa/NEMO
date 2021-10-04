@@ -2,17 +2,15 @@
 import numpy as np
 import os
 import sys
+from tadf.tools import *
 
 
-n_state = int(sys.argv[1])
 
-#n_triplet = int(sys.argv[2])
 
 def pega_energias(file):
     with open('Geometries/'+file, 'r') as f:
         energies, spins, corrected, oscs, ind = [], [], [], [], []
-        exc, pcm, SO = False, True, False
-        s0t1, s1t1 = False, False
+        exc = False
         for line in f:
             if 'TDDFT/TDA Excitation Energies' in line:
                 exc = True
@@ -26,13 +24,6 @@ def pega_energias(file):
                 oscs.append(line.split()[2])
             elif '---------------------------------------------------' in line and exc and len(energies) > 0:
                 exc = False
-            #elif 'SUMMARY OF LR-PCM AND SS-PCM' in line and len(energies) > 0:
-            #    pcm = True
-            #elif '1st-order LR-PCM corrected excitation energy' in line and pcm: #'Total  1st-order corrected excitation energy'
-            #    corrected.append(float(line.split()[6]))
-            #elif '------------------------ END OF SUMMARY -----------------------' in line and pcm and len(corrected) > 0:
-                #pcm = False
-            #    break
                 
         singlets   = [corrected[i] for i in range(len(corrected)) if spins[i] == 'Singlet']
         ind_s      = [ind[i] for i in range(len(ind)) if spins[i] == 'Singlet']
@@ -181,64 +172,73 @@ def moment(file,ess,ets,dipss,dipts,n_triplet):
     Ms = np.sum(Ms)
     return Ms
 
-         
-files =  [i for i in os.listdir('Geometries') if '.log' in i]    
-files = sorted(files, key=lambda pair: float(pair.split('_')[1]))
 
-import sys
-Ms = np.zeros((1,2))
+def analysis():         
+    files =  [i for i in os.listdir('Geometries') if '.log' in i]    
+    files = sorted(files, key=lambda pair: float(pair.split('_')[1]))
 
-for file in files:
-    singlets, triplets, oscs, ind_s, ind_t = pega_energias(file)            
-    zero = ['0']
-    zero.extend(ind_s)
+    Ms = np.zeros((1,2))
 
-    MMs = []
-    for n_triplet in range(2):
-        MS0 = pega_dipolos(file, zero,"Electron Dipole Moments of Ground State",0)            
-        MS0resto = pega_dipolos(file, zero,"Transition Moments Between Ground and Singlet Excited States",0) 
-        MS0 = np.vstack((MS0,MS0resto))
-        MT1 = pega_dipolos(file, ind_t,"Electron Dipole Moments of Triplet Excited State",n_triplet)            
-        MT1resto = pega_dipolos(file, ind_t,"Transition Moments Between Triplet Excited States",n_triplet)           
-        MT1 = np.vstack((MT1,MT1resto))
-        MT1[[0,n_triplet]] = MT1[[n_triplet,0]]
-        ms = moment(file,singlets,triplets,MS0,MT1,n_triplet)  
-        MMs.append(ms)
-    MMs = np.array(MMs)
-    MMs = MMs[np.newaxis,:]
-    Ms = np.vstack((Ms,MMs))
-    
-    socs = pega_soc(file)
-    
-    singlets = np.array([singlets[:n_state]])
-    triplets = np.array([triplets[:n_state]])
-    oscs     = np.array([oscs[:n_state]]).astype(float)
-    try:
-        Singlets = np.vstack((Singlets,singlets))
-        Triplets = np.vstack((Triplets,triplets))
-        Oscs     = np.vstack((Oscs,oscs))
-        Socs     = np.vstack((Socs,socs))
-    except:
-        print('Entrei', file)
-        print(np.shape(singlets))
-        print(np.shape(triplets))
-        print(np.shape(oscs))
-        print(np.shape(socs))
-        Singlets = singlets
-        Triplets = triplets
-        Oscs     = oscs
-        Socs     = socs
-    os.chdir('..')
+    for file in files:
+        singlets, triplets, oscs, ind_s, ind_t = pega_energias(file)            
+        n_state = len(singlets)
+        zero = ['0']
+        zero.extend(ind_s)
 
-Ms = Ms[1:,:]
-np.savetxt('RTP.txt', Ms , delimiter='\t', fmt="%5.7e")     
+        MMs = []
+        for n_triplet in range(2):
+            MS0 = pega_dipolos(file, zero,"Electron Dipole Moments of Ground State",0)            
+            MS0resto = pega_dipolos(file, zero,"Transition Moments Between Ground and Singlet Excited States",0) 
+            MS0 = np.vstack((MS0,MS0resto))
+            MT1 = pega_dipolos(file, ind_t,"Electron Dipole Moments of Triplet Excited State",n_triplet)            
+            MT1resto = pega_dipolos(file, ind_t,"Transition Moments Between Triplet Excited States",n_triplet)           
+            MT1 = np.vstack((MT1,MT1resto))
+            MT1[[0,n_triplet]] = MT1[[n_triplet,0]]
+            ms = moment(file,singlets,triplets,MS0,MT1,n_triplet)  
+            MMs.append(ms)
+        MMs = np.array(MMs)
+        MMs = MMs[np.newaxis,:]
+        Ms = np.vstack((Ms,MMs))
 
-engs = np.hstack((Singlets,Triplets))
-np.savetxt("ENGs.txt", engs, delimiter='\t', fmt='%6.3f' )     
-    
-np.savetxt("OSCs.txt", Oscs, delimiter='\t', fmt='%6.3f' )    
-
-np.savetxt("SOCs.txt", Socs, delimiter='\t', fmt='%6.3f' )
+        socs = pega_soc(file)
      
-print(np.shape(engs))     
+        singlets = np.array([singlets[:n_state]])
+        triplets = np.array([triplets[:n_state]])
+        oscs     = np.array([oscs[:n_state]]).astype(float)
+        try:
+            Singlets = np.vstack((Singlets,singlets))
+            Triplets = np.vstack((Triplets,triplets))
+            Oscs     = np.vstack((Oscs,oscs))
+            Socs     = np.vstack((Socs,socs))
+        except:
+            print('Entrei', file)
+            print(np.shape(singlets))
+            print(np.shape(triplets))
+            print(np.shape(oscs))
+            print(np.shape(socs))
+            Singlets = singlets
+            Triplets = triplets
+            Oscs     = oscs
+            Socs     = socs
+        os.chdir('..')
 
+    Ms = Ms[1:,:]
+
+
+    #term = e*(hbar**2)/V
+    #O = (2*mass)*(dipoles**2)/(3*term)
+    Ms /= (1/0.529177)*1e10
+    term = e*(hbar**2)/Triplets
+    Os = (2*mass)*(Ms**2)/(3*term)
+
+    #np.savetxt('RTP.txt', Ms , delimiter='\t', fmt="%5.7e")     
+
+    #engs = np.hstack((Singlets,Triplets))
+    #np.savetxt("ENGs.txt", engs, delimiter='\t', fmt='%6.3f' )     
+
+    #np.savetxt("OSCs.txt", Oscs, delimiter='\t', fmt='%6.3f' )    
+
+    #np.savetxt("SOCs.txt", Socs, delimiter='\t', fmt='%6.3f' )
+
+    #print(np.shape(engs))     
+    return Os, Singlets, Triplets, Oscs, Socs

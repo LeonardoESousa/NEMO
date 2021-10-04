@@ -4,14 +4,14 @@ from tadf.tools import *
 
 
 def main():
-    print("#                       #     #")
-    print("#        ######   ####   #   # ")
-    print("#        #       #    #   # #  ")
-    print("#        #####   #    #    #   ")
-    print("#        #       #    #   # #  ")
-    print("#        #       #    #  #   # ")
-    print("#######  ######   ####  #     #")
-    print("----SPECTRA FOR THE PEOPLE!----\n")
+    print("#######    #    ######  ####### ")
+    print("   #      # #   #     # #       ")
+    print("   #     #   #  #     # #       ")
+    print("   #    #     # #     # #####   ")
+    print("   #    ####### #     # #       ")
+    print("   #    #     # #     # #       ")
+    print("   #    #     # ######  #       ")
+    print("-----rISC FOR THE PEOPLE!-----\n")
     print("Choose your option:\n")
     print('SPECTRUM SIMULATIONS:')
     print("\t1 - Generate the inputs for the spectrum calculation")
