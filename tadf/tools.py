@@ -279,9 +279,9 @@ def gather_data(opc):
         for i in range(np.shape(Singlets)[0]):
             f.write("Geometry "+str(i)+":  Vertical transition (eV) Oscillator strength Broadening Factor (eV) Spin \n")
             for j in range(num):
-                f.write("Excited State {}:\t{}\t{}\t{}\t{}\n".format(j+1,Singlets[i,j],Oscs[i,j],opc,'Singlet'))        
+                f.write("Excited State {}:\t{}\t{:.5e}\t{}\t{}\n".format(j+1,Singlets[i,j],Oscs[i,j],opc,'Singlet'))        
             for j in range(num):
-                f.write("Excited State {}:\t{}\t{}\t{}\t{}\n".format(j+1,Triplets[i,j],Os[i,j],opc,'Triplet'))
+                f.write("Excited State {}:\t{}\t{:.5e}\t{}\t{}\n".format(j+1,Triplets[i,j],Os[i,j],opc,'Triplet'))
 ############################################################### 
 
 
@@ -354,7 +354,7 @@ def spectra(tipo, num_ex, nr):
     coms = start_counter()
     if len(V) == 0 or len(O) == 0:
         fatal_error("You need to run steps 1 and 2 first! Goodbye!")
-    elif len(V) != coms*max(num_ex):
+    elif len(V) != coms*len(num_ex):
         print("Number of log files is less than the number of inputs. Something is not right! Computing the spectrum anyway...")
     V = np.array(V)
     O = np.array(O)
