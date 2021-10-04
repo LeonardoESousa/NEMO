@@ -168,16 +168,29 @@ def moment(file,ess,ets,dipss,dipts,n_triplet):
     Ms = np.sum(Ms)
     return Ms
 
+def read_cis(file):
+    file = file[:-3]+'com'
+    with open('Geometries/'+file, 'r') as f:
+        for line in f:
+            if 'cis_n_roots' in line.lower():
+                line = line.split()
+                for elem in line:
+                    try:
+                        n_state = int(elem)
+                        break
+                    except:
+                        pass
+    return n_state                
+
 
 def analysis():         
     files =  [i for i in os.listdir('Geometries') if '.log' in i]    
     files = sorted(files, key=lambda pair: float(pair.split('-')[1]))
-
-    Ms = np.zeros((1,2))
+    n_state = read_cis(files[0])
+    Ms = np.zeros((1,n_state))
 
     for file in files:
         singlets, triplets, oscs, ind_s, ind_t = pega_energias(file)            
-        n_state = len(singlets)
         zero = ['0']
         zero.extend(ind_s)
 
