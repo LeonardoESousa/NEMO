@@ -285,9 +285,9 @@ def gather_data(opc, tipo):
         for i in range(np.shape(Singlets)[0]):
             f.write("Geometry "+str(i)+":  Vertical transition (eV) Oscillator strength Broadening Factor (eV) Spin \n")
             for j in range(num):
-                f.write("Excited State {}\t{}\t{}\t{}\t{}\n".format(j+1,Singlets[i,j],Oscs[i,j],opc,'Singlet'))        
+                f.write("Excited State {}:\t{}\t{}\t{}\t{}\n".format(j+1,Singlets[i,j],Oscs[i,j],opc,'Singlet'))        
             for j in range(num2):
-                f.write("Excited State {}\t{}\t{}\t{}\t{}\n".format(j+1,Triplets[i,j],Os[i,j],opc,'Triplet'))
+                f.write("Excited State {}:\t{}\t{}\t{}\t{}\n".format(j+1,Triplets[i,j],Os[i,j],opc,'Triplet'))
 ############################################################### 
 
 
