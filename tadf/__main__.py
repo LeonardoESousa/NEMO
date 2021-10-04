@@ -110,8 +110,9 @@ def main():
     elif op == '4':
         andamento()
     elif op == '5':
+        state = input('What is the initial state? (S1, T1, S2 ...)')
         from tadf.analysis import isc
-        isc()    
+        isc(state)    
     elif op == '6':
         from lx.tools import ld
         ld()
