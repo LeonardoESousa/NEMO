@@ -3,6 +3,7 @@ import numpy as np
 import os
 import sys
 from scipy.stats import norm
+from tadf.analysis import pega_energias
 
 ##SOME CONSTANTS##############################################
 epsilon0 = 8.854187817e-12   #F/m
@@ -360,6 +361,7 @@ def spectra(tipo, num_ex, nr):
 ##CHECKS THE FREQUENCY LOG'S LEVEL OF THEORY###################
 def busca_input(freqlog):
     spec = 'ABSSPCT'
+    root = 1
     with open(freqlog, 'r') as f:
         search = False
         molec  = False
@@ -369,8 +371,9 @@ def busca_input(freqlog):
                 search = True
             elif search and 'jobtype' not in line.lower() and '$molecule' not in line.lower() and '-----' not in line and 'cis_' not in line.lower():
                 rem += line
-            elif 'cis_n_roots' in line.lower():
+            elif 'CIS_STATE_DERIV' in line.upper():
                 spec = 'EMISPCT'
+                root = int(line.slpit()[-1])
             elif search and '$molecule' in line.lower():
                 molec = True
                 search = False
@@ -383,7 +386,12 @@ def busca_input(freqlog):
                     search = True
             elif '--------------------------------------------------------------' in line and search and rem != '':
                 search = False
-    
+    if spec == 'EMISPCT':
+        _, _, _, ind_s, ind_t = pega_energias(freqlog)
+        if root in ind_s:
+            spec = 'FLUORSPCT'
+        elif root in ind_t:
+            spec = 'PHOSPHSPCT'
     return rem, cm, spec                
 ###############################################################
 
@@ -474,6 +482,10 @@ def get_spec():
             elif 'EMISPCT' in line:
                 tipo = 'emission'
                 break
+            elif 'FLUORSPCT' in line:
+                tipo = 'fluorescence'
+            elif 'PHOSPHSPCT' in line:
+                tipo = 'phosphorescence'    
     return tipo       
 ###############################################################
 

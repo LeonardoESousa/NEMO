@@ -7,10 +7,10 @@ from tadf.tools import *
 ##GETS ENERGIES, OSCS, AND INDICES FOR Sn AND Tn STATES##################################
 def pega_energias(file):
     with open('Geometries/'+file, 'r') as f:
-        energies, spins, oscs, ind = [], [], [], []
         exc = False
         for line in f:
-            if 'TDDFT/TDA Excitation Energies' in line:
+            if 'TDDFT/TDA Excitation Energies' in line or 'TDDFT Excitation Energies' in line:
+                energies, spins, oscs, ind = [], [], [], []
                 exc = True
             elif 'Excited state' in line and exc:
                 energies.append(float(line.split()[7]))

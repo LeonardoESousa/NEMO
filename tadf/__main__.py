@@ -73,17 +73,18 @@ def main():
                 opc = float(opc)
             except: 
                 fatal_error("It must be a number. Goodbye!")  
-            tipo = input("What kind of spectrum? Type abs (absorption) or emi (emission)\n")
-            if tipo != 'abs' and tipo != 'emi':
+            tipo = input("What kind of spectrum? Type abs (absorption) or flu (fluorescence) or pho (phosphorescence)\n")
+            if tipo != 'abs' and tipo != 'flu' and tipo != 'pho':
                 fatal_error('It must be either one. Goodbye!')
         tipo = tipo[:3]
         gather_data(opc)
         if tipo == 'abs':
             estados = ask_states("How many excited states in the absorption spectrum?\n")
             spectra('abs', estados, nr)
-        else:
+        elif tipo == 'flu':
             estados = ask_states("Fluorescence from which excited state (1,2, etc)?\n")
             spectra('fluor', estados, nr)
+        elif tipo == 'pho':    
             estados = ask_states("\nPhosphorescence from which excited state (1,2, etc)?\n")
             spectra('phosph', estados, nr)    
     elif op == '4':
