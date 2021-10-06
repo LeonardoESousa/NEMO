@@ -18,15 +18,15 @@ def main():
     print("\t2 - Run the spectrum calculations")
     print("\t3 - Generate the spectrum")
     print("\t4 - Check the progress of the calculations")
-    print("RATE ESTIMATES:")
-    print("\t5 - Estimate available rates")
+    print("INTERSYSTEM CROSSING (ISC):")
+    print("\t5 - Estimate ISC rates")
     print('EXCITON ANALYSIS:')
     print("\t6 - Estimate Förster radius, fluorescence lifetime and exciton diffusion lengths")
     print('OTHER FEATURES:')
-    print("\t7 - Perform long-range parameter tuning") 
-    print("\t8 - Retrieve last geometry from log file") 
-    print("\t9 - Distort a molecule in the direction of imaginary normal modes")
-    print("\t10 - Abort my calculations")
+    #print("\t7 - Perform long-range parameter tuning") 
+    print("\t7 - Retrieve last geometry from log file") 
+    print("\t8 - Distort a molecule in the direction of imaginary normal modes")
+    print("\t9 - Abort my calculations")
     op = input()
     if op == '1':
         freqlog = fetch_file("frequency",['.out'])
@@ -95,24 +95,21 @@ def main():
     elif op == '6':
         from lx.tools import ld
         ld()
+    #elif op == '7':
+    #    omega_tuning()
     elif op == '7':
-        omega_tuning()
-    elif op == '8':
-        freqlog = fetch_file("log",['.log'])
-        base, _, nproc, mem, scrf, _ = busca_input(freqlog)
-        cm = get_cm(freqlog)
-        header = '%nproc={}\n%mem={}\n# {} {}\n\nTITLE\n\n{}\n'.format(nproc,mem,base,scrf,cm)
+        freqlog = fetch_file("log",['.log','.out'])
+        rem, cm, spec = busca_input(freqlog)
         G, atomos = pega_geom(freqlog)
-        write_input(atomos,G,header,'','geom.lx')
+        write_input(atomos,G,'{}\n{}\n'.format(rem,cm),'','geom.lx')
         print('Geometry saved in the geom.lx file.')    
-    elif op == '9':
-        freqlog = fetch_file("frequency",['.log'])
-        base, temtd, nproc, mem, scrf, _ = busca_input(freqlog)
-        cm = get_cm(freqlog)
-        header = '%nproc={}\n%mem={}\n# {} FREQ=noraman {} {}\n\nTITLE\n\n{}\n'.format(nproc,mem,base,temtd,scrf,cm)
+    elif op == '8':
+        freqlog = fetch_file("frequency",['.log','.out'])
+        rem, cm, spec = busca_input(freqlog)
+        header = '{}\n{}\n'.format(rem,cm)
         T = float(input("Magnitude of the displacement in Å? \n")) #K
         shake(freqlog,T,header)
-    elif op == '10':
+    elif op == '9':
         abort_batch()
     else:
         fatal_error("It must be one of the options... Goodbye!")
