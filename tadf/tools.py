@@ -373,7 +373,7 @@ def busca_input(freqlog):
                 rem += line
             elif 'CIS_STATE_DERIV' in line.upper():
                 spec = 'EMISPCT'
-                root = int(line.slpit()[-1])
+                root = int(line.split()[-1])
             elif search and '$molecule' in line.lower():
                 molec = True
                 search = False
