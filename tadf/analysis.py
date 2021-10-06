@@ -290,7 +290,10 @@ def isc(initial):
         final = 'S'    
     _, Singlets, Triplets, _ = analysis()
     socs_complete = avg_socs(tipo,n_state+1)
-    lambdas_list = np.loadtxt('lambdas.txt')
+    try:
+        lambdas_list = np.loadtxt('lambdas.txt')
+    except:
+        fatal_error('No lambdas.txt file found. Reorganization energies are required for this calculation! Goodbye!')
     with open('ISC_rates.txt', 'w') as f:
         f.write('Intersystem Crossing Rates:\n')
         for j in range(np.shape(socs_complete)[1]):

@@ -383,12 +383,12 @@ def spectra(tipo, num_ex, nr):
     sigma  =   np.sqrt(np.sum((y-mean_y)**2,axis=0)/(N*(N-1))) 
     
     if tipo == 'fluor' or tipo == 'phosph':
-        #Lifetime calculations
+        #Emission rate calculations
         total_rate = []
         for yd in [mean_y - sigma ,mean_y + sigma]:
             total_rate.append(calc_emi_rate(x,yd))
         mean_rate, error_rate = avg_error(total_rate)
-        segunda = '\n# Total Rate: {} +/- {} s^-1\n'.format(mean_rate,error_rate)
+        segunda = '# Total Rate {}{} -> S0: {:5.2e} +/- {:5.2e} s^-1\n'.format(spin[0],num_ex[0],mean_rate,error_rate)
     else:
         segunda = ''
 
