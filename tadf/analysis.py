@@ -189,6 +189,8 @@ def soc_t1(file,m,n_triplet):
 def moment(file,ess,ets,dipss,dipts,n_triplet):
     #Conversion factor between a.u. = e*bohr^-1 to SI
     conversion = 8.4783533-30 
+    ess = np.array(ess)
+    ets = np.array(ets)
     ess = np.insert(ess, 0, 0)
     Ms = []
     for m in ['1','-1','0']:
