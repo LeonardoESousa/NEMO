@@ -84,7 +84,7 @@ def main():
         else:
             estados = ask_states("Fluorescence from which excited state (1,2, etc)?\n")
             spectra('fluor', estados, nr)
-            estados = ask_states("Phosphorescence from which excited state (1,2, etc)?\n")
+            estados = ask_states("\nPhosphorescence from which excited state (1,2, etc)?\n")
             spectra('phosph', estados, nr)    
     elif op == '4':
         andamento()

@@ -682,45 +682,6 @@ def search_spectra():
     return Abs, Emi
 ###############################################################
 
-##RUNS EXCITON ANALYSIS########################################
-def ld():
-    Abs, Emi = search_spectra()
-    print('Absorption file: {}'.format(Abs))
-    print('Emission file: {}'.format(Emi))
-    check = input('Are these correct? y or n?\n')
-    if check == 'n':
-        Abs = input('Type name of the absorption spectrum file\n')
-        Emi = input('Type name of the emission spectrum file\n')
-
-    kappa = input('Orientation Factor (k^2):\n')
-    rmin  = input("Average intermolecular distance in Å:\n")
-    Phi   = input("Fluorescence quantum yield (from 0 to 1):\n")
-    try:
-        rmin  = float(rmin)
-        kappa = np.sqrt(float(kappa))
-        Phi   = float(Phi) 
-    except:
-        fatal_error('These features must be numbers. Goodbye!')    
-    if Phi > 1 or Phi < 0:
-        fatal_error('Quantum yield must be between 0 and 1. Goodbye!')
-
-    correct = input('Include correction for short distances? y or n?\n')
-    if correct == 'y':
-        alpha = 1.15*0.53 
-        print('Employing correction!')
-    else:
-        alpha = 0
-        print('Not employing correction!')
-    
-    print('Computing...')
-    import lx.ld 
-    try:
-        ld.run_ld(Abs, Emi, alpha, rmin, kappa, Phi)
-        print('Results can be found in the ld.lx file')
-    except:
-        print('Something went wrong. Check if the name of the files are correct.')        
-###############################################################
-
 ##CALCULATES THE MEAN AND ERROR################################
 def avg_error(variable):
     mean   = (max(variable) + min(variable))/2
