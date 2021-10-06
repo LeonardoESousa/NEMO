@@ -37,7 +37,10 @@ def main():
         if change.lower() == 'n':     
             rem2 = ''
             for elem in rem.split('\n'):
-                base = default(elem, '{} is set to: {}. If ok, Enter. Otherwise, type the correct value\n'.format())
+                if '$' not in elem:
+                    base = default(elem, '{} is set to: {}. If ok, Enter. Otherwise, type the correct value\n'.format(elem[0], elem[-1]))
+                else:
+                    base = elem
                 rem2 += base+'\n'
         num_ex = input("How many excited states?\n")
         try:
@@ -87,7 +90,7 @@ def main():
     elif op == '5':
         state = input('What is the initial state? (S1, T1, S2 ...)\n')
         from tadf.analysis import isc
-        isc(state)    
+        isc(state)
     elif op == '6':
         from lx.tools import ld
         ld()
