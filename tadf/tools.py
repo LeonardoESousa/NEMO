@@ -90,41 +90,8 @@ def pega_geom(freqlog):
     return G, atomos
 ###############################################################
 
-##GETS NORMAL COORDINATES IN HIGH PRECISION####################
-def pega_modosHP(G, freqlog):
-    F, M = pega_freq(freqlog)
-    n = -1
-    num_atom = np.shape(G)[0]
-    NC = np.zeros((num_atom,1))
-    with open(freqlog, 'r') as f:
-        for line in f:
-            if n == 0:
-                line = line.split()[1:]
-                print(line)
-                C = np.array([float(i) for i in line])
-                n += 1
-            elif n < 0 and "X      Y      Z" in line:
-                n = 0
-            elif n > 0 and 'TransDip' not in line:
-                line = line.split()[1:]
-                print(line)
-                line = np.asarray([float(i) for i in line])
-                C = np.vstack((C,line))
-                n += 1  
-            elif 'TransDip' in line:
-                NC = np.hstack((NC,C))
-                n = -1
-    NC = NC[:,1:]
-    MM = np.zeros((1,len(F)))
-    M = np.expand_dims(M,axis=0)
-    for _ in range(0,3*num_atom):
-        MM = np.vstack((MM,M))
-    M = MM[1:,:]
-    return NC
-###############################################################
-
 ##GETS NORMAL COORDINATES IN REGULAR PRECISION#################
-def pega_modosLP(G,freqlog):
+def pega_modos(G,freqlog):
     F, M = pega_freq(freqlog)
     C = []
     n = -1
@@ -171,20 +138,6 @@ def pega_modosLP(G,freqlog):
         MM = np.vstack((MM,M))
     M = MM[1:,:]
     return D
-###############################################################
-
-##DETECTS WHETHER HIGH PRECISION IS USED#######################
-def pega_modos(G,freqlog):
-    x = 'LP'
-    with open(freqlog, 'r') as f:
-        for line in f:
-            if "Coord Atom Element:" in line:
-                x = 'HP'
-                break
-    if x == 'LP':
-        return pega_modosLP(G,freqlog)
-    else:
-        return pega_modosLP(G,freqlog)
 ###############################################################
 
 ##WRITES ATOMS AND XYZ COORDS TO FILE##########################
@@ -317,6 +270,7 @@ def naming(arquivo):
     return new_arquivo        
 ###############################################################
 
+##CASK FOR THE RELEVANT STATE##################################
 def ask_states(frase):
     estados = input(frase)
     try:
@@ -324,6 +278,7 @@ def ask_states(frase):
     except:
         fatal_error("It must be an integer! Goodbye!")
     return estados
+###############################################################
 
 ##COMPUTES SPECTRA############################################# 
 def spectra(tipo, num_ex, nr):
@@ -339,7 +294,7 @@ def spectra(tipo, num_ex, nr):
     elif tipo == 'phosph':
         spin = 'Triplet'
         num_ex = [num_ex]
-        constante = ((nr**2)*(e**2)/(2*np.pi*hbar*mass*(c**3)*epsilon0))
+        constante = (1/3)*((nr**2)*(e**2)/(2*np.pi*hbar*mass*(c**3)*epsilon0))
     V, O, S = [], [], []
     N = 0
     with open("Samples.lx", 'r') as f:
@@ -496,41 +451,6 @@ def batch():
     subprocess.Popen(['nohup', 'python3', folder+'/batch_lx.py', script, nproc, num, '&'])
 ###############################################################
 
-
-##RUNS W TUNING################################################
-def omega_tuning():
-    geomlog = fetch_file('input or log',['.com','.log'])
-    base, _, nproc, mem, _, _ = busca_input(geomlog)
-    omega1 = '0.1'
-    passo  = '0.05'
-    relax  = 'y'
-    print('This is the configuration taken from the file:\n')
-    print('Functional/basis: {}'.format(base))
-    print('%nproc='+nproc)    
-    print('%mem='+mem)
-    print('Initial Omega: {} bohr^-1'.format(omega1))
-    print('Step: {} bohr^-1'.format(passo))
-    print('Optimize at each step: yes')
-    change = input('Are you satisfied with these parameters? y or n?\n')
-    if change == 'n':
-        base   = default(base,"Functional/basis is {}. If ok, Enter. Otherwise, type functional/basis.\n".format(base))
-        nproc  = default(nproc,'nproc={}. If ok, Enter. Otherwise, type it.\n'.format(nproc))
-        mem    = default(mem,"mem={}. If ok, Enter. Otherwise, type it.\n".format(mem))
-        omega1 = default(omega1,"Initial omega is {} bohr^-1. If ok, Enter. Otherwise, type it.\n".format(omega1))       
-        passo  = default(passo,"Initial step is {} bohr^-1. If ok, Enter. Otherwise, type it.\n".format(passo))       
-        relax  = default(relax,"Optimize at each step: yes. If ok, Enter. Otherwise, type n\n")
-    
-    script = fetch_file('batch script',['.sh'])    
-    import subprocess
-    folder = os.path.dirname(os.path.realpath(__file__)) 
-    with open('limit.lx','w') as f:
-        f.write('Running')
-    subprocess.Popen(['nohup', 'python3', folder+'/leow.py', geomlog, base, nproc, mem, omega1, passo, relax, script, '&'])
-###############################################################
-
-
-
-
 ##FINDS SUITABLE VALUE FOR STD#################################    
 def detect_sigma():
     try:
@@ -574,18 +494,6 @@ def get_nr():
     return nr                
 ###############################################################
 
-##FETCHES CHARGE AND MULTIPLICITY##############################
-def get_cm(freqlog):
-    with open(freqlog,'r') as f:
-        for line in f:
-            if 'Charge' in line and 'Multiplicity' in line:
-                line = line.split()
-                charge = line[2]
-                mult   = line[5]
-                break
-    return charge+' '+mult
-###############################################################
-
 ##QUERY FUNCTION###############################################
 def default(a,frase):
     b = input(frase)
@@ -593,22 +501,6 @@ def default(a,frase):
         return a
     else:
         return b    
-###############################################################
-
-##SETS DIELECTRIC CONSTANTS####################################
-def set_eps(scrf):
-    if 'READ' in scrf.upper():
-        eps1 = input("Type the static dielectric constant.\n")
-        eps2 = input("Type the dynamic dielectric constant (n^2).\n")
-        try:
-            float(eps1)
-            float(eps2)
-        except:
-            fatal_error("The constants must be numbers. Goodbye!")
-        epss = "Eps="+eps1+"\nEpsInf="+eps2+"\n\n"
-    else:
-        epss = '\n'
-    return epss
 ###############################################################
 
 ##STOP SUBMISSION OF JOBS######################################
