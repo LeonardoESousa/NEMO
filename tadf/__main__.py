@@ -101,14 +101,14 @@ def main():
         freqlog = fetch_file("log",['.log','.out'])
         rem, cm, spec = busca_input(freqlog)
         G, atomos = pega_geom(freqlog)
-        write_input(atomos,G,'{}\n{}\n'.format(rem,cm),'','geom.lx')
+        write_input(atomos,G,'{}\n$molecule\n{}\n'.format(rem,cm),'$end','geom.lx')
         print('Geometry saved in the geom.lx file.')    
     elif op == '8':
         freqlog = fetch_file("frequency",['.log','.out'])
         rem, cm, spec = busca_input(freqlog)
-        header = '{}\n{}\n'.format(rem,cm)
+        header = '{}\n$molecule\n{}\n'.format(rem,cm)
         T = float(input("Magnitude of the displacement in Å? \n")) #K
-        shake(freqlog,T,header)
+        shake(freqlog,T,header,'$end')
     elif op == '9':
         abort_batch()
     else:

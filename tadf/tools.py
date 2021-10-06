@@ -198,7 +198,7 @@ def write_input(atomos,G,header,bottom,file):
 ###############################################################
 
 ##DISPLACE GEOMETRY IN DIRECTIONS WITH IMAGINARY FREQ##########
-def shake(freqlog, T, header):
+def shake(freqlog, T, header,bottom):
     F, _ = pega_freq(freqlog)
     G, atomos = pega_geom(freqlog)
     NNC = pega_modos(G,freqlog)
@@ -217,8 +217,8 @@ def shake(freqlog, T, header):
     A2 = np.reshape(A2,(num_atom,3))
     Gfinal  = A1 + G
     Gfinal2 = A2 + G
-    write_input(atomos,Gfinal,header,'','distort_{}_.com'.format(T))
-    write_input(atomos,Gfinal2,header,'','distort_{}_.com'.format(-T))
+    write_input(atomos,Gfinal,header,bottom,'distort_{}_.com'.format(T))
+    write_input(atomos,Gfinal2,header,bottom,'distort_{}_.com'.format(-T))
     print("Geometries are saved on files ditort_{}_.com and distort_{}_.com!".format(T,-T))
 ###############################################################
 
