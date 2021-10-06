@@ -33,19 +33,12 @@ def main():
         rem, cm, spec = busca_input(freqlog)        
         print('\nThe suggested configurations for you are:\n')
         print(rem)
-        #change = input('Are you satisfied with these parameters? y or n?\n')
-        #if change.lower() == 'n':     
-        #    base  = default(base,"Functional/basis is {}. If ok, Enter. Otherwise, type functional/basis.\n".format(base))
-        #    scrf  = default(scrf,"SCRF keyword is {}. If ok, Enter. Otherwise, type the desired one.\n".format(scrf))
-        #    cm    = default(cm,'Charge and multiplicity is {}. If ok, Enter. Otherwise, type charge and multiplicity Ex.: 0 1\n'.format(cm))
-        #    nproc = default(nproc,'nproc is {}. If ok, Enter. Otherwise, type it.\n'.format(nproc))
-        #    mem   = default(mem,"mem is {}. If ok, Enter. Otherwise, type it.\n".format(mem))
-        #    tamm  = input('Use TDA (Tamm-Dancoff Approximation)? y or n?\n')
-        #    if tamm.lower() == 'y':
-        #        tda = 'TDA'
-        #    else:
-        #        tda = 'TD'
-
+        change = input('Are you satisfied with these parameters? y or n?\n')
+        if change.lower() == 'n':     
+            rem2 = ''
+            for elem in rem.split('\n'):
+                base = default(elem, '{} is set to: {}. If ok, Enter. Otherwise, type the correct value\n'.format())
+                rem2 += base+'\n'
         num_ex = input("How many excited states?\n")
         try:
             num_ex = int(num_ex)
@@ -55,24 +48,6 @@ def main():
         header =  rem.replace('$rem',header)
         header += '$molecule\n{}\n'.format(cm)
         num_geoms = int(input("How many geometries to be sampled?\n"))
-        #pcm = input("Include state specific solvent approach? y or n?\n")
-        #if pcm.lower() == 'y':
-        #    solv = input("What is the solvent? If you want to specify the dielectric constants yourself, type read.\n")
-        #    epss = set_eps(solv)
-        #    if epss == '\n':
-        #        solv = "SOLVENT="+solv
-        #    if temtd:
-        #        print("Inputs suitable for emission spectra!\n")    
-        #        header = "%chk=step_UUUUU.chk\n%nproc={}\n%mem={}\n# {} {}=(NSTATES={}) SCRF=(CorrectedLR,NonEquilibrium=Save,{})\n\n{}\n\n{}\n".format(nproc,mem,base,tda,num_ex,solv,spec,cm) 
-        #        bottom = "{}\n--Link1--\n%nproc={}\n%mem={}\n%oldchk=step_UUUUU.chk\n%chk=step2_UUUUU.chk\n# {} GUESS=READ GEOM=CHECKPOINT SCRF(NonEquilibrium=Read,{})\n\nTITLE\n\n{}\n\n{}".format(epss,nproc,mem,base,solv,cm,epss) 
-        #    else:
-        #        print("Inputs suitable for absortion spectra!!\n")
-        #        header = "%nproc={}\n%mem={}\n# {} SCRF=(CorrectedLR,{}) {}=(NSTATES={})\n\n{}\n\n{}\n".format(nproc,mem,base,solv,tda,num_ex,spec,cm)
-        #        bottom = epss
-        #elif pcm == 'n':
-        #epss = set_eps(scrf)
-        #else:
-        #    fatal_error("It should be y or n. Goodbye!")
         T = float(input("Temperature in Kelvin?\n"))
         if T <= 0:
             fatal_error("Have you heard about absolute zero? Goodbye!")
@@ -110,7 +85,7 @@ def main():
     elif op == '4':
         andamento()
     elif op == '5':
-        state = input('What is the initial state? (S1, T1, S2 ...)')
+        state = input('What is the initial state? (S1, T1, S2 ...)\n')
         from tadf.analysis import isc
         isc(state)    
     elif op == '6':

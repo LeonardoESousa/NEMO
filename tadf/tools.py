@@ -382,9 +382,20 @@ def spectra(tipo, num_ex, nr):
     #Error estimate
     sigma  =   np.sqrt(np.sum((y-mean_y)**2,axis=0)/(N*(N-1))) 
     
+    if tipo == 'fluor' or tipo == 'phosph':
+        #Lifetime calculations
+        total_rate = []
+        for yd in [mean_y - sigma ,mean_y + sigma]:
+            total_rate.append(calc_emi_rate(x,yd))
+        mean_rate, error_rate = avg_error(total_rate)
+        segunda = '\n# Total Rate: {} +/- {} s^-1\n'.format(mean_rate,error_rate)
+    else:
+        segunda = ''
+
     print(N, "geometries considered.")     
     with open(arquivo, 'w') as f:
         f.write(primeira)
+        f.write(segunda)
         for i in range(0,len(x)):
             text = "{:.6f} {:.6e} {:.6e}\n".format(x[i],mean_y[i], sigma[i])
             f.write(text)
@@ -708,4 +719,19 @@ def ld():
         print('Results can be found in the ld.lx file')
     except:
         print('Something went wrong. Check if the name of the files are correct.')        
+###############################################################
+
+##CALCULATES THE MEAN AND ERROR################################
+def avg_error(variable):
+    mean   = (max(variable) + min(variable))/2
+    error  = (max(variable) - min(variable))/2
+    return mean, error
+###############################################################
+
+##CALCULATES EMISSION RATE IN S^-1#############################
+def calc_emi_rate(xd,yd):
+    #Integrates the emission spectrum
+    IntEmi = np.trapz(yd,xd)
+    taxa   = (1/hbar)*IntEmi
+    return taxa 
 ###############################################################
