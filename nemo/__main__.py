@@ -1,32 +1,33 @@
 #!/usr/bin/env python3
 import sys
-from tadf.tools import *
+from nemo.tools import *
 
 
 def main():
-    print("#######    #    ######  ####### ")
-    print("   #      # #   #     # #       ")
-    print("   #     #   #  #     # #       ")
-    print("   #    #     # #     # #####   ")
-    print("   #    ####### #     # #       ")
-    print("   #    #     # #     # #       ")
-    print("   #    #     # ######  #       ")
-    print("-----rISC FOR THE PEOPLE!-----\n")
+    print("######  #     # ####### #     # ####### #     # #######")
+    print("#     # #     # #     # ##    # #       ##   ## #     #")
+    print("#     # #     # #     # # #   # #       # # # # #     #")
+    print("######  ####### #     # #  #  # #####   #  #  # #     #")
+    print("#       #     # #     # #   # # #       #     # #     #")
+    print("#       #     # #     # #    ## #       #     # #     #")
+    print("#       #     # ####### #     # ####### #     # #######")
+    print("--------------Spectra - Excitons - ISC---------------\n")
     print("Choose your option:\n")
+    print("ENSEMBLE SETUP:")
+    print("\t1 - Generate the inputs for the nuclear ensemble calculation")
+    print("\t2 - Run the ensemble calculations")
+    print("\t3 - Check the progress of the calculations")
+    print("\t4 - Abort my calculations")
     print('SPECTRUM SIMULATIONS:')
-    print("\t1 - Generate the inputs for the spectrum calculation")
-    print("\t2 - Run the spectrum calculations")
-    print("\t3 - Generate the spectrum")
-    print("\t4 - Check the progress of the calculations")
+    print("\t5 - Generate the spectrum")
     print("INTERSYSTEM CROSSING (ISC):")
-    print("\t5 - Estimate ISC rates")
+    print("\t6 - Estimate ISC rates")
     print('EXCITON ANALYSIS:')
-    print("\t6 - Estimate Förster radius, fluorescence lifetime and exciton diffusion lengths")
+    print("\t7 - Estimate Förster radius, fluorescence lifetime and exciton diffusion lengths")
     print('OTHER FEATURES:')
     #print("\t7 - Perform long-range parameter tuning") 
-    print("\t7 - Retrieve last geometry from log file") 
-    print("\t8 - Distort a molecule in the direction of imaginary normal modes")
-    print("\t9 - Abort my calculations")
+    print("\t8 - Retrieve last geometry from log file") 
+    print("\t9 - Distort a molecule in the direction of imaginary normal modes")
     op = input()
     if op == '1':
         freqlog = fetch_file("frequency",['.out'])
@@ -59,6 +60,10 @@ def main():
     elif op == '2':
         batch() 
     elif op == '3':
+        andamento()
+    elif op == '4':
+        abort_batch()        
+    elif op == '5':
         opc = detect_sigma()
         tipo = get_spec()
         nr = get_nr() 
@@ -87,31 +92,27 @@ def main():
         elif tipo == 'pho':    
             estados = ask_states("\nPhosphorescence from which excited state (1,2, etc)?\n")
             spectra('phosph', estados, nr)    
-    elif op == '4':
-        andamento()
-    elif op == '5':
-        state = input('What is the initial state? (S1, T1, S2 ...)\n')
-        from tadf.analysis import isc
-        isc(state)
     elif op == '6':
+        state = input('What is the initial state? (S1, T1, S2 ...)\n')
+        from nemo.analysis import isc
+        isc(state)
+    elif op == '7':
         from lx.tools import ld
         ld()
     #elif op == '7':
     #    omega_tuning()
-    elif op == '7':
+    elif op == '8':
         freqlog = fetch_file("log",['.log','.out'])
         rem, cm, spec = busca_input(freqlog)
         G, atomos = pega_geom(freqlog)
         write_input(atomos,G,'{}\n$molecule\n{}\n'.format(rem,cm),'$end','geom.lx')
         print('Geometry saved in the geom.lx file.')    
-    elif op == '8':
+    elif op == '9':
         freqlog = fetch_file("frequency",['.log','.out'])
         rem, cm, spec = busca_input(freqlog)
         header = '{}\n$molecule\n{}\n'.format(rem,cm)
         T = float(input("Magnitude of the displacement in Å? \n")) #K
         shake(freqlog,T,header,'$end')
-    elif op == '9':
-        abort_batch()
     else:
         fatal_error("It must be one of the options... Goodbye!")
 
