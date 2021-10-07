@@ -1,0 +1,5 @@
+# Reorganization energies in eV
+# Suppose you are calculating ISC rates from the T1 state to several singlet states. Each line in the file should correspond to the reorganziation energy for the T1 -> Sn transfer (n = 1,2,3...). The first line will correspond to T1 -> S1, the second to T1 -> S2, and so on.
+# Include as many as you want. So long as there are enough excited states in the ensemble calculations, they will be used to calculate rates.
+0.2
+0.2
