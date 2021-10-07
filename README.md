@@ -1,4 +1,4 @@
-# PHONEMO: Photophysics with the Nuclear Ensemble Method for Organics
+# PhoNEMO: Photophysics with the Nuclear Ensemble Method for Organics
 
 Absorption, fluorescence and phosphorescence spectrum simulations. Intersystem crossing (ISC) rate calculations. Förster radius and singlet exciton diffusion length estimates. 
 
