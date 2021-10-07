@@ -2,7 +2,7 @@
 
 Absorption, fluorescence and phosphorescence spectrum simulations. Intersystem crossing (ISC) rate calculations. Förster radius and singlet exciton diffusion length estimates. 
 
-## Cite as
+## Cite as:
 
 > Leonardo Evaristo de Sousa and Piotr de Silva
 Journal of Chemical Theory and Computation 2021 17 (9), 5816-5824
@@ -37,7 +37,7 @@ DOI: 10.1021/acs.jctc.1c00476
  
  -  To obtain the estimates of Förster radius, fluorescence lifetimes and singlet exciton diffusion lengths, it is necessary to first perform both absorption and fluorescence spectra calculations for the molecule of interest.
 
-## How to install?
+## How to install it?
 
 Run:
 
