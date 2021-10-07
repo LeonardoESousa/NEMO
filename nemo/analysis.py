@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import numpy as np
 import os
-from tadf.tools import *
+from nemo.tools import *
 
 
 ##GETS ENERGIES, OSCS, AND INDICES FOR Sn AND Tn STATES##################################

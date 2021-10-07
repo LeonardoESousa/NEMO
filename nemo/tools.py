@@ -225,7 +225,7 @@ def sample_geom(freqlog, num_geoms, T, header):
 def gather_data(opc):
     files = [file for file in os.listdir('Geometries') if ".log" in file and "Geometr" in file ]    
     files = sorted(files, key=lambda file: float(file.split("-")[1])) 
-    from tadf.analysis import analysis
+    from nemo.analysis import analysis
     Os, Singlets, Triplets, Oscs = analysis()
     num = np.shape(Singlets)[1]
     with open("Samples.lx", 'w') as f:
@@ -386,7 +386,7 @@ def busca_input(freqlog):
             elif '--------------------------------------------------------------' in line and search and rem != '':
                 search = False
     if spec == 'EMISPCT':
-        from tadf.analysis import pega_energias
+        from nemo.analysis import pega_energias
         _, _, _, ind_s, ind_t = pega_energias(freqlog)
         if root in ind_s:
             spec = 'FLUORSPCT'
