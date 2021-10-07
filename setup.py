@@ -12,9 +12,9 @@ from shutil import rmtree
 from setuptools import find_packages, setup, Command
 
 # Package meta-data.
-NAME = 'TADF'
-DESCRIPTION = 'rISc'
-URL = 'https://github.com/LeonardoESousa/TADF'
+NAME = 'Phoneme'
+DESCRIPTION = 'Absorption, fluorescence and phosphorescence spectrum simulations. Intersystem crossing (ISC) rate calculations. Förster radius and singlet exciton diffusion length estimates.'
+URL = 'https://github.com/LeonardoESousa/PHONEMO'
 EMAIL = 'leonardo.sousa137@gmail.com'
 AUTHOR = 'Leonardo Evaristo de Sousa'
 REQUIRES_PYTHON = '>=3.6.0'
@@ -104,7 +104,7 @@ setup(
     packages=find_packages(exclude=["tests", "*.tests", "*.tests.*", "tests.*"]),
     # If your package is a single module, use this instead of 'packages':
     #py_modules=['mypackage'],
-    entry_points={'console_scripts': ["tadf = tadf.__main__:main"]},
+    entry_points={'console_scripts': ["nemo = nemo.__main__:main"]},
     install_requires=REQUIRED,
     extras_require=EXTRAS,
     include_package_data=True,
