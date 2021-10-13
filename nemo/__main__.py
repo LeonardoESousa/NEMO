@@ -4,13 +4,13 @@ from nemo.tools import *
 
 
 def main():
-    print("######                #     # ####### #     # #######")
-    print("#     # #    #  ####  ##    # #       ##   ## #     #")
-    print("#     # #    # #    # # #   # #       # # # # #     #")
-    print("######  ###### #    # #  #  # #####   #  #  # #     #")
-    print("#       #    # #    # #   # # #       #     # #     #")
-    print("#       #    # #    # #    ## #       #     # #     #")
-    print("#       #    #  ####  #     # ####### #     # #######")
+    print("#     # ####### #     # #######")
+    print("##    # #       ##   ## #     #")
+    print("# #   # #       # # # # #     #")
+    print("#  #  # #####   #  #  # #     #")
+    print("#   # # #       #     # #     #")
+    print("#    ## #       #     # #     #")
+    print("#     # ####### #     # #######")
     print("--------------Spectra - Excitons - ISC---------------\n")
     print("Choose your option:\n")
     print("ENSEMBLE SETUP:")
