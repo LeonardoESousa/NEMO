@@ -7,7 +7,7 @@
 [![commit](https://img.shields.io/github/last-commit/LeonardoESousa/PhotoNEMO?style=plastic)]()
 
 
-Absorption, fluorescence and phosphorescence spectrum simulations. Fluoresecne, phosphorescence and intersystem crossing (ISC) rate calculations. Förster radius and singlet exciton diffusion length estimates. 
+Absorption, fluorescence and phosphorescence spectrum simulations. Fluorescence, phosphorescence and intersystem crossing (ISC) rate calculations. Förster radius and singlet exciton diffusion length estimates. Interfaces with the QChem package. 
 
 Table of Contents
 =================
