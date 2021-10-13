@@ -1,4 +1,4 @@
-# PhotoNEMO - Photophysics with the Nuclear Ensemble Method for Optoelectronics:
+# PhotoNEMO - Photophysics with the Nuclear Ensemble Method for Optoelectronics
 
 [![made-with-python](https://img.shields.io/badge/Made%20with-Python-1f425f.svg)](https://www.python.org/)
 [![license](https://img.shields.io/github/license/LeonardoESousa/PhotoNEMO?style=plastic)]()
