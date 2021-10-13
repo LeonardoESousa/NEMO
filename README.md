@@ -1,6 +1,24 @@
-# PhoNEMO: Photophysics with the Nuclear Ensemble Method for Organics
+# PhotoNEMO - Photophysics with the Nuclear Ensemble Method for Optoelectronics:
 
-Absorption, fluorescence and phosphorescence spectrum simulations. Intersystem crossing (ISC) rate calculations. Förster radius and singlet exciton diffusion length estimates. 
+[![made-with-python](https://img.shields.io/badge/Made%20with-Python-1f425f.svg)](https://www.python.org/)
+[![license](https://img.shields.io/github/license/LeonardoESousa/PhotoNEMO?style=plastic)]()
+[![down](https://img.shields.io/github/downloads/LeonardoESousa/PhotoNEMO/total?style=plastic)]()
+[![maint](https://img.shields.io/maintenance/yes/2021)]()
+[![commit](https://img.shields.io/github/last-commit/LeonardoESousa/PhotoNEMO?style=plastic)]()
+
+
+Absorption, fluorescence and phosphorescence spectrum simulations. Fluoresecne, phosphorescence and intersystem crossing (ISC) rate calculations. Förster radius and singlet exciton diffusion length estimates. 
+
+Table of Contents
+=================
+<!--ts-->
+* [Cite as:](#cite-as)
+* [What does this program do?](#what-does-this-program-do)
+* [What is necessary to use it?](#what-is-necessary-to-use-it)
+* [How to install it?](#how-to-install-it)
+* [How to use it?](#how-to-use-it)
+   
+<!--te-->
 
 ## Cite as:
 
@@ -41,7 +59,7 @@ DOI: 10.1021/acs.jctc.1c00476
 
 Run:
 
-`pip install phonemo`
+`pip install photonemo`
 
 Alternatively, clone the repository to your computer. Inside the LeoX folder, run:
 
@@ -65,5 +83,5 @@ Once installed, you should be able to run the program from any folder by just us
     - Once all calculations from step 1 are done and the reorganization energies have been set, run the `nemo` command and choose option 6. Follow the instructions to set the parameters and the intersystem corssing rates will be generated.
 
 4. For exciton properties:
-    - For exciton properties, you must first calculate the fluorescence and absorption spectra of the donor and acceptor molecules of interest to you. Copy both spectra to a folder and inside this folder run the `phone` command. Choose option 6. Follow the instructions to set the calculation parameters. A file will be generated with all the information. Importantly, diffusion length estimates are only sensible if donor and acceptor molecules are of the same kind.
+    - For exciton properties, you must first calculate the fluorescence and absorption spectra of the donor and acceptor molecules of interest to you. Copy both spectra to a folder and inside this folder run the `nemo` command. Choose option 6. Follow the instructions to set the calculation parameters. A file will be generated with all the information. Importantly, diffusion length estimates are only sensible if donor and acceptor molecules are of the same kind.
 
