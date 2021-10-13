@@ -72,14 +72,14 @@ Once installed, you should be able to run the program from any folder by just us
 1. Initial steps:
     - Create a folder for your project. Add the log file for the frequency calculation to your folder. A frequency calculation in the S0 state is suitable for computing an absorption spectrum. For fluorescence spectra and/or ISC rates calculations from Sn states to triplet states, a Sn frequency calculation is expected. Finally, for phosphorescence spectra and/or rISC rates calculations from Tn states to singlet states, a Tn frequency calculation is expected.   
     - Run the `nemo` command. Choose option 1 and follow the instructions to select the parameters of the calculation.
-    - Add a bash script file to the folder. This file depends on which batch system you use. Examples of this file for users of slurm or task spooler (ts) are presented in the batch_examples folder.
+    - Add a bash script file to the folder. This file depends on which batch system you use. Examples of this file for users of slurm or task spooler (ts) are presented in [here](https://github.com/LeonardoESousa/PhotoNEMO/tree/main/batch_examples)).
     - Run the `nemo` command again, choose option 2 and follow the instructions. Once the calculations are running, you may use option 3 to check the progress or option 4 to abort.
 
 2. For spectrum simulations:
     - Once all calculations from step 1 are done, run the `nemo` command and choose option 5. Follow the instructions to set the parameters and the spectrum will be generated.
 
 3. For ISC rates:
-    - Create a file named lambdas.txt inside your project folder. In this file you should write the reorganization energies in eV for the processes you are interested. Check the example in the batch_examples folder.   
+    - Create a file named lambdas.txt inside your project folder. In this file you should write the reorganization energies in eV for the processes you are interested. Check the example [here](https://github.com/LeonardoESousa/PhotoNEMO/tree/main/batch_examples)).   
     - Once all calculations from step 1 are done and the reorganization energies have been set, run the `nemo` command and choose option 6. Follow the instructions to set the parameters and the intersystem corssing rates will be generated.
 
 4. For exciton properties:
