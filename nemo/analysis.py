@@ -294,7 +294,7 @@ def isc(initial):
         lambdas_list = np.loadtxt('lambdas.txt')
     except:
         fatal_error('No lambdas.txt file found. Reorganization energies are required for this calculation! Goodbye!')
-    with open('ISC_rates.txt', 'w') as f:
+    with open('ISC_rates_{}_.txt'.format(initial), 'w') as f:
         f.write('Intersystem Crossing Rates:\n')
         for j in range(np.shape(socs_complete)[1]):
             try:
