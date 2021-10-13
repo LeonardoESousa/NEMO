@@ -339,10 +339,7 @@ def spectra(tipo, num_ex, nr):
     
     if tipo == 'fluor' or tipo == 'phosph':
         #Emission rate calculations
-        total_rate = []
-        for yd in [mean_y - sigma ,mean_y + sigma]:
-            total_rate.append(calc_emi_rate(x,yd))
-        mean_rate, error_rate = avg_error(total_rate)
+        mean_rate, error_rate = calc_emi_rate(x, mean_y,sigma) 
         segunda = '# Total Rate {}{} -> S0: {:5.2e} +/- {:5.2e} s^-1\n'.format(spin[0],num_ex[0],mean_rate,error_rate)
     else:
         segunda = ''
@@ -586,17 +583,11 @@ def search_spectra():
     return Abs, Emi
 ###############################################################
 
-##CALCULATES THE MEAN AND ERROR################################
-def avg_error(variable):
-    mean   = (max(variable) + min(variable))/2
-    error  = (max(variable) - min(variable))/2
-    return mean, error
-###############################################################
-
-##CALCULATES EMISSION RATE IN S^-1#############################
-def calc_emi_rate(xd,yd):
+##CALCULATES FLUORESCENCE LIFETIME IN S########################
+def calc_emi_rate(xd,yd,dyd):
     #Integrates the emission spectrum
     IntEmi = np.trapz(yd,xd)
     taxa   = (1/hbar)*IntEmi
-    return taxa 
+    error  = (1/hbar)*np.sqrt(np.trapz((dyd**2),xd))
+    return taxa, error 
 ###############################################################
