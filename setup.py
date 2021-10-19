@@ -13,7 +13,7 @@ from setuptools import find_packages, setup, Command
 
 # Package meta-data.
 NAME = 'nemophoto'
-DESCRIPTION = 'Absorption, fluorescence and phosphorescence spectrum simulations. Intersystem crossing (ISC) rate calculations. Foerster radius and singlet exciton diffusion length estimates.'
+DESCRIPTION = 'Absorption, fluorescence, phosphorescence spectrum simulations and ISC rate calculations.'
 URL = 'https://github.com/LeonardoESousa/NEMO'
 EMAIL = 'ledso@dtu.dk'
 AUTHOR = 'Leonardo Evaristo de Sousa'
