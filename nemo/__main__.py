@@ -25,9 +25,7 @@ def main():
     print('EXCITON ANALYSIS:')
     print("\t7 - Estimate Förster radius, fluorescence lifetime and exciton diffusion lengths")
     print('OTHER FEATURES:')
-    #print("\t7 - Perform long-range parameter tuning") 
     print("\t8 - Retrieve last geometry from log file") 
-    print("\t9 - Distort a molecule in the direction of imaginary normal modes")
     op = input()
     if op == '1':
         freqlog = fetch_file("frequency",['.out'])
@@ -99,20 +97,12 @@ def main():
     elif op == '7':
         from lx.tools import ld
         ld()
-    #elif op == '7':
-    #    omega_tuning()
     elif op == '8':
         freqlog = fetch_file("log",['.log','.out'])
         rem, cm, spec = busca_input(freqlog)
         G, atomos = pega_geom(freqlog)
         write_input(atomos,G,'{}\n$molecule\n{}\n'.format(rem,cm),'$end','geom.lx')
         print('Geometry saved in the geom.lx file.')    
-    elif op == '9':
-        freqlog = fetch_file("frequency",['.log','.out'])
-        rem, cm, spec = busca_input(freqlog)
-        header = '{}\n$molecule\n{}\n'.format(rem,cm)
-        T = float(input("Magnitude of the displacement in Å? \n")) #K
-        shake(freqlog,T,header,'$end')
     else:
         fatal_error("It must be one of the options... Goodbye!")
 
