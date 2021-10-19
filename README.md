@@ -1,10 +1,10 @@
-# PhotoNEMO - Photophysics with the Nuclear Ensemble Method for Optoelectronics
+# NEMO Photophysics - Photophysics with the Nuclear Ensemble Method
 
 [![made-with-python](https://img.shields.io/badge/Made%20with-Python-1f425f.svg)](https://www.python.org/)
-[![license](https://img.shields.io/github/license/LeonardoESousa/PhotoNEMO?style=plastic)]()
-[![down](https://img.shields.io/github/downloads/LeonardoESousa/PhotoNEMO/total?style=plastic)]()
+[![license](https://img.shields.io/github/license/LeonardoESousa/NEMO?style=plastic)]()
+[![down](https://img.shields.io/pypi/dm/nemo-photo)]()
 [![maint](https://img.shields.io/maintenance/yes/2021)]()
-[![commit](https://img.shields.io/github/last-commit/LeonardoESousa/PhotoNEMO?style=plastic)]()
+[![commit](https://img.shields.io/github/last-commit/LeonardoESousa/NEMO?style=plastic)]()
 
 
 Absorption, fluorescence and phosphorescence spectrum simulations. Fluorescence, phosphorescence and intersystem crossing (ISC) rate calculations. Förster radius and singlet exciton diffusion length estimates. Interfaces with the QChem package. 
@@ -59,9 +59,9 @@ DOI: 10.1021/acs.jctc.1c00476
 
 Run:
 
-`pip install photonemo`
+`pip install nemo-photo`
 
-Alternatively, clone the repository to your computer. Inside the LeoX folder, run:
+Alternatively, clone the repository to your computer. Inside the NEMO folder, run:
 
 `pip install .`
 
@@ -72,16 +72,17 @@ Once installed, you should be able to run the program from any folder by just us
 1. Initial steps:
     - Create a folder for your project. Add the log file for the frequency calculation to your folder. A frequency calculation in the S0 state is suitable for computing an absorption spectrum. For fluorescence spectra and/or ISC rates calculations from Sn states to triplet states, a Sn frequency calculation is expected. Finally, for phosphorescence spectra and/or rISC rates calculations from Tn states to singlet states, a Tn frequency calculation is expected.   
     - Run the `nemo` command. Choose option 1 and follow the instructions to select the parameters of the calculation.
-    - Add a bash script file to the folder. This file depends on which batch system you use. Examples of this file for users of slurm or task spooler (ts) are presented in [here](https://github.com/LeonardoESousa/PhotoNEMO/tree/main/batch_examples)).
+    - Add a bash script file to the folder. This file depends on which batch system you use. Examples of this file for users of slurm or task spooler (ts) are presented in [here](https://github.com/LeonardoESousa/NEMO/tree/main/batch_examples)).
     - Run the `nemo` command again, choose option 2 and follow the instructions. Once the calculations are running, you may use option 3 to check the progress or option 4 to abort.
 
 2. For spectrum simulations and fluorescence or phosphorescence rate calculations:
     - Once all calculations from step 1 are done, run the `nemo` command and choose option 5. Follow the instructions to set the parameters and the spectrum will be generated. The corresponding fluorescence or phosphorescence rate will be shown in the spectrum file.
 
 3. For ISC rates:
-    - Create a file named lambdas.txt inside your project folder. In this file you should write the reorganization energies in eV for the processes you are interested. Check the example [here](https://github.com/LeonardoESousa/PhotoNEMO/tree/main/batch_examples)).   
-    - Once all calculations from step 1 are done and the reorganization energies have been set, run the `nemo` command and choose option 6. Follow the instructions to set the parameters and the intersystem corssing rates will be generated.
+    - Create a file named lambdas.txt inside your project folder. In this file you should write the reorganization energies in eV for the processes you are interested. Suppose you are calculating ISC rates from the T1 state to several singlet states. Each line in the file should correspond to the reorganziation energy for the T1 -> Sn transfer (n = 1,2,3...). The first line will correspond to T1 -> S1, the second to T1 -> S2, and so on. Include as many as you want. So long as there are enough excited states in the ensemble calculations, they will be used to calculate rates. Check the example [here](https://github.com/LeonardoESousa/NEMO/tree/main/batch_examples)).   
+    - Once all calculations from step 1 are done and the reorganization energies have been set, run the `nemo` command and choose option 6. Follow the instructions to set the parameters and the intersystem crossing rates will be generated.
 
 4. For exciton properties:
-    - For exciton properties, you must first calculate the fluorescence and absorption spectra of the donor and acceptor molecules of interest to you. Copy both spectra to a folder and inside this folder run the `nemo` command. Choose option 6. Follow the instructions to set the calculation parameters. A file will be generated with all the information. Importantly, diffusion length estimates are only sensible if donor and acceptor molecules are of the same kind.
+    - For exciton properties, you must first calculate the fluorescence and absorption spectra of the donor and acceptor molecules of interest to you. Copy both spectra to a folder and inside this folder run the `nemo` command. Choose option 6. Follow the instructions to set the calculation parameters. A file will be generated with all the information. Importantly, diffusion length estimates are only sensible if donor and acceptor molecules are of the same kind. These estimations follow from the procedures described in:
+    > de Sousa, L. E., Bueno, F. T., e Silva, G. M., da Silva Filho, D. A., & de Oliveira Neto, P. H. (2019). Fast predictions of exciton diffusion length in organic materials. Journal of Materials Chemistry C, 7(14), 4066-4071. 
 

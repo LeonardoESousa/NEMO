@@ -11,7 +11,7 @@ def main():
     print("#   # # #       #     # #     #")
     print("#    ## #       #     # #     #")
     print("#     # ####### #     # #######")
-    print("---Spectra - Excitons - ISC---\n")
+    print("----------Photophysics---------\n")
     print("Choose your option:\n")
     print("ENSEMBLE SETUP:")
     print("\t1 - Generate the inputs for the nuclear ensemble calculation")
