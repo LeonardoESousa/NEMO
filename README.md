@@ -40,7 +40,7 @@ DOI: 10.1021/acs.jctc.1c00476
     - Calculates fluorescence lifetimes.
     - Calculates singlet exciton diffusion lengths.
 3.  Extra features:
-    - Extract last geometry from QChem log file.
+    - Extracts last geometry from QChem log file.
     
 ## What is necessary to use it?
 
