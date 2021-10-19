@@ -15,7 +15,7 @@ from setuptools import find_packages, setup, Command
 NAME = 'nemophoto'
 DESCRIPTION = 'Absorption, fluorescence and phosphorescence spectrum simulations. Intersystem crossing (ISC) rate calculations. Foerster radius and singlet exciton diffusion length estimates.'
 URL = 'https://github.com/LeonardoESousa/NEMO'
-EMAIL = 'leonardo.sousa137@gmail.com'
+EMAIL = 'ledso@dtu.dk'
 AUTHOR = 'Leonardo Evaristo de Sousa'
 REQUIRES_PYTHON = '>=3.6.0'
 VERSION = '0.1.0'
