@@ -12,9 +12,9 @@ from shutil import rmtree
 from setuptools import find_packages, setup, Command
 
 # Package meta-data.
-NAME = 'Phoneme'
+NAME = 'nemo-photo'
 DESCRIPTION = 'Absorption, fluorescence and phosphorescence spectrum simulations. Intersystem crossing (ISC) rate calculations. Förster radius and singlet exciton diffusion length estimates.'
-URL = 'https://github.com/LeonardoESousa/PHONEMO'
+URL = 'https://github.com/LeonardoESousa/NEMO'
 EMAIL = 'leonardo.sousa137@gmail.com'
 AUTHOR = 'Leonardo Evaristo de Sousa'
 REQUIRES_PYTHON = '>=3.6.0'
