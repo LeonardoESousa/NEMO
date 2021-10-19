@@ -2,7 +2,7 @@
 
 [![made-with-python](https://img.shields.io/badge/Made%20with-Python-1f425f.svg)](https://www.python.org/)
 [![license](https://img.shields.io/github/license/LeonardoESousa/NEMO?style=plastic)]()
-[![down](https://img.shields.io/pypi/dm/nemo-photo)]()
+[![down](https://img.shields.io/pypi/dm/nemophoto)]()
 [![maint](https://img.shields.io/maintenance/yes/2021)]()
 [![commit](https://img.shields.io/github/last-commit/LeonardoESousa/NEMO?style=plastic)]()
 
@@ -58,7 +58,7 @@ DOI: 10.1021/acs.jctc.1c00476
 
 Run:
 
-`pip install nemo-photo`
+`pip install nemophoto`
 
 Alternatively, clone the repository to your computer. Inside the NEMO folder, run:
 
