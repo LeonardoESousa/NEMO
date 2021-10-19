@@ -41,8 +41,7 @@ DOI: 10.1021/acs.jctc.1c00476
     - Calculates singlet exciton diffusion lengths.
 3.  Extra features:
     - Extract last geometry from QChem log file.
-    - Distort a molecule's geometry in the direction of imaginary normal modes.
-
+    
 ## What is necessary to use it?
 
  -  The program requires that the QChem quantum chemistry software be installed, as it interfaces with it.
