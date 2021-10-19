@@ -394,10 +394,10 @@ def busca_input(freqlog):
 
 ##CHECKS PROGRESS##############################################
 def andamento():
-    coms = [file for file in os.listdir("Geometries") if 'Geometr' in file and '.com' in file]
-    logs = [file for file in os.listdir("Geometries") if 'Geometr' in file and '.log' in file]
-    factor = 1
     try:
+        coms = [file for file in os.listdir("Geometries") if 'Geometr' in file and '.com' in file]
+        logs = [file for file in os.listdir("Geometries") if 'Geometr' in file and '.log' in file]
+        factor = 1
         with open('Geometries/'+coms[0], 'r') as f:
             for line in f:
                 if 'Link1' in line:
