@@ -150,31 +150,6 @@ def write_input(atomos,G,header,bottom,file):
         f.write(bottom+'\n')
 ###############################################################
 
-##DISPLACE GEOMETRY IN DIRECTIONS WITH IMAGINARY FREQ##########
-def shake(freqlog, T, header,bottom):
-    F, _ = pega_freq(freqlog)
-    G, atomos = pega_geom(freqlog)
-    NNC = pega_modos(G,freqlog)
-    num_atom = np.shape(G)[0]
-    A1 = np.zeros((3*num_atom,1))
-    A2 = np.zeros((3*num_atom,1))
-    F = F[F < 0]
-    if len(F) == 0:
-        fatal_error("No imaginary frquencies in the log file. Goodbye!")
-    F = -1*F
-    for i in range(len(F)):
-        q = [-1*T,T]
-        A1 += q[0]*(np.expand_dims(NNC[:,i],axis=1))
-        A2 += q[1]*(np.expand_dims(NNC[:,i],axis=1))
-    A1 = np.reshape(A1,(num_atom,3))
-    A2 = np.reshape(A2,(num_atom,3))
-    Gfinal  = A1 + G
-    Gfinal2 = A2 + G
-    write_input(atomos,Gfinal,header,bottom,'distort_{}_.com'.format(T))
-    write_input(atomos,Gfinal2,header,bottom,'distort_{}_.com'.format(-T))
-    print("Geometries are saved on files ditort_{}_.com and distort_{}_.com!".format(T,-T))
-###############################################################
-
 ##CHECKS FOR EXISTING GEOMETRIES###############################
 def start_counter():
     files = [file for file in os.listdir('Geometries') if ".com" in file and "Geometr" in file]
@@ -403,13 +378,18 @@ def andamento():
                 if 'Link1' in line:
                     factor = 2
         count = 0
+        error = 0 
         for file in logs:
             with open('Geometries/'+file, 'r') as f:
                 for line in f:
                     if "Have a nice day" in line:
                         count += 1
-        print("\n\nThere are", int(count/factor), "completed calculations out of", len(coms), "inputs")                
-        print("It is", np.round(100*count/(factor*len(coms)),1), "% done.")
+                    elif "fatal error" in line:
+                        error += 1    
+        print("\n\nThere are", int(count/factor), "successfully completed calculations out of", len(coms), "inputs")
+        if error > 0:
+            print("There are {} failed jobs. If you used option 2, check the nohup.out file for details.".format(error))                
+        print(np.round(100*(count+error)/(factor*len(coms)),1), "% of the calculations have been run.")
     except:
         print('No files found! Check the folder!')                
 ###############################################################
@@ -542,9 +522,9 @@ def delchk(input,term):
 def watcher(files,counter):
     rodando = files.copy()
     done = []
-    exit = False
     for input in rodando: 
         term = 0
+        error = False
         try:
             with open(input[:-3]+'log', 'r') as f:
                 for line in f:
@@ -552,16 +532,14 @@ def watcher(files,counter):
                         term += 1
                         if counter == 2:
                             delchk(input,term)
-                    elif 'Error termination' in line:
+                    elif 'fatal error' in line:
+                        error = True
                         print('The following job returned an error: {}'.format(input))
-                        print('Please check the file for any syntax errors. Aborting the execution.')
-                        exit = True        
-            if term == counter:
+                        print('Please check the file for any syntax errors.')        
+            if term == counter or error:
                 done.append(input)
         except:
             pass 
-    if exit:
-        sys.exit()
     for elem in done:
         del rodando[rodando.index(elem)]                                
     return rodando
