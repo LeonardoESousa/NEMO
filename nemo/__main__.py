@@ -28,8 +28,20 @@ def main():
     print("\t8 - Retrieve last geometry from log file") 
     op = input()
     if op == '1':
-        freqlog = fetch_file("frequency",['.out'])
-        rem, cm, spec = busca_input(freqlog)        
+        freqlog = fetch_file("frequency",['.out', '.log'])
+        with open(freqlog, 'r') as f:
+            for line in f:
+                if 'Entering Gaussian System' in line:
+                    gauss = True
+                else:
+                    gauss = False
+                break
+        if gauss:             
+            print('You are using a Gaussian log file.')
+            template = fetch_file("QChem template",['.out', '.in'])
+            rem, cm, spec = busca_input(template)
+        else:    
+            rem, cm, spec = busca_input(freqlog)        
         print('\nThe suggested configurations for you are:\n')
         print(rem)
         change = input('Are you satisfied with these parameters? y or n?\n')
@@ -54,7 +66,11 @@ def main():
         T = float(input("Temperature in Kelvin?\n"))
         if T <= 0:
             fatal_error("Have you heard about absolute zero? Goodbye!")
-        sample_geom(freqlog, num_geoms, T, header)    
+        if gauss:
+            import lx.tools
+            lx.tools.sample_geom(freqlog, num_geoms, T, header,'$end\n',True)
+        else:    
+            sample_geom(freqlog, num_geoms, T, header)    
     elif op == '2':
         batch() 
     elif op == '3':
