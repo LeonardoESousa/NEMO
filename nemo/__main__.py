@@ -48,11 +48,11 @@ def main():
         if change.lower() == 'n':     
             rem2 = ''
             for elem in rem.split('\n'):
-                if len(elem) > 0:
+                if len(elem) > 1:
                     if '$' not in elem:
                         base = default(elem, '{} is set to: {}. If ok, Enter. Otherwise, type the correct value. Type del to delete line.\n'.format(elem.split()[0], elem.split()[-1]))
-                    if base.lower() == 'del':
-                        base = ''
+                        if base.lower() == 'del':
+                            base = ''
                     else:    
                         base = elem
                     rem2 += base+'\n'
