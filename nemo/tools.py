@@ -359,7 +359,7 @@ def spectra(tipo, num_ex, nr):
 
 ##LIST OF KEYWORDS THAT SHOULD NOT BE READ#####################
 def delist(elem):
-    words = ['jobtype','$molecule', '-----', 'cis_', 'gui', 'nto_', 'soc', 'sts_' ]
+    words = ['jobtype','$molecule', '-----', 'cis_', 'gui', 'nto_', 'soc', 'sts_', '$comment' ]
     for w in words:
         if w in elem.lower():
             return False
@@ -373,6 +373,7 @@ def busca_input(freqlog):
     with open(freqlog, 'r') as f:
         search = False
         molec  = False
+        comment = False
         for line in f:
             if 'User input:' in line:
                 rem = ''    
@@ -392,6 +393,13 @@ def busca_input(freqlog):
                 elif '$end' in line:
                     molec = False
                     search = True
+            elif search and '$comment' in line.lower():
+                search = False
+                comment = True
+            elif comment:
+                if '$end' in line:
+                    comment = False
+                    search = True    
             elif '--------------------------------------------------------------' in line and search and rem != '':
                 search = False
     if spec == 'EMISPCT':
