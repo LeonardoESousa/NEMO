@@ -23,6 +23,34 @@ def fatal_error(msg):
 ###############################################################
 
 ##GETS FREQUENCIES AND REDUCED MASSES##########################
+def pega_freq_gauss(freqlog):
+    F, M = [], []
+    with open(freqlog, 'r') as f:
+        for line in f:
+            if "Frequencies --" in line:
+                line = line.split()
+                for j in range(2,len(line)):
+                    if float(line[j]) in F:
+                        pass
+                    F.append(float(line[j]))
+            elif "Red. masses --" in line:
+                line = line.split()
+                for j in range(3,len(line)):
+                    M.append(float(line[j]))
+            elif 'Thermochemistry' in line:
+                break        
+    #conversion in angular frequency
+    F = np.array(F)*(c*100*2*pi) 
+    try:
+        f = F[0]
+    except:
+        fatal_error("No frequencies in the log file! Goodbye!")
+    #conversion from amu to kg
+    M = np.asarray(M)*amu
+    return F, M
+###############################################################
+
+##GETS FREQUENCIES AND REDUCED MASSES##########################
 def pega_freq(freqlog):
     F, M = [], []
     with open(freqlog, 'r') as f:
@@ -329,6 +357,15 @@ def spectra(tipo, num_ex, nr):
     print('Spectrum printed in the {} file'.format(arquivo))                
 ############################################################### 
 
+##LIST OF KEYWORDS THAT SHOULD NOT BE READ#####################
+def delist(elem):
+    words = ['jobtype','$molecule', '-----', 'cis_', 'gui', 'nto_', 'soc', 'sts_' ]
+    for w in words:
+        if w in elem.lower():
+            return False
+    return True        
+###############################################################
+
 ##CHECKS THE FREQUENCY LOG'S LEVEL OF THEORY###################
 def busca_input(freqlog):
     spec = 'ABSSPCT'
@@ -340,7 +377,7 @@ def busca_input(freqlog):
             if 'User input:' in line:
                 rem = ''    
                 search = True
-            elif search and 'jobtype' not in line.lower() and '$molecule' not in line.lower() and '-----' not in line and 'cis_' not in line.lower():
+            elif search and delist(line):
                 rem += line
             elif 'CIS_STATE_DERIV' in line.upper():
                 spec = 'EMISPCT'
