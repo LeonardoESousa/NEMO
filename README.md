@@ -46,7 +46,7 @@ DOI: 10.1021/acs.jctc.1c00476
 
  -  The program requires that the QChem quantum chemistry software be installed, as it interfaces with it.
 
- -  The first step for running spectrum calculations is providing a QChem log file for a frequency calculation in the S0, S1 or T1 state, if the goal is computing an absorption, fluorescence or phosphorescence spectrum, respectively. All frequencies must be real.  
+ -  The first step for running spectrum calculations is providing either a QChem or Gaussian log file for a frequency calculation in the S0, S1 or T1 state, if the goal is computing an absorption, fluorescence or phosphorescence spectrum, respectively. All frequencies must be real.  
 
  -  For calculating ISC rates from the Sn state to different triplet states, a QChem frequency calculation at the Sn state must be provided. In addition, reorganization energies for the Sn -> Tm (m = 1,2,3...) transfers of interest must be included.
 
@@ -69,7 +69,8 @@ Once installed, you should be able to run the program from any folder by just us
 ## How to use it?
 
 1. Initial steps:
-    - Create a folder for your project. Add the log file for the frequency calculation to your folder. A frequency calculation in the S0 state is suitable for computing an absorption spectrum. For fluorescence spectra and/or ISC rates calculations from Sn states to triplet states, a Sn frequency calculation is expected. Finally, for phosphorescence spectra and/or rISC rates calculations from Tn states to singlet states, a Tn frequency calculation is expected.   
+    - Create a folder for your project. Add the log file for the frequency calculation to your folder. If the the frequency calculation was run with Gaussian, you must also provide a QChem output file for any calculation containing the setting you wish to apply in the ensemble calculations (e.g. functional, basis set, solvent choice etc)
+    - A frequency calculation in the S0 state is suitable for computing an absorption spectrum. For fluorescence spectra and/or ISC rates calculations from Sn states to triplet states, a Sn frequency calculation is expected. Finally, for phosphorescence spectra and/or rISC rates calculations from Tn states to singlet states, a Tn frequency calculation is expected.  
     - Run the `nemo` command. Choose option 1 and follow the instructions to select the parameters of the calculation.
     - Add a bash script file to the folder. This file depends on which batch system you use. Examples of this file for users of slurm or task spooler (ts) are presented in [here](https://github.com/LeonardoESousa/NEMO/tree/main/batch_examples)).
     - Run the `nemo` command again, choose option 2 and follow the instructions. Once the calculations are running, you may use option 3 to check the progress or option 4 to abort.
