@@ -415,7 +415,7 @@ def busca_input(freqlog):
 ##CHECKS PROGRESS##############################################
 def andamento():
     try:
-        coms = [file for file in os.listdir("Geometries") if 'Geometr' in file and '.com' in file]
+        coms = [file for file in os.listdir("Geometries") if 'Geometr' in file and '.com' in file and '.com_' not in file]
         logs = [file for file in os.listdir("Geometries") if 'Geometr' in file and '.log' in file]
         factor = 1
         with open('Geometries/'+coms[0], 'r') as f:
