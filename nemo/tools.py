@@ -322,7 +322,7 @@ def spectra(tipo, num_ex, nr):
     else:
         espectro = (constante*(V**2)*O)
         tdm = calc_tdm(O,V)
-    x  = np.linspace(min(V)-3*max(S), max(V)+ 3*max(S), 200)
+    x  = np.linspace(max(min(V)-3*max(S),0), max(V)+ 3*max(S), 200)
     y  = np.zeros((1,len(x)))
     if tipo == 'abs':
         arquivo = 'cross_section.lx'
