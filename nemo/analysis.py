@@ -4,6 +4,18 @@ import os
 from nemo.tools import *
 
 
+
+##RETURNS LIST OF LOG FILES WITH NORMAL TERMINATION######################################
+def check_normal(files):
+    normal = []
+    for file in files:
+        with open(file, 'r') as f:
+            for line in f:
+                if "Have a nice day" in line:
+                    normal.append(file)
+    return normal
+#########################################################################################
+
 ##GETS ENERGIES, OSCS, AND INDICES FOR Sn AND Tn STATES##################################
 def pega_energias(file):
     with open(file, 'r') as f:
@@ -70,9 +82,10 @@ def pega_soc_T(file,n_state):
     return socs[np.newaxis,:]*0.12398/1000
 #########################################################################################
 
-##DECIDES WHICH FUNCTION TO USE UIN ORDER TO GET SOCS####################################
+##DECIDES WHICH FUNCTION TO USE IN ORDER TO GET SOCS#####################################
 def avg_socs(tipo,n_state):
     files =  [i for i in os.listdir('Geometries') if '.log' in i]    
+    files =  check_normal(files)
     files = sorted(files, key=lambda pair: float(pair.split('-')[1]))
     if tipo == 'singlet':
         pega_soc = pega_soc_S
@@ -233,6 +246,7 @@ def read_cis(file):
 ##GETS ALL RELEVANT INFORMATION FROM LOG FILES###########################################
 def analysis():         
     files =  [i for i in os.listdir('Geometries') if '.log' in i]    
+    files = check_normal(files)
     files = sorted(files, key=lambda pair: float(pair.split('-')[1]))
     n_state = read_cis(files[0])
     Ms = np.zeros((1,n_state))
