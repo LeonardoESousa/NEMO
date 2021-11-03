@@ -9,7 +9,7 @@ from nemo.tools import *
 def check_normal(files):
     normal = []
     for file in files:
-        with open(file, 'r') as f:
+        with open('Geometries/'+file, 'r') as f:
             for line in f:
                 if "Have a nice day" in line:
                     normal.append(file)
@@ -56,7 +56,7 @@ def pega_soc_S(file,n_state):
         for line in f:
             if "Total SOC between the S"+str(n_state)+" state and excited triplet states:" in line:
                 catch = True
-            elif catch and 'T' in line and '(' not in line: #len(socs) < n_state:
+            elif catch and 'T' in line and '(' not in line:
                 try:
                     socs.append(float(line.split()[1]))
                 except:
