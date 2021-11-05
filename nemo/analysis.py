@@ -19,7 +19,8 @@ def check_normal(files):
                     if eng < 0:
                         add = False
                     else:
-                        add = True      
+                        add = True
+                    exc = False          
                 elif "Have a nice day" in line and add:  
                     normal.append(file)
     return normal
