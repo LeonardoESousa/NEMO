@@ -226,14 +226,12 @@ def sample_geom(freqlog, num_geoms, T, header):
             
 ##COLLECTS RESULTS############################################## 
 def gather_data(opc):
-    files = [file for file in os.listdir('Geometries') if ".log" in file and "Geometr" in file ]    
-    files = sorted(files, key=lambda file: float(file.split("-")[1])) 
     from nemo.analysis import analysis
     Os, Singlets, Triplets, Oscs = analysis()
     num = np.shape(Singlets)[1]
     with open("Samples.lx", 'w') as f:
         for i in range(np.shape(Singlets)[0]):
-            f.write("Geometry "+str(i)+":  Vertical transition (eV) Oscillator strength Broadening Factor (eV) Spin \n")
+            f.write("Geometry "+str(i+1)+":  Vertical transition (eV) Oscillator strength Broadening Factor (eV) Spin \n")
             for j in range(num):
                 f.write("Excited State {}:\t{}\t{:.5e}\t{}\t{}\n".format(j+1,Singlets[i,j],Oscs[i,j],opc,'Singlet'))        
             for j in range(num):
