@@ -8,10 +8,19 @@ from nemo.tools import *
 ##RETURNS LIST OF LOG FILES WITH NORMAL TERMINATION######################################
 def check_normal(files):
     normal = []
+    add = False
     for file in files:
         with open('Geometries/'+file, 'r') as f:
             for line in f:
-                if "Have a nice day" in line:
+                if 'TDDFT/TDA Excitation Energies' in line or 'TDDFT Excitation Energies' in line:
+                    exc = True
+                elif 'Excited state' in line and exc:
+                    eng = float(line.split()[7])
+                    if eng < 0:
+                        add = False
+                    else:
+                        add = True      
+                elif "Have a nice day" in line and add:  
                     normal.append(file)
     return normal
 #########################################################################################
