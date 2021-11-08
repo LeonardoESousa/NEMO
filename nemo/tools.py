@@ -249,7 +249,7 @@ def gauss(x,v,s):
 ##COMPUTES AVG TRANSITION DIPOLE MOMENT########################
 def calc_tdm(O,V):
     #Energy terms converted to J
-    term = e*(hbar**2)/V
+    term = e*(hbar2**2)/V
     dipoles = np.sqrt(3*term*O/(2*mass))
     #Conversion in au
     dipoles *= (1/0.529177)*1e10

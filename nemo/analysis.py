@@ -210,7 +210,7 @@ def soc_t1(file,m,n_triplet):
 
 ##CALCULATES TRANSITION DIPOLE MOMENTS FOR Tn TO S0 TRANSITIONS##########################
 def moment(file,ess,ets,dipss,dipts,n_triplet):
-    #Conversion factor between a.u. = e*bohr^-1 to SI
+    #Conversion factor between a.u. = e*bohr to SI
     conversion = 8.4783533E-30 
     ess = np.array(ess)
     ets = np.array(ets)
@@ -229,11 +229,11 @@ def moment(file,ess,ets,dipss,dipts,n_triplet):
                 p1 = np.sum(p1)
                 p2 = (socst1[:,j]/(ets[n_triplet]-ess))*dipss[:,i]
                 p2 = np.sum(p2)
-                Ps.append((p1+p2)*conversion)
+                Ps.append((p1+p2))
             Ms.append(Ps[0]**2+Ps[1]**2)    
     
     Ms = np.array(Ms)
-    Ms = np.sum(Ms)
+    Ms = np.sum(Ms)*(conversion**2)
     return Ms
 #########################################################################################
 
@@ -295,9 +295,8 @@ def analysis():
             Oscs     = oscs
 
     Ms = Ms[1:,:]
-    Ms /= (1/0.529177)*1e10
-    term = e*(hbar**2)/Triplets
-    Os = (2*mass)*(Ms**2)/(3*term)
+    term = e*(hbar2**2)/Triplets
+    Os = (2*mass)*Ms/(3*term)
     return Os, Singlets, Triplets, Oscs
 #########################################################################################
 
