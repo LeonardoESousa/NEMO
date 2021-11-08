@@ -252,7 +252,7 @@ def calc_tdm(O,V):
     term = e*(hbar2**2)/V
     dipoles = np.sqrt(3*term*O/(2*mass))
     #Conversion in au
-    dipoles *= (1/0.529177)*1e10
+    dipoles *= 1.179474389E29
     return np.mean(dipoles)
 ###############################################################
 
