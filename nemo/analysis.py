@@ -211,7 +211,7 @@ def soc_t1(file,m,n_triplet):
 ##CALCULATES TRANSITION DIPOLE MOMENTS FOR Tn TO S0 TRANSITIONS##########################
 def moment(file,ess,ets,dipss,dipts,n_triplet):
     #Conversion factor between a.u. = e*bohr^-1 to SI
-    conversion = 8.4783533-30 
+    conversion = 8.4783533E-30 
     ess = np.array(ess)
     ets = np.array(ets)
     ess = np.insert(ess, 0, 0)
