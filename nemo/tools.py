@@ -366,6 +366,12 @@ def delist(elem):
 
 ##CHECKS THE FREQUENCY LOG'S LEVEL OF THEORY###################
 def busca_input(freqlog):
+    input_file = True
+    with open(freqlog, 'r') as f:
+        for line in f:
+            if 'A Quantum Leap Into The Future Of Chemistry' in line:
+                input_file = False
+                break           
     spec = 'ABSSPCT'
     root = '1'
     with open(freqlog, 'r') as f:
@@ -373,7 +379,7 @@ def busca_input(freqlog):
         molec  = False
         comment = False
         for line in f:
-            if 'User input:' in line:
+            if 'User input:' in line or input_file:
                 rem = ''    
                 search = True
             elif search and delist(line):
