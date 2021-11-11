@@ -340,4 +340,5 @@ def isc(initial):
             #Error estimate
             error = np.sqrt(np.sum((y-rate)**2)/(N*(N-1)))
             f.write('{} -> {}{} : {:5.2e} +/- {:5.2e} s^-1\n'.format(initial.upper(),final,j+1,rate,error))
+    print('Results are written in the {} file'.format('ISC_rates_{}_.txt'.format(initial)))        
 #########################################################################################    
