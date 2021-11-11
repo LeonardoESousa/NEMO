@@ -89,29 +89,33 @@ def main():
         print('Refractive index: {:.3f}\n'.format(nr))
         change = input('Are you satisfied with these parameters? y or n?\n')
         if change.lower() == 'n':
+            tipo = input("What kind of spectrum? Type abs (absorption) or flu (fluorescence) or pho (phosphorescence)\n")
+            if tipo != 'abs' and tipo != 'flu' and tipo != 'pho':
+                fatal_error('It must be either one. Goodbye!')
             opc = input("What is the standard deviation of the gaussians?\n")
             try:
                 opc = float(opc)
             except: 
                 fatal_error("It must be a number. Goodbye!")  
-            tipo = input("What kind of spectrum? Type abs (absorption) or flu (fluorescence) or pho (phosphorescence)\n")
-            if tipo != 'abs' and tipo != 'flu' and tipo != 'pho':
-                fatal_error('It must be either one. Goodbye!')
         tipo = tipo[:3]
-        gather_data(opc)
         if tipo == 'abs':
             estados = ask_states("How many excited states in the absorption spectrum?\n")
+            gather_data(opc)
             spectra('abs', estados, nr)
         elif tipo == 'flu':
             estados = ask_states("Fluorescence from which excited state (1,2, etc)?\n")
+            gather_data(opc)
             spectra('fluor', estados, nr)
         elif tipo == 'pho':    
             estados = ask_states("\nPhosphorescence from which excited state (1,2, etc)?\n")
+            gather_data(opc)
             spectra('phosph', estados, nr)    
     elif op == '6':
-        state = input('What is the initial state? (S1, T1, S2 ...)\n')
+        state = input('What is the initial state (S1, T1, S2 ...)? Accepts comma separated values Ex: T1,T2\n')
         from nemo.analysis import isc
-        isc(state)
+        states = state.split(',')
+        for state in states:
+            isc(state)
     elif op == '7':
         from lx.tools import ld
         ld()
