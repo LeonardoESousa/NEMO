@@ -375,11 +375,15 @@ def busca_input(freqlog):
     spec = 'ABSSPCT'
     root = '1'
     with open(freqlog, 'r') as f:
-        search = False
+        if input_file:
+            search = True
+            rem = ''
+        else:    
+            search = False
         molec  = False
         comment = False
         for line in f:
-            if 'User input:' in line or input_file:
+            if 'User input:' in line and not input_file:
                 rem = ''    
                 search = True
             elif search and delist(line):
