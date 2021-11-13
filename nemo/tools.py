@@ -411,12 +411,15 @@ def busca_input(freqlog):
             elif '--------------------------------------------------------------' in line and search and rem != '':
                 search = False
     if spec == 'EMISPCT':
-        from nemo.analysis import pega_energias
-        _, _, _, ind_s, ind_t = pega_energias(freqlog)
-        if root in ind_s:
-            spec = 'FLUORSPCT'
-        elif root in ind_t:
-            spec = 'PHOSPHSPCT'
+        try:
+            from nemo.analysis import pega_energias
+            _, _, _, ind_s, ind_t = pega_energias(freqlog)
+            if root in ind_s:
+                spec = 'FLUORSPCT'
+            elif root in ind_t:
+                spec = 'PHOSPHSPCT'
+        except:
+            spec = 'FLUORSPCT'        
     return rem, cm, spec                
 ###############################################################
 
