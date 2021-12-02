@@ -60,11 +60,9 @@ def pega_energias(file):
         triplets   = [energies[i] for i in range(len(energies)) if spins[i] == 'Triplet']
         ind_t      = [ind[i] for i in range(len(ind)) if spins[i] == 'Triplet']
         
-        oscs       = [x for _, x in sorted(zip(singlets, oscs))]
-        ind_s      = [x for _, x in sorted(zip(singlets, ind_s))]
-        ind_t      = [x for _, x in sorted(zip(triplets, ind_t))]
-        singlets = sorted(singlets)
-        triplets = sorted(triplets)
+        oscs       = [x for _, x in zip(singlets, oscs)]
+        ind_s      = [x for _, x in zip(singlets, ind_s)]
+        ind_t      = [x for _, x in zip(triplets, ind_t)]
         return singlets, triplets, oscs, ind_s, ind_t
 #########################################################################################        
 
