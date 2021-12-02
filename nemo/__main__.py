@@ -61,7 +61,13 @@ def main():
             num_ex = int(num_ex)
         except:
             fatal_error("This must be a number! Goodbye!")
-        header = "$comment\n{}\n$end\n\n$rem\ncis_n_roots             {}\ncis_singlets            true\ncis_triplets            true\nRPA                     false\ncalc_soc                true\nSTS_MOM                 true".format(spec,num_ex)
+        abs_only = input("Prepare input for absorption or fluorescence spectrum only? (y or n)\n")
+        if abs_only.lower() == 'y':
+            print('Ok, calculations will only be suitable for absorption or fluorescence spectrum simulations!')
+            header = "$comment\n{}\n$end\n\n$rem\ncis_n_roots             {}\ncis_singlets            true\ncis_triplets            false\ncalc_soc                false\nSTS_MOM                 true".format(spec,num_ex)
+        else:
+            print('Ok, calculations will be suitable for all spectra and ISC rate estimates!')
+            header = "$comment\n{}\n$end\n\n$rem\ncis_n_roots             {}\ncis_singlets            true\ncis_triplets            true\ncalc_soc                true\nSTS_MOM                 true".format(spec,num_ex)
         header =  rem.replace('$rem',header)
         header += '$molecule\n{}\n'.format(cm)
         num_geoms = int(input("How many geometries to be sampled?\n"))
