@@ -30,10 +30,15 @@ def check_normal(files):
 def pega_energias(file):
     with open(file, 'r') as f:
         exc = False
+        corr = False
+        corrected = []
         for line in f:
             if 'TDDFT/TDA Excitation Energies' in line or 'TDDFT Excitation Energies' in line:
                 energies, spins, oscs, ind = [], [], [], []
                 exc = True
+            elif 'SUMMARY OF LR-PCM AND SS-PCM' in line:
+                corrected = []
+                corr = True
             elif 'Excited state' in line and exc:
                 energies.append(float(line.split()[7]))
                 ind.append(line.split()[2].replace(':',''))
@@ -43,7 +48,12 @@ def pega_energias(file):
                 oscs.append(line.split()[2])
             elif '---------------------------------------------------' in line and exc and len(energies) > 0:
                 exc = False
-                
+            elif 'Total  1st-order corrected excitation energy' in line and corr:
+                corrected.append(float(line.split()[6]))  
+
+        if len(corrected) > 0:
+            energies = corrected
+
         singlets   = [energies[i] for i in range(len(energies)) if spins[i] == 'Singlet']
         ind_s      = [ind[i] for i in range(len(ind)) if spins[i] == 'Singlet']
         oscs       = [oscs[i] for i in range(len(energies)) if spins[i] == 'Singlet']
@@ -57,6 +67,15 @@ def pega_energias(file):
         triplets = sorted(triplets)
         return singlets, triplets, oscs, ind_s, ind_t
 #########################################################################################        
+
+
+
+
+
+
+
+
+
 
 ##GETS SOC BETWEEN Sn STATE AND TRIPLETS#################################################
 def pega_soc_S(file,n_state):
