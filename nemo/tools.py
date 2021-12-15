@@ -238,6 +238,29 @@ def gather_data(opc):
                 f.write("Excited State {}:\t{}\t{:.5e}\t{}\t{}\n".format(j+1,Triplets[i,j],Os[i,j],opc,'Triplet'))
 ############################################################### 
 
+##COLLECTS RESULTS############################################## 
+def gather_data_abs(num_ex,spin,opc):
+    from nemo.analysis import pega_oscs, pega_energias, check_normal
+    files =  [i for i in os.listdir('Geometries') if '.log' in i]    
+    files = check_normal(files)
+    files = sorted(files, key=lambda pair: float(pair.split('-')[1]))
+    i = 1
+    with open("Samples.lx", 'w') as f:
+        for file in files:
+            singlets, triplets, _, ind_s, ind_t = pega_energias('Geometries/'+file)
+            if spin == 'Singlet':
+                ind = ind_s[num_ex-1]
+                engs = np.array(singlets[num_ex:]) - singlets[num_ex-1]
+            else:    
+                ind = ind_t[num_ex-1]
+                engs = np.array(triplets[num_ex:]) - triplets[num_ex-1]
+            oscs = pega_oscs(file,ind,spin)
+            f.write("Geometry "+str(i+1)+":  Vertical transition (eV) Oscillator strength Broadening Factor (eV) Spin \n")
+            for j in range(len(oscs)):
+                f.write("Excited State {}:\t{:.3f}\t{:.5e}\t{}\t{}\n".format(num_ex+j+1,engs[j],oscs[j],opc,spin))        
+############################################################### 
+
+
 
 ##NORMALIZED GAUSSIAN##########################################
 def gauss(x,v,s):
@@ -275,27 +298,41 @@ def naming(arquivo):
 def ask_states(frase):
     estados = input(frase)
     try:
-        estados = int(estados)
+        int(estados[1:])
     except:
-        fatal_error("It must be an integer! Goodbye!")
-    return estados
+        fatal_error("It must be S or T and an integer! Goodbye!")
+    if estados[0].upper() != 'S' and estados[0].upper() != 'T':
+        fatal_error("It must be S or T and an integer! Goodbye!")
+    return estados.upper()
 ###############################################################
 
 ##COMPUTES SPECTRA############################################# 
-def spectra(tipo, num_ex, nr):
-    if tipo == "abs":
+def spectra(tipo, num_ex, nr, opc):
+    if 'S' in num_ex.upper():
         spin = 'Singlet'
-        num_ex = range(0,num_ex+1)
+    else:
+        spin = 'Triplet'
+    estado = int(num_ex[1:])     
+    if tipo == "abs":
+        label = num_ex.upper()
+        num_ex = range(estado+1,estado+1000)
         num_ex = list(map(int,num_ex))
         constante = (np.pi*(e**2)*hbar)/(2*nr*mass*c*epsilon0)*10**(20)
-    elif tipo == 'fluor':
-        spin = 'Singlet'
-        num_ex = [num_ex]
+        if estado == 0:
+            gather_data(opc)
+        else:    
+            try:
+                gather_data_abs(estado,spin,opc)
+            except:
+                fatal_error('Something went wrong. The requested state may be higher than the available energies.')    
+    elif tipo == 'emi' and 'S' in num_ex.upper():
+        num_ex = [estado]
         constante = ((nr**2)*(e**2)/(2*np.pi*hbar*mass*(c**3)*epsilon0))
-    elif tipo == 'phosph':
-        spin = 'Triplet'
-        num_ex = [num_ex]
+        gather_data(opc)
+    elif tipo == 'emi' and 'T' in num_ex.upper():
+        num_ex = [estado]
         constante = (1/3)*((nr**2)*(e**2)/(2*np.pi*hbar*mass*(c**3)*epsilon0))
+        gather_data(opc)
     V, O, S = [], [], []
     N = 0
     with open("Samples.lx", 'r') as f:
@@ -323,7 +360,7 @@ def spectra(tipo, num_ex, nr):
     x  = np.linspace(max(min(V)-3*max(S),0), max(V)+ 3*max(S), 200)
     y  = np.zeros((1,len(x)))
     if tipo == 'abs':
-        arquivo = 'cross_section.lx'
+        arquivo = 'cross_section_'+label+'_.lx'
         primeira = "{:8s} {:8s} {:8s}\n".format("#Energy(ev)", "cross_section(A^2)", "error")
     else:
         arquivo = tipo+'_differential_rate.lx'
@@ -338,7 +375,7 @@ def spectra(tipo, num_ex, nr):
     #Error estimate
     sigma  =   np.sqrt(np.sum((y-mean_y)**2,axis=0)/(N*(N-1))) 
     
-    if tipo == 'fluor' or tipo == 'phosph':
+    if tipo == 'emi':
         #Emission rate calculations
         mean_rate, error_rate = calc_emi_rate(x, mean_y,sigma) 
         segunda = '# Total Rate {}{} -> S0: {:5.2e} +/- {:5.2e} s^-1\n'.format(spin[0],num_ex[0],mean_rate,error_rate)
@@ -357,7 +394,7 @@ def spectra(tipo, num_ex, nr):
 
 ##LIST OF KEYWORDS THAT SHOULD NOT BE READ#####################
 def delist(elem):
-    words = ['jobtype','$molecule', '-----', 'cis_', 'gui', 'nto_', 'soc', 'sts_', '$comment' ]
+    words = ['jobtype','$molecule', '-----', 'cis_n', 'cis_s', 'cis_t', 'gui', 'nto_', 'soc', 'sts_', '$comment' ]
     for w in words:
         if w in elem.lower():
             return False
@@ -410,16 +447,6 @@ def busca_input(freqlog):
                     search = True    
             elif '--------------------------------------------------------------' in line and search and rem != '':
                 search = False
-    if spec == 'EMISPCT':
-        try:
-            from nemo.analysis import pega_energias
-            _, _, _, ind_s, ind_t = pega_energias(freqlog)
-            if root in ind_s:
-                spec = 'FLUORSPCT'
-            elif root in ind_t:
-                spec = 'PHOSPHSPCT'
-        except:
-            spec = 'FLUORSPCT'        
     return rem, cm, spec                
 ###############################################################
 

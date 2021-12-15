@@ -63,10 +63,10 @@ def main():
             fatal_error("This must be a number! Goodbye!")
         abs_only = input("Prepare input for absorption or fluorescence spectrum only? (y or n)\n")
         if abs_only.lower() == 'y':
-            print('Ok, calculations will only be suitable for absorption or fluorescence spectrum simulations!')
-            header = "$comment\n{}\n$end\n\n$rem\ncis_n_roots             {}\ncis_singlets            true\ncis_triplets            false\ncalc_soc                false\nSTS_MOM                 true".format(spec,num_ex)
+            print('Ok, calculations will only be suitable for absorption or fluorescence spectrum simulations!\n')
+            header = "$comment\n{}\n$end\n\n$rem\ncis_n_roots             {}\ncis_singlets            true\ncis_triplets            true\ncalc_soc                false\nSTS_MOM                 true".format(spec,num_ex)
         else:
-            print('Ok, calculations will be suitable for all spectra and ISC rate estimates!')
+            print('Ok, calculations will be suitable for all spectra and ISC rate estimates!\n')
             header = "$comment\n{}\n$end\n\n$rem\ncis_n_roots             {}\ncis_singlets            true\ncis_triplets            true\ncalc_soc                true\nSTS_MOM                 true".format(spec,num_ex)
         header =  rem.replace('$rem',header)
         header += '$molecule\n{}\n'.format(cm)
@@ -95,8 +95,8 @@ def main():
         print('Refractive index: {:.3f}\n'.format(nr))
         change = input('Are you satisfied with these parameters? y or n?\n')
         if change.lower() == 'n':
-            tipo = input("What kind of spectrum? Type abs (absorption) or flu (fluorescence) or pho (phosphorescence)\n")
-            if tipo != 'abs' and tipo != 'flu' and tipo != 'pho':
+            tipo = input("What kind of spectrum? Type abs (absorption) or emi (emission)\n")
+            if tipo != 'abs' and tipo != 'emi':
                 fatal_error('It must be either one. Goodbye!')
             opc = input("What is the standard deviation of the gaussians?\n")
             try:
@@ -105,17 +105,11 @@ def main():
                 fatal_error("It must be a number. Goodbye!")  
         tipo = tipo[:3]
         if tipo == 'abs':
-            estados = ask_states("How many excited states in the absorption spectrum?\n")
-            gather_data(opc)
-            spectra('abs', estados, nr)
-        elif tipo == 'flu':
-            estados = ask_states("Fluorescence from which excited state (1,2, etc)?\n")
-            gather_data(opc)
-            spectra('fluor', estados, nr)
-        elif tipo == 'pho':    
-            estados = ask_states("\nPhosphorescence from which excited state (1,2, etc)?\n")
-            gather_data(opc)
-            spectra('phosph', estados, nr)    
+            estados = ask_states("Absorption from which state (S0, S1, T1 ..)\n")
+            spectra('abs', estados, nr, opc)
+        elif tipo == 'emi':
+            estados = ask_states("Emission from which state (S1, T1, etc)?\n")
+            spectra('emi', estados, nr, opc)    
     elif op == '6':
         state = input('What is the initial state (S1, T1, S2 ...)? Accepts comma separated values Ex: T1,T2\n')
         from nemo.analysis import isc

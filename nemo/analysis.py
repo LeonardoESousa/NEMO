@@ -176,6 +176,27 @@ def pega_dipolos(file, ind,frase, state):
     return muf    
 #########################################################################################
 
+##GETS TRANSITION DIPOLE MOMENTS#########################################################
+def pega_oscs(file, ind,spin):
+    frase = "Transition Moments Between "+spin+" Excited States"
+    ind = str(ind)
+    oscs = []
+    with open('Geometries/'+file, 'r') as f:
+        dip = False
+        for line in f:
+            if frase in line:
+                dip = True
+            elif dip and '--' not in line:
+                line = line.split()
+                if line[0] == ind:
+                    oscs.append(float(line[5]))
+            elif len(oscs) > 0 and '---' in line:
+                dip = False
+                
+                   
+    return oscs    
+#########################################################################################
+
 ##GETS SOCS BETWEEN S0 AND EACH TRIPLET SUBLEVEL#########################################
 def soc_s0(file,m):
     socs = np.zeros((1,2))
