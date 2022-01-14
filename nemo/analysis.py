@@ -191,9 +191,7 @@ def pega_oscs(file, ind,spin):
                 if line[0] == ind:
                     oscs.append(float(line[5]))
             elif len(oscs) > 0 and '---' in line:
-                dip = False
-                
-                   
+                dip = False              
     return oscs    
 #########################################################################################
 

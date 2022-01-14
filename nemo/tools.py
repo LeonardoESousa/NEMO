@@ -380,7 +380,7 @@ def spectra(tipo, num_ex, nr, opc):
         mean_rate, error_rate = calc_emi_rate(x, mean_y,sigma) 
         segunda = '# Total Rate {}{} -> S0: {:5.2e} +/- {:5.2e} s^-1\n'.format(spin[0],num_ex[0],mean_rate,error_rate)
     else:
-        segunda = ''
+        segunda = '# Absorption from State: {}{}\n'.format(spin[0],estado)
 
     print(N, "geometries considered.")     
     with open(arquivo, 'w') as f:
