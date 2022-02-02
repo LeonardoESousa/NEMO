@@ -348,13 +348,16 @@ def isc(initial):
         tipo = 'triplet'
         final = 'S'    
     _, Singlets, Triplets, _ = analysis()
+    delta_s = np.mean(np.diff(Singlets,axis=1),axis=0)
+    delta_t = np.mean(np.diff(Triplets,axis=1),axis=0)
     socs_complete = avg_socs(tipo,n_state+1)
     try:
         lambdas_list = np.loadtxt('lambdas.txt')
     except:
         fatal_error('No lambdas.txt file found. Reorganization energies are required for this calculation! Goodbye!')
-    with open('ISC_rates_{}_.txt'.format(initial), 'w') as f:
-        f.write('Intersystem Crossing Rates:\n')
+    with open('ISC_rates_{}_.txt'.format(initial.upper()), 'w') as f:
+        f.write('#Intersystem Crossing Rates:\n')
+        f.write('#Transition    Rate(s^-1)    Error(s^-1)   AvgGap(eV)  AvgSOC(meV)\n')
         for j in range(np.shape(socs_complete)[1]):
             try:
                 lambdas = lambdas_list[j]
@@ -375,6 +378,14 @@ def isc(initial):
             rate  = np.sum(y)/N 
             #Error estimate
             error = np.sqrt(np.sum((y-rate)**2)/(N*(N-1)))
-            f.write('{} -> {}{} : {:5.2e} +/- {:5.2e} s^-1\n'.format(initial.upper(),final,j+1,rate,error))
-    print('Results are written in the {} file'.format('ISC_rates_{}_.txt'.format(initial)))        
+            gap = np.mean(delta)
+            mean_soc = 1000*np.mean(socs)
+            f.write('{}->{}{}         {:5.2e}      {:5.2e}      {:+5.3f}      {:5.3f}\n'.format(initial.upper(),final,j+1,rate,error,gap,mean_soc))
+
+        f.write('\n#Transition    AvgGap(eV)    Transition    AvgGap(eV)\n')
+        for j in range(len(delta_s)):
+            f.write('S{0:}->S{1:}         {2:+5.3f}        T{0:}->T{1:}         {3:+5.3f}\n'.format(j+1,j+2,delta_s[j],delta_t[j]))
+
+
+    print('Results are written in the {} file'.format('ISC_rates_{}_.txt'.format(initial.upper())))        
 #########################################################################################    
