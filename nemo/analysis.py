@@ -41,7 +41,7 @@ def pega_energias(file):
                 corr = True
             elif 'Excited state' in line and exc:
                 energies.append(float(line.split()[7]))
-                ind.append(line.split()[2].replace(':',''))
+                ind.append(int(line.split()[2].replace(':','')))
             elif 'Multiplicity' in line and exc:
                 spins.append(line.split()[1])
             elif 'Strength' in line and exc:
@@ -54,30 +54,35 @@ def pega_energias(file):
         if len(corrected) > 0:
             energies = corrected
 
-        singlets   = [energies[i] for i in range(len(energies)) if spins[i] == 'Singlet']
-        ind_s      = [ind[i] for i in range(len(ind)) if spins[i] == 'Singlet']
-        oscs       = [oscs[i] for i in range(len(energies)) if spins[i] == 'Singlet']
-        triplets   = [energies[i] for i in range(len(energies)) if spins[i] == 'Triplet']
-        ind_t      = [ind[i] for i in range(len(ind)) if spins[i] == 'Triplet']
+        singlets   = np.array([energies[i] for i in range(len(energies)) if spins[i] == 'Singlet'])
+        ind_s      = np.array([ind[i] for i in range(len(ind)) if spins[i] == 'Singlet'])
+        oscs       = np.array([oscs[i] for i in range(len(energies)) if spins[i] == 'Singlet'])
+        triplets   = np.array([energies[i] for i in range(len(energies)) if spins[i] == 'Triplet'])
+        ind_t      = np.array([ind[i] for i in range(len(ind)) if spins[i] == 'Triplet'])
         
-        oscs       = [x for _, x in zip(singlets, oscs)]
-        ind_s      = [x for _, x in zip(singlets, ind_s)]
-        ind_t      = [x for _, x in zip(triplets, ind_t)]
+        oscs       = np.array([x for _, x in zip(singlets, oscs)])
+        ind_s      = np.array([x for _, x in zip(singlets, ind_s)])
+        ind_t      = np.array([x for _, x in zip(triplets, ind_t)])
+
+        order_s  = np.argsort(singlets)
+        order_t  = np.argsort(triplets)
+        singlets = np.sort(singlets)
+        triplets = np.sort(triplets)
+        oscs     = oscs[order_s]
+        ind_s    = ind_s[order_s]
+        ind_t    = ind_t[order_t]
+
         return singlets, triplets, oscs, ind_s, ind_t
 #########################################################################################        
-
-
-
-
-
-
-
-
 
 
 ##GETS SOC BETWEEN Sn STATE AND TRIPLETS#################################################
 def pega_soc_S(file,n_state):
     socs = []
+    _, _, _, ind_s, ind_t = pega_energias('Geometries/'+file)
+    order_s = np.argsort(ind_s)
+    order_t = np.argsort(ind_t)
+    n_state = order_s[n_state] + 1
     with open('Geometries/'+file, 'r') as f:
         catch = False
         for line in f:
@@ -89,12 +94,17 @@ def pega_soc_S(file,n_state):
                 except:
                     catch = False
     socs = np.array(socs)
+    socs = socs[order_t]
     return socs[np.newaxis,:]*0.12398/1000            
 #########################################################################################
 
 ##GETS SOC BETWEEN Tn STATE AND SINGLETS#################################################      
 def pega_soc_T(file,n_state):
     socs = []
+    _, _, _, ind_s, ind_t = pega_energias('Geometries/'+file)
+    order_s = np.argsort(ind_s)
+    order_t = np.argsort(ind_t)
+    n_state = order_t[n_state] + 1
     with open('Geometries/'+file, 'r') as f:
         catch = False
         for line in f:
@@ -106,6 +116,7 @@ def pega_soc_T(file,n_state):
                 except:
                     catch = False
     socs = np.array(socs)
+    socs = socs[order_s]
     return socs[np.newaxis,:]*0.12398/1000
 #########################################################################################
 
@@ -113,7 +124,7 @@ def pega_soc_T(file,n_state):
 def avg_socs(tipo,n_state):
     files =  [i for i in os.listdir('Geometries') if '.log' in i]    
     files =  check_normal(files)
-    files = sorted(files, key=lambda pair: float(pair.split('-')[1]))
+    files =  sorted(files, key=lambda pair: float(pair.split('-')[1]))
     if tipo == 'singlet':
         pega_soc = pega_soc_S
     elif tipo == 'triplet':
@@ -121,9 +132,9 @@ def avg_socs(tipo,n_state):
     for file in files:
         socs = pega_soc(file,n_state)
         try:
-            Socs     = np.vstack((Socs,socs))
+            Socs  = np.vstack((Socs,socs))
         except:
-            Socs     = socs        
+            Socs  = socs        
     return Socs  
 #########################################################################################
 
@@ -137,7 +148,7 @@ def pega_dipolos(file, ind,frase, state):
                 dip = True
             elif dip and '--' not in line:
                 line = line.split()
-                if line[0] == ind[state]:
+                if line[0] == str(ind[state]):
                     a = [float(line[i]) for i in range(1,len(line))]
                     a = np.array([a])
                     try:
@@ -145,7 +156,7 @@ def pega_dipolos(file, ind,frase, state):
                     except:
                         mu = np.zeros((1,len(line)-1))
                         mu = np.vstack((mu,a))
-                elif line[1] == ind[state] and int(line[0]) < int(line[1]):    
+                elif line[1] == str(ind[state]) and int(line[0]) < int(line[1]):    
                     a = [float(line[0])]
                     b = [float(line[i]) for i in range(2,len(line))]
                     a.extend(b)
@@ -172,13 +183,16 @@ def pega_dipolos(file, ind,frase, state):
                 pass
         muf = muf[1:,:]
     else:
-        muf = mu    
+        muf = mu      
     return muf    
 #########################################################################################
 
 ##GETS TRANSITION DIPOLE MOMENTS#########################################################
-def pega_oscs(file, ind,spin):
-    frase = "Transition Moments Between "+spin+" Excited States"
+def pega_oscs(file, ind,spin, ind_s):
+    frase    = "Transition Moments Between "+spin+" Excited States"
+    location = np.where(ind_s == ind)[0][0]
+    ind_s = ind_s[location+1:]
+    order_s  = np.argsort(ind_s)
     ind = str(ind)
     oscs = []
     with open('Geometries/'+file, 'r') as f:
@@ -188,15 +202,17 @@ def pega_oscs(file, ind,spin):
                 dip = True
             elif dip and '--' not in line:
                 line = line.split()
-                if line[0] == ind:
+                if (line[0] == ind and int(line[1]) in ind_s) or (line[1] == ind and int(line[0]) in ind_s):
                     oscs.append(float(line[5]))
             elif len(oscs) > 0 and '---' in line:
-                dip = False              
+                dip = False 
+    oscs = np.array(oscs)
+    oscs = oscs[order_s]                         
     return oscs    
 #########################################################################################
 
 ##GETS SOCS BETWEEN S0 AND EACH TRIPLET SUBLEVEL#########################################
-def soc_s0(file,m):
+def soc_s0(file,m, ind_t):
     socs = np.zeros((1,2))
     with open('Geometries/'+file, 'r') as f:
         read = False
@@ -216,11 +232,14 @@ def soc_s0(file,m):
                     socs = np.vstack((socs,c))
                 else:
                     read = False
-    return socs[1:,:]*0.12398/1000
+    socs = socs[1:,:]
+    indice = np.argsort(ind_t)
+    socs = socs[indice,:]                
+    return socs*0.12398/1000
 #########################################################################################                    
 
 ##GETS SOCS BETWEEN Sm AND EACH Tn SUBLEVEL##############################################
-def soc_t1(file,m,n_triplet):
+def soc_t1(file,m,n_triplet,ind_s):
     socs = np.zeros((1,2))
     with open('Geometries/'+file, 'r') as f:
         read = False
@@ -241,20 +260,24 @@ def soc_t1(file,m,n_triplet):
                     c = np.array([[c1,c2]])
                     socs = np.vstack((socs,c))
                     read = False
-    return socs[1:,:]*0.12398/1000
+    socs = socs[1:,:]
+    indice = np.argsort(ind_s)
+    socs = socs[indice,:]                
+    return socs*0.12398/1000
 ######################################################################################### 
 
 ##CALCULATES TRANSITION DIPOLE MOMENTS FOR Tn TO S0 TRANSITIONS##########################
-def moment(file,ess,ets,dipss,dipts,n_triplet):
+def moment(file,ess,ets,dipss,dipts,n_triplet,ind_s,ind_t):
     #Conversion factor between a.u. = e*bohr to SI
     conversion = 8.4783533E-30 
+    fake_t = np.where(np.sort(ind_t) == ind_t[n_triplet])[0][0]
     ess = np.array(ess)
     ets = np.array(ets)
     ess = np.insert(ess, 0, 0)
     Ms = []
     for m in ['1','-1','0']:
-        socst1 = soc_t1(file,m,n_triplet)
-        socss0 = soc_s0(file,m) 
+        socst1 = soc_t1(file,m,fake_t,ind_s)
+        socss0 = soc_s0(file,m,ind_t) 
         socst1 = np.vstack((socss0[0,:],socst1))    
         socst1[:,1] *= -1
         ess = ess[:np.shape(socst1)[0]]
@@ -303,16 +326,18 @@ def analysis():
         zero.extend(ind_s)
 
         MMs = []
+        MS0      = pega_dipolos(file, zero,"Electron Dipole Moments of Ground State",0)            
+        MS0resto = pega_dipolos(file, zero,"Transition Moments Between Ground and Singlet Excited States",0) 
+        MS0      = np.vstack((MS0,MS0resto))    
         for n_triplet in range(n_state):
-            MS0      = pega_dipolos(file, zero,"Electron Dipole Moments of Ground State",0)            
-            MS0resto = pega_dipolos(file, zero,"Transition Moments Between Ground and Singlet Excited States",0) 
-            MS0      = np.vstack((MS0,MS0resto))
             MT1      = pega_dipolos(file, ind_t,"Electron Dipole Moments of Triplet Excited State",n_triplet)            
             MT1resto = pega_dipolos(file, ind_t,"Transition Moments Between Triplet Excited States",n_triplet)           
             MT1      = np.vstack((MT1,MT1resto))
             #Fixing the order
-            MT1[[0,n_triplet]] = MT1[[n_triplet,0]]
-            ms       = moment(file,singlets,triplets,MS0,MT1,n_triplet)  
+            order = np.arange(1,n_state)
+            order = np.insert(order,n_triplet,0)
+            MT1   = MT1[order,:]
+            ms    = moment(file,singlets,triplets,MS0,MT1,n_triplet,ind_s,ind_t)  
             MMs.append(ms)
         MMs = np.array(MMs)
         MMs = MMs[np.newaxis,:]
@@ -350,7 +375,7 @@ def isc(initial):
     _, Singlets, Triplets, _ = analysis()
     delta_s = np.mean(np.diff(Singlets,axis=1),axis=0)
     delta_t = np.mean(np.diff(Triplets,axis=1),axis=0)
-    socs_complete = avg_socs(tipo,n_state+1)
+    socs_complete = avg_socs(tipo,n_state)
     try:
         lambdas_list = np.loadtxt('lambdas.txt')
     except:

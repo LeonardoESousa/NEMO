@@ -249,12 +249,14 @@ def gather_data_abs(num_ex,spin,opc):
         for file in files:
             singlets, triplets, _, ind_s, ind_t = pega_energias('Geometries/'+file)
             if spin == 'Singlet':
-                ind = ind_s[num_ex-1]
-                engs = np.array(singlets[num_ex:]) - singlets[num_ex-1]
+                ind   = ind_s[num_ex-1]
+                engs  = np.array(singlets[num_ex:]) - singlets[num_ex-1]
+                order = ind_s
             else:    
-                ind = ind_t[num_ex-1]
-                engs = np.array(triplets[num_ex:]) - triplets[num_ex-1]
-            oscs = pega_oscs(file,ind,spin)
+                ind   = ind_t[num_ex-1]
+                engs  = np.array(triplets[num_ex:]) - triplets[num_ex-1]
+                order = ind_t
+            oscs = pega_oscs(file,ind,spin,order)
             f.write("Geometry "+str(i+1)+":  Vertical transition (eV) Oscillator strength Broadening Factor (eV) Spin \n")
             for j in range(len(oscs)):
                 f.write("Excited State {}:\t{:.3f}\t{:.5e}\t{}\t{}\n".format(num_ex+j+1,engs[j],oscs[j],opc,spin))        
