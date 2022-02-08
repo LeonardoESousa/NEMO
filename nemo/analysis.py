@@ -321,7 +321,8 @@ def analysis():
     Ms = np.zeros((1,n_state))
 
     for file in files:
-        singlets, triplets, oscs, ind_s, ind_t = pega_energias('Geometries/'+file)            
+        singlets, triplets, oscs, ind_s, ind_t = pega_energias('Geometries/'+file)       
+        singlets, triplets, oscs, ind_s, ind_t = singlets[:n_state], triplets[:n_state], oscs[:n_state], ind_s[:n_state], ind_t[:n_state]     
         zero = ['0']
         zero.extend(ind_s)
 
