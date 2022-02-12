@@ -617,7 +617,7 @@ def watcher(files,counter):
                         term += 1
                         if counter == 2:
                             delchk(input,term)
-                    elif 'fatal error' in line:
+                    elif 'fatal error' in line or 'failed standard' in line:
                         error = True
                         print('The following job returned an error: {}'.format(input))
                         print('Please check the file for any syntax errors.')        
