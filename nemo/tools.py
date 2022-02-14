@@ -247,7 +247,7 @@ def gather_data_abs(num_ex,spin,opc):
     i = 1
     with open("Samples.lx", 'w') as f:
         for file in files:
-            singlets, triplets, oscs, ind_s, ind_t = pega_energias('Geometries/'+file)
+            singlets, triplets, oscs, ind_s, ind_t = pega_energias('Geometries/'+file,False)
             if num_ex == 0:
                 engs = singlets
             else:
