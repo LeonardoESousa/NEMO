@@ -40,7 +40,7 @@ def pega_energias(file,relaxed=True):
             if 'TDDFT/TDA Excitation Energies' in line or 'TDDFT Excitation Energies' in line:
                 energies, spins, oscs, ind = [], [], [], []
                 exc = True
-            elif 'Excited-state properties with   relaxed density' in line:
+            elif ss in line:
                 corrected = []
                 corr = True
             elif 'Excited state' in line and exc:
@@ -54,7 +54,7 @@ def pega_energias(file,relaxed=True):
                 exc = False
             elif 'Total  1st-order corrected excitation energy' in line and corr:
                 corrected.append(float(line.split()[6]))
-            elif ' ------------------------ END OF SUMMARY -----------------------' and corr:
+            elif '------------------------ END OF SUMMARY -----------------------' in line and corr:
                 corr = False      
 
         if len(corrected) > 0:
