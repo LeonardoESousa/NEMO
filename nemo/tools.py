@@ -247,16 +247,19 @@ def gather_data_abs(num_ex,spin,opc):
     i = 1
     with open("Samples.lx", 'w') as f:
         for file in files:
-            singlets, triplets, _, ind_s, ind_t = pega_energias('Geometries/'+file)
-            if spin == 'Singlet':
-                ind   = ind_s[num_ex-1]
-                engs  = np.array(singlets[num_ex:]) - singlets[num_ex-1]
-                order = ind_s
-            else:    
-                ind   = ind_t[num_ex-1]
-                engs  = np.array(triplets[num_ex:]) - triplets[num_ex-1]
-                order = ind_t
-            oscs = pega_oscs(file,ind,spin,order)
+            singlets, triplets, oscs, ind_s, ind_t = pega_energias('Geometries/'+file)
+            if num_ex == 0:
+                engs = singlets
+            else:
+                if spin == 'Singlet':
+                    ind   = ind_s[num_ex-1]
+                    engs  = np.array(singlets[num_ex:]) - singlets[num_ex-1]
+                    order = ind_s
+                else:    
+                    ind   = ind_t[num_ex-1]
+                    engs  = np.array(triplets[num_ex:]) - triplets[num_ex-1]
+                    order = ind_t
+                oscs = pega_oscs(file,ind,spin,order)
             f.write("Geometry "+str(i+1)+":  Vertical transition (eV) Oscillator strength Broadening Factor (eV) Spin \n")
             for j in range(len(oscs)):
                 f.write("Excited State {}:\t{:.3f}\t{:.5e}\t{}\t{}\n".format(num_ex+j+1,engs[j],oscs[j],opc,spin))        
@@ -320,13 +323,10 @@ def spectra(tipo, num_ex, nr, opc):
         num_ex = range(estado+1,estado+1000)
         num_ex = list(map(int,num_ex))
         constante = (np.pi*(e**2)*hbar)/(2*nr*mass*c*epsilon0)*10**(20)
-        if estado == 0:
-            gather_data(opc)
-        else:    
-            try:
-                gather_data_abs(estado,spin,opc)
-            except:
-                fatal_error('Something went wrong. The requested state may be higher than the available energies.')    
+        try:
+            gather_data_abs(estado,spin,opc)
+        except:
+            fatal_error('Something went wrong. The requested state may be higher than the available energies.')    
     elif tipo == 'emi' and 'S' in num_ex.upper():
         num_ex = [estado]
         constante = ((nr**2)*(e**2)/(2*np.pi*hbar*mass*(c**3)*epsilon0))
@@ -604,7 +604,7 @@ def delchk(input,term):
 ###############################################################
 
 ##CHECKS WHETHER JOBS ARE DONE#################################
-def watcher(files,counter):
+def watcher(files,counter,first):
     rodando = files.copy()
     done = []
     for input in rodando: 
@@ -617,7 +617,7 @@ def watcher(files,counter):
                         term += 1
                         if counter == 2:
                             delchk(input,term)
-                    elif 'fatal error' in line or 'failed standard' in line:
+                    elif 'fatal error' in line or 'failed standard' in line and not first:
                         error = True
                         print('The following job returned an error: {}'.format(input))
                         print('Please check the file for any syntax errors.')        
