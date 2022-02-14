@@ -244,7 +244,7 @@ def gather_data_abs(num_ex,spin,opc):
     files =  [i for i in os.listdir('Geometries') if '.log' in i]    
     files = check_normal(files)
     files = sorted(files, key=lambda pair: float(pair.split('-')[1]))
-    i = 1
+    i = 0
     with open("Samples.lx", 'w') as f:
         for file in files:
             singlets, triplets, oscs, ind_s, ind_t = pega_energias('Geometries/'+file,False)
@@ -261,6 +261,7 @@ def gather_data_abs(num_ex,spin,opc):
                     order = ind_t
                 oscs = pega_oscs(file,ind,spin,order)
             f.write("Geometry "+str(i+1)+":  Vertical transition (eV) Oscillator strength Broadening Factor (eV) Spin \n")
+            i += 1
             for j in range(len(oscs)):
                 f.write("Excited State {}:\t{:.3f}\t{:.5e}\t{}\t{}\n".format(num_ex+j+1,engs[j],oscs[j],opc,spin))        
 ############################################################### 
