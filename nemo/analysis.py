@@ -49,7 +49,7 @@ def pega_energias(file,relaxed=True):
             elif 'Multiplicity' in line and exc:
                 spins.append(line.split()[1])
             elif 'Strength' in line and exc:
-                oscs.append(line.split()[2])
+                oscs.append(float(line.split()[2]))
             elif '---------------------------------------------------' in line and exc and len(energies) > 0:
                 exc = False
             elif 'Total  1st-order corrected excitation energy' in line and corr:
