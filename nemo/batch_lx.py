@@ -39,7 +39,7 @@ try:
     inputs = [i for i in os.listdir('.') if 'Geometr' in i and '.com' in i]
     inputs = sorted(inputs, key=lambda pair: float(pair.split('-')[1]))
     factor = set_factor(inputs[0])
-    inputs = watcher(inputs,factor)
+    inputs = watcher(inputs,factor,True)
     if len(inputs) == 0:
         print('No jobs left to run! Goodbye!')
         sys.exit()
@@ -48,7 +48,7 @@ try:
     newcommand = ''
     leftover = len(inputs)%num
     for input in inputs:
-        rodando = watcher(rodando,factor)
+        rodando = watcher(rodando,factor,False)
         nlim    = limite()
         newcommand += '{} {} {}log &\n'.format(command, input, input[:-3])
         queue += 1
@@ -64,7 +64,7 @@ try:
         batch_num += 1
         while len(rodando)/num >= nlim:
             time.sleep(20)
-            rodando = watcher(rodando,factor)
+            rodando = watcher(rodando,factor,False)
             nlim = limite()
 except:
     print('Something went wrong! Abort.')           
