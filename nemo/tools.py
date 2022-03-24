@@ -201,27 +201,30 @@ def sample_geom(freqlog, num_geoms, T, header):
     num_atom = np.shape(G)[0]   
     print("\nGenerating geometries...\n")
     with open('Magnitudes_{:.0f}K_.lx'.format(T), 'a') as file:
-        for n in range(1,num_geoms+1):
-            A = np.zeros((3*num_atom,1))
-            numbers = []
-            for i in range(0,len(F)):
-                scale = np.sqrt(hbar2/(2*M[i]*F[i]*np.tanh(hbar*F[i]/(2*kb*T))))
-                normal = norm(scale=scale,loc=0)
-                #Displacements in  Å
-                q = normal.rvs()*1e10
-                numbers.append(q)
-                A += q*(np.expand_dims(NNC[:,i],axis=1))
-            numbers = np.round(np.array(numbers)[np.newaxis,:],4)
-            np.savetxt(file, numbers, delimiter='\t', fmt='%s')
-            A = np.reshape(A,(num_atom,3))
-            Gfinal = A + G  
+        A = np.zeros((3*num_atom,num_geoms))
+        for i in range(0,len(F)):
+            scale = np.sqrt(hbar2/(2*M[i]*F[i]*np.tanh(hbar*F[i]/(2*kb*T))))
+            normal = norm(scale=scale,loc=0)
+            #Displacements in  Å
+            q = normal.rvs(size=num_geoms)*1e10
+            try:
+                numbers = np.hstack((numbers,q[:,np.newaxis]))
+            except:
+                numbers = q[:,np.newaxis]
+            A += np.outer(NNC[:,i],q) 
+        numbers = np.round(numbers,4)
+        np.savetxt(file, numbers, delimiter='\t', fmt='%s')
+        for n in range(np.shape(A)[1]):
+            A1 = np.reshape(A[:,n],(num_atom,3))
+            Gfinal = A1 + G  
             write_input(atomos,Gfinal,header,'$end',"Geometries/Geometry-"+str(n+counter)+"-.com")
             progress = 100*n/num_geoms
             text = "{:2.1f}%".format(progress)
             print(' ', text, "of the geometries done.",end="\r", flush=True)
     
     print("\n\nDone! Ready to run.")   
-###############################################################    
+###############################################################
+    
 
             
 ##COLLECTS RESULTS############################################## 
