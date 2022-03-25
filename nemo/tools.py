@@ -185,47 +185,55 @@ def start_counter():
 ###############################################################
 
 ##SAMPLES GEOMETRIES###########################################
-def sample_geom(freqlog, num_geoms, T, header):
-    F, M = pega_freq(freqlog)
-    if F[0] < 0:
-        fatal_error("Imaginary frequency! Goodbye!")
+def sample_geometries(freqlog,num_geoms,T, limit=np.inf):
+    G, atomos = pega_geom(freqlog)
+    F, M      = pega_freq(freqlog)
+    F[F < 0] *= -1
+    NNC       = pega_modos(G,freqlog)
+    mask = F < limit*(c*100*2*pi)
+    F = F[mask]
+    NNC = NNC[:,mask]
+    num_atom  = np.shape(G)[0]
+    A = np.zeros((3*num_atom,num_geoms))
+    for i in range(0,len(F)):
+        scale = np.sqrt(hbar2/(2*M[i]*F[i]*np.tanh(hbar*F[i]/(2*kb*T))))
+        normal = norm(scale=scale,loc=0)
+        #Displacements in  Å
+        q = normal.rvs(size=num_geoms)*1e10
+        try:
+            numbers = np.hstack((numbers,q[:,np.newaxis]))
+        except:
+            numbers = q[:,np.newaxis]
+        A += np.outer(NNC[:,i],q)
+    for n in range(np.shape(A)[1]):
+        A1 = np.reshape(A[:,n],(num_atom,3))
+        try:
+            Gfinal = np.hstack((Gfinal,A1 + G))
+        except:
+            Gfinal = A1 + G     
+    numbers = np.round(numbers,4)
+    return numbers, atomos, Gfinal
+###############################################################
+
+##MAKES ENSEMBLE###############################################
+def make_ensemble(freqlog, num_geoms, T, header, bottom):
     try:
         os.mkdir('Geometries')
     except:
         pass        
-    counter = start_counter()
-    G, atomos = pega_geom(freqlog)
-    write_input(atomos,G,'#','','geom.lx')
-    print("The optimized geometry that is used is saved in the opt_geom.lx file!")
-    NNC = pega_modos(G,freqlog)
-    num_atom = np.shape(G)[0]   
+    counter = start_counter()   
     print("\nGenerating geometries...\n")
+    numbers, atomos, A = sample_geometries(freqlog,num_geoms,T)
     with open('Magnitudes_{:.0f}K_.lx'.format(T), 'a') as file:
-        A = np.zeros((3*num_atom,num_geoms))
-        for i in range(0,len(F)):
-            scale = np.sqrt(hbar2/(2*M[i]*F[i]*np.tanh(hbar*F[i]/(2*kb*T))))
-            normal = norm(scale=scale,loc=0)
-            #Displacements in  Å
-            q = normal.rvs(size=num_geoms)*1e10
-            try:
-                numbers = np.hstack((numbers,q[:,np.newaxis]))
-            except:
-                numbers = q[:,np.newaxis]
-            A += np.outer(NNC[:,i],q) 
-        numbers = np.round(numbers,4)
         np.savetxt(file, numbers, delimiter='\t', fmt='%s')
-        for n in range(np.shape(A)[1]):
-            A1 = np.reshape(A[:,n],(num_atom,3))
-            Gfinal = A1 + G  
-            write_input(atomos,Gfinal,header,'$end',"Geometries/Geometry-"+str(n+counter)+"-.com")
-            progress = 100*n/num_geoms
-            text = "{:2.1f}%".format(progress)
-            print(' ', text, "of the geometries done.",end="\r", flush=True)
-    
+    for n in range(0,np.shape(A)[1],3):
+        Gfinal = A[:,n:n+3]  
+        write_input(atomos,Gfinal,header,bottom,"Geometries/Geometry-"+str((n+3)//3+counter)+"-.com")
+        progress = 100*((n+3)//3)/num_geoms
+        text = "{:2.1f}%".format(progress)
+        print(' ', text, "of the geometries done.",end="\r", flush=True)
     print("\n\nDone! Ready to run.")   
-###############################################################
-    
-
+################################################################
             
 ##COLLECTS RESULTS############################################## 
 def gather_data(opc):
@@ -364,7 +372,6 @@ def spectra(tipo, num_ex, nr, opc):
         espectro = (constante*(V**2)*O)
         tdm = calc_tdm(O,V)
     x  = np.linspace(max(min(V)-3*max(S),0), max(V)+ 3*max(S), 200)
-    y  = np.zeros((1,len(x)))
     if tipo == 'abs':
         arquivo = 'cross_section_'+label+'_.lx'
         primeira = "{:8s} {:8s} {:8s}\n".format("#Energy(ev)", "cross_section(A^2)", "error")
@@ -372,11 +379,7 @@ def spectra(tipo, num_ex, nr, opc):
         arquivo = tipo+'_differential_rate.lx'
         primeira = "{:4s} {:4s} {:4s} TDM={:.3f} au\n".format("#Energy(ev)", "diff_rate", "error",tdm)
     arquivo = naming(arquivo)
-    for i in range(0,len(espectro)):
-        contribution = espectro[i]*gauss(x,V[i],S[i])
-        y  = np.vstack((y,contribution[np.newaxis,:]))
-
-    y = y[1:,:]
+    y = espectro[:,np.newaxis]*gauss(x,V[:,np.newaxis],S[:,np.newaxis])
     mean_y =   np.sum(y,axis=0)/N 
     #Error estimate
     sigma  =   np.sqrt(np.sum((y-mean_y)**2,axis=0)/(N*(N-1))) 

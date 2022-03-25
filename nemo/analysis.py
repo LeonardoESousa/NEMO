@@ -1,9 +1,15 @@
 #!/usr/bin/env python3
 import numpy as np
 import os
-from nemo.tools import *
+import nemo.tools 
 
-
+c     = nemo.tools.c
+pi    = nemo.tools.pi
+hbar  = nemo.tools.hbar
+hbar2 = nemo.tools.hbar2
+kb    = nemo.tools.kb
+e     = nemo.tools.e
+mass  = nemo.tools.mass
 
 ##RETURNS LIST OF LOG FILES WITH NORMAL TERMINATION######################################
 def check_normal(files):
@@ -372,7 +378,7 @@ def analysis():
 ##CALCULATES ISC RATES FROM INITIAL STATE TO SEVERAL STATES OF OPPOSITE SPIN#############
 def isc(initial):
     n_state = int(initial[1:]) -1
-    kbT = detect_sigma()
+    kbT = nemo.tools.detect_sigma()
     if 's' in initial.lower():
         tipo = 'singlet'
         final = 'T'
@@ -386,7 +392,7 @@ def isc(initial):
     try:
         lambdas_list = np.loadtxt('lambdas.txt')
     except:
-        fatal_error('No lambdas.txt file found. Reorganization energies are required for this calculation! Goodbye!')
+        nemo.tools.fatal_error('No lambdas.txt file found. Reorganization energies are required for this calculation! Goodbye!')
     with open('ISC_rates_{}_.txt'.format(initial.upper()), 'w') as f:
         f.write('#Intersystem Crossing Rates:\n')
         f.write('#Transition    Rate(s^-1)    Error(s^-1)   AvgGap(eV)  AvgSOC(meV)\n')
@@ -401,11 +407,7 @@ def isc(initial):
                 delta = Singlets[:,j] - Triplets[:,n_state]    #Sm (final) - Tn (initial)
             socs = socs_complete[:,j]
             sigma = np.sqrt(2*lambdas*kbT + (kbT)**2)
-            y  = []
-            for i in range(np.shape(socs)[0]):
-                contribution = (2*np.pi/hbar)*(socs[i]**2)*gauss(delta[i]+lambdas,0,sigma)
-                y.append(contribution)
-            y = np.array(y)
+            y = (2*np.pi/hbar)*(socs[:,np.newaxis]**2)*nemo.tools.gauss(delta[:,np.newaxis]+lambdas,0,sigma)
             N = len(Singlets)
             rate  = np.sum(y)/N 
             #Error estimate
