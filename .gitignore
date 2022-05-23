@@ -3,7 +3,7 @@
 *out
 *log
 __pycache__
-teste.py
+*teste*
 build
 *egg*
 lambdas.txt
