@@ -87,30 +87,23 @@ def main():
     elif op == '4':
         nemo.tools.abort_batch()        
     elif op == '5':
-        opc = nemo.tools.detect_sigma()
         tipo = nemo.tools.get_spec()
         nr = nemo.tools.get_nr() 
         print('The spectrum will be run with the following parameters:\n')
         print('Spectrum type: {}'.format(tipo.title()))
-        print('Standard deviation of: {:.3f} eV'.format(opc))
         print('Refractive index: {:.3f}\n'.format(nr))
         change = input('Are you satisfied with these parameters? y or n?\n')
         if change.lower() == 'n':
             tipo = input("What kind of spectrum? Type abs (absorption) or emi (emission)\n")
             if tipo != 'abs' and tipo != 'emi':
-                nemo.tools.fatal_error('It must be either one. Goodbye!')
-            opc = input("What is the standard deviation of the gaussians?\n")
-            try:
-                opc = float(opc)
-            except: 
-                nemo.tools.fatal_error("It must be a number. Goodbye!")  
+                nemo.tools.fatal_error('It must be either one. Goodbye!')  
         tipo = tipo[:3]
         if tipo == 'abs':
             estados = nemo.tools.ask_states("Absorption from which state (S0, S1, T1 ..)\n")
-            nemo.tools.spectra('abs', estados, nr, opc)
+            nemo.tools.spectra('abs', estados, nr)
         elif tipo == 'emi':
             estados = nemo.tools.ask_states("Emission from which state (S1, T1, etc)?\n")
-            nemo.tools.spectra('emi', estados, nr, opc)    
+            nemo.tools.spectra('emi', estados, nr)    
     elif op == '6':
         state = input('What is the initial state (S1, T1, S2 ...)? Accepts comma separated values Ex: T1,T2\n')
         from nemo.analysis import isc
