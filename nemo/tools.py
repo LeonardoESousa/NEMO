@@ -382,7 +382,7 @@ def spectra(tipo, num_ex, nr):
         tdm = calc_tdm(O,V)
     left  = max(min(V)-3*max(S),0)
     right = max(V)+ 3*max(S)    
-    x  = np.linspace(left,right, (right-left/0.01))
+    x  = np.linspace(left,right, int((right-left)/0.01))
     if tipo == 'abs':
         arquivo = 'cross_section_'+label+'_.lx'
         primeira = "{:8s} {:8s} {:8s}\n".format("#Energy(ev)", "cross_section(A^2)", "error")
