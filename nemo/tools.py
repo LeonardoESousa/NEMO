@@ -365,26 +365,21 @@ def spectra(tipo, num_ex, nr, opc):
         gather_data(opc)
     V, L, O, S = [], [], [], []
     N = 0
-    with open("Samples.lx", 'r') as f:
-        for line in f:
-            if "Geometry" in line:
-                N += 1
-            elif "Geometry" not in line and int(line.split()[0]) in num_ex and spin in line:
-                line = line.split()
-                V.append(float(line[1]))
-                L.append(float(line[2]))
-                O.append(float(line[3]))
-                S.append(float(line[4]))
+    num_ex = [float(i) for i in num_ex]
+    data   = np.loadtxt('Samples.lx')
+    data   = data[data[:,-1] == float(spin)]
+    data   = data[np.isin(data[:,0],num_ex)]
+    N      = len(data[data[:,0] == data[0,0]])    
+    V      = data[:,1]
+    L      = data[:,2]
+    O      = data[:,3]
+    S      = data[:,4]
+    S      = np.sqrt(L*kbT + S**2)
     coms = start_counter()
     if len(V) == 0 or len(O) == 0:
         fatal_error("You need to run steps 1 and 2 first! Goodbye!")
     elif len(V) != coms*len(num_ex):
         print("Number of log files is less than the number of inputs. Something is not right! Computing the spectrum anyway...")
-    V = np.array(V)
-    L = np.array(L)
-    O = np.array(O)
-    S = np.array(S)
-    S = np.sqrt(L*kbT + S**2)
     if tipo == 'abs':
         espectro = (constante*O)
     else:
