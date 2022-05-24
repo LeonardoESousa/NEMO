@@ -236,7 +236,7 @@ def make_ensemble(freqlog, num_geoms, T, header, bottom):
 ################################################################
             
 ##COLLECTS RESULTS############################################## 
-def gather_data(opc):
+def gather_data():
     from nemo.analysis import analysis
     try:
         lambdas_list = np.loadtxt('lambdas.lx')
@@ -254,7 +254,7 @@ def gather_data(opc):
 ############################################################### 
 
 ##COLLECTS RESULTS############################################## 
-def gather_data_abs(num_ex,spin,opc):
+def gather_data_abs(num_ex,spin):
     from nemo.analysis import pega_oscs, pega_energias, check_normal
     files =  [i for i in os.listdir('Geometries') if '.log' in i]    
     files = check_normal(files)
@@ -337,7 +337,7 @@ def ask_states(frase):
 ###############################################################
 
 ##COMPUTES SPECTRA############################################# 
-def spectra(tipo, num_ex, nr, opc):
+def spectra(tipo, num_ex, nr):
     kbT = detect_sigma()
     if 'S' in num_ex.upper():
         spin  = '1'
@@ -352,26 +352,24 @@ def spectra(tipo, num_ex, nr, opc):
         num_ex = list(map(int,num_ex))
         constante = (np.pi*(e**2)*hbar)/(2*nr*mass*c*epsilon0)*10**(20)
         try:
-            gather_data_abs(estado,spin,opc)
+            gather_data_abs(estado,spin)
         except:
             fatal_error('Something went wrong. The requested state may be higher than the available energies.')    
     elif tipo == 'emi' and 'S' in num_ex.upper():
         num_ex = [estado]
         constante = ((nr**2)*(e**2)/(2*np.pi*hbar*mass*(c**3)*epsilon0))
-        gather_data(opc)
+        gather_data()
     elif tipo == 'emi' and 'T' in num_ex.upper():
         num_ex = [estado]
         constante = (1/3)*((nr**2)*(e**2)/(2*np.pi*hbar*mass*(c**3)*epsilon0))
-        gather_data(opc)
+        gather_data()
     data   = np.loadtxt('Samples.lx')
     data   = data[data[:,-1] == float(spin)]
     data   = data[np.isin(data[:,0],num_ex)]
     N      = len(data[data[:,0] == data[0,0]])    
     V      = data[:,1]
-    L      = data[:,2]
     O      = data[:,3]
-    S      = data[:,4]
-    S      = np.sqrt(L*kbT + S**2)
+    S      = np.sqrt(data[:,2]*kbT + data[:,4]**2)
     coms   = start_counter()
     if len(V) == 0 or len(O) == 0:
         fatal_error("You need to run steps 1 and 2 first! Goodbye!")
@@ -382,7 +380,9 @@ def spectra(tipo, num_ex, nr, opc):
     else:
         espectro = (constante*(V**2)*O)
         tdm = calc_tdm(O,V)
-    x  = np.linspace(max(min(V)-3*max(S),0), max(V)+ 3*max(S), 200)
+    left  = max(min(V)-3*max(S),0)
+    right = max(V)+ 3*max(S)    
+    x  = np.linspace(left,right, (right-left/0.01))
     if tipo == 'abs':
         arquivo = 'cross_section_'+label+'_.lx'
         primeira = "{:8s} {:8s} {:8s}\n".format("#Energy(ev)", "cross_section(A^2)", "error")
