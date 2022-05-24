@@ -238,15 +238,19 @@ def make_ensemble(freqlog, num_geoms, T, header, bottom):
 ##COLLECTS RESULTS############################################## 
 def gather_data(opc):
     from nemo.analysis import analysis
-    Os, Singlets, Triplets, Oscs = analysis()
+    try:
+        lambdas_list = np.loadtxt('lambdas.lx')
+    except:
+        fatal_error('No lambdas.lx file found. Use option 8 first! Goodbye!')
+    Os, Singlets, Triplets, Oscs, Ss_s, Ss_t = analysis()
     num = np.shape(Singlets)[1]
     with open("Samples.lx", 'w') as f:
         for i in range(np.shape(Singlets)[0]):
-            f.write("Geometry "+str(i+1)+":  Vertical transition (eV) Oscillator strength Broadening Factor (eV) Spin \n")
+            f.write("{:14}\t{:12}\t{:10}\t{:12}\t{:14}\t{:7}\n".format("#Geometry_"+str(i+1),"Vertical(eV)","Lambda_s(eV)","Oscillator","Broadening(eV)","Spin"))        
             for j in range(num):
-                f.write("Excited State {}:\t{}\t{:.5e}\t{}\t{}\n".format(j+1,Singlets[i,j],Oscs[i,j],opc,'Singlet'))        
+                f.write("{:14}\t{:12.3f}\t{:10.3f}\t{:12.5e}\t{:14.3f}\t{:7}\n".format(j+1,Singlets[i,j], Ss_s[i,j],Oscs[i,j],lambdas_list[0,0],'1'))        
             for j in range(num):
-                f.write("Excited State {}:\t{}\t{:.5e}\t{}\t{}\n".format(j+1,Triplets[i,j],Os[i,j],opc,'Triplet'))
+                f.write("{:14}\t{:12.3f}\t{:10.3f}\t{:12.5e}\t{:14.3f}\t{:7}\n".format(j+1,Triplets[i,j], Ss_t[i,j],Os[i,j],  lambdas_list[0,1],'3'))
 ############################################################### 
 
 ##COLLECTS RESULTS############################################## 
@@ -256,25 +260,34 @@ def gather_data_abs(num_ex,spin,opc):
     files = check_normal(files)
     files = sorted(files, key=lambda pair: float(pair.split('-')[1]))
     i = 0
+    try:
+        lambdas_list = np.loadtxt('lambdas.txt')
+    except:
+        fatal_error('No lambdas.txt file found. Reorganization energies are required for this calculation! Goodbye!')
     with open("Samples.lx", 'w') as f:
         for file in files:
-            singlets, triplets, oscs, ind_s, ind_t = pega_energias('Geometries/'+file,False)
+            singlets, triplets, oscs, ind_s, ind_t, ss_s, ss_t = pega_energias('Geometries/'+file,False)
             if num_ex == 0:
                 engs = singlets
+                lambdas = lambdas_list[num_ex:,0]
             else:
-                if spin == 'Singlet':
+                if spin == '1':
                     ind   = ind_s[num_ex-1]
                     engs  = np.array(singlets[num_ex:]) - singlets[num_ex-1]
                     order = ind_s
+                    ss    = ss_s[num_ex:]
+                    lambdas = lambdas_list[num_ex:,0]
                 else:    
                     ind   = ind_t[num_ex-1]
                     engs  = np.array(triplets[num_ex:]) - triplets[num_ex-1]
                     order = ind_t
+                    ss    = ss_t[num_ex:]
+                    lambdas = lambdas_list[num_ex:,1]
                 oscs = pega_oscs(file,ind,spin,order)
-            f.write("Geometry "+str(i+1)+":  Vertical transition (eV) Oscillator strength Broadening Factor (eV) Spin \n")
+            f.write("{:14}\t{:12}\t{:10}\t{:12}\t{:14}\t{:7}\n".format("#Geometry_"+str(i+1),"Vertical(eV)","Lambda_s(eV)","Oscillator","Broadening(eV)","Spin"))
             i += 1
             for j in range(len(oscs)):
-                f.write("Excited State {}:\t{:.3f}\t{:.5e}\t{}\t{}\n".format(num_ex+j+1,engs[j],oscs[j],opc,spin))        
+                f.write("{:14}\t{:12.3f}\t{:10.3f}\t{:12.5e}\t{:14.3f}\t{:7}\n".format(num_ex+j+1,engs[j],ss[j],oscs[j],lambdas[j],spin))       
 ############################################################### 
 
 
@@ -325,10 +338,13 @@ def ask_states(frase):
 
 ##COMPUTES SPECTRA############################################# 
 def spectra(tipo, num_ex, nr, opc):
+    kbT = detect_sigma()
     if 'S' in num_ex.upper():
-        spin = 'Singlet'
+        spin  = '1'
+        label = 'S'
     else:
-        spin = 'Triplet'
+        spin  = '3'
+        label = 'T'
     estado = int(num_ex[1:])     
     if tipo == "abs":
         label = num_ex.upper()
@@ -347,25 +363,28 @@ def spectra(tipo, num_ex, nr, opc):
         num_ex = [estado]
         constante = (1/3)*((nr**2)*(e**2)/(2*np.pi*hbar*mass*(c**3)*epsilon0))
         gather_data(opc)
-    V, O, S = [], [], []
+    V, L, O, S = [], [], [], []
     N = 0
     with open("Samples.lx", 'r') as f:
         for line in f:
             if "Geometry" in line:
                 N += 1
-            elif "Excited State" in line and int(line.split()[2][:-1]) in num_ex and spin in line:
+            elif "Geometry" not in line and int(line.split()[0]) in num_ex and spin in line:
                 line = line.split()
-                V.append(float(line[3]))
-                O.append(float(line[4]))
-                S.append(float(line[5]))
+                V.append(float(line[1]))
+                L.append(float(line[2]))
+                O.append(float(line[3]))
+                S.append(float(line[4]))
     coms = start_counter()
     if len(V) == 0 or len(O) == 0:
         fatal_error("You need to run steps 1 and 2 first! Goodbye!")
     elif len(V) != coms*len(num_ex):
         print("Number of log files is less than the number of inputs. Something is not right! Computing the spectrum anyway...")
     V = np.array(V)
+    L = np.array(L)
     O = np.array(O)
     S = np.array(S)
+    S = np.sqrt(L*kbT + S**2)
     if tipo == 'abs':
         espectro = (constante*O)
     else:
@@ -389,7 +408,7 @@ def spectra(tipo, num_ex, nr, opc):
         mean_rate, error_rate = calc_emi_rate(x, mean_y,sigma) 
         segunda = '# Total Rate {}{} -> S0: {:5.2e} +/- {:5.2e} s^-1\n'.format(spin[0],num_ex[0],mean_rate,error_rate)
     else:
-        segunda = '# Absorption from State: {}{}\n'.format(spin[0],estado)
+        segunda = '# Absorption from State: {}\n'.format(label)
 
     print(N, "geometries considered.")     
     with open(arquivo, 'w') as f:
@@ -661,3 +680,28 @@ def calc_emi_rate(xd,yd,dyd):
     error  = (1/hbar)*np.sqrt(np.trapz((dyd**2),xd))
     return taxa, error 
 ###############################################################
+
+##CALCULATES REORGANIZATION ENERGIES###########################
+def lambdas():
+    from nemo.analysis import get_minimum_energies
+    opt   = input('Path to initial state optimized log file?\n')
+    files = input('Path to extra Files? (comma separated)\n')
+    files = files.split(',')
+    files = [i.strip() for i in files]
+    files.extend([opt])
+    try:
+        min_singlets, min_triplets = get_minimum_energies(files)
+        base_s, base_t = get_minimum_energies([opt])
+    except:
+        fatal_error('Something went wrong. One or more of the files were not found or are not QChem log files.')    
+    low_s = base_s - min_singlets
+    low_t = base_t - min_triplets
+    
+    with open('lambdas.lx', 'w') as f:
+        for i in range(len(low_s)):
+            if i == 0:
+                f.write('#S{}    S{}\n'.format(i,i))
+            else:
+                f.write('#S{}    T{}\n'.format(i,i))
+            f.write('{:.2f}    {:.2f}\n'.format(low_s[i], low_t[i]))
+###############################################################            

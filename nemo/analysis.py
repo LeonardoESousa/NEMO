@@ -11,6 +11,39 @@ kb    = nemo.tools.kb
 e     = nemo.tools.e
 mass  = nemo.tools.mass
 
+##GETS TOTAL ENERGY FROM FILE##################################
+def pega_total_energy(file):
+    with open(file, 'r') as f:
+        for line in f:
+            if 'Total Free Energy' in line:
+                line = line.split()
+                total =  float(line[9])*27.2114
+                return total
+###############################################################
+
+##GETS MINIMUM ENERGIES FROM A LIST OF FILES###################
+def get_minimum_energies(files):
+    for file in files:
+        try:
+            ss, ts, _, _, _, ss_s, ss_t = pega_energias(file,True)
+            total = pega_total_energy(file)
+            ss = ss + ss_s + total
+            ts = ts + ss_t + total
+            ss = np.insert(ss,0,total)
+            ts = np.insert(ts,0,total)
+            try:
+                singlets = np.vstack((singlets,ss))
+                triplets = np.vstack((triplets,ts))
+            except:
+                singlets = ss[np.newaxis,:]
+                triplets = ts[np.newaxis,:]
+        except:
+            pass
+    min_singlets = np.min(singlets,axis=0)
+    min_triplets = np.min(triplets,axis=0)
+    return min_singlets, min_triplets
+###############################################################
+
 ##RETURNS LIST OF LOG FILES WITH NORMAL TERMINATION######################################
 def check_normal(files):
     normal = []
@@ -62,14 +95,18 @@ def pega_energias(file,relaxed=True):
                 corrected.append(float(line.split()[6]))
             elif '------------------------ END OF SUMMARY -----------------------' in line and corr:
                 corr = False      
-
         if len(corrected) > 0:
+            stspec   = np.array(energies) - np.array(corrected)
             energies = corrected
+        else:
+            stspec   = np.zeros(len(energies))    
 
         singlets   = np.array([energies[i] for i in range(len(energies)) if spins[i] == 'Singlet'])
+        ss_s       = np.array([stspec[i]   for i in range(len(stspec))   if spins[i] == 'Singlet'])
         ind_s      = np.array([ind[i] for i in range(len(ind)) if spins[i] == 'Singlet'])
         oscs       = np.array([oscs[i] for i in range(len(energies)) if spins[i] == 'Singlet'])
         triplets   = np.array([energies[i] for i in range(len(energies)) if spins[i] == 'Triplet'])
+        ss_t       = np.array([stspec[i]   for i in range(len(stspec))   if spins[i] == 'Triplet'])
         ind_t      = np.array([ind[i] for i in range(len(ind)) if spins[i] == 'Triplet'])
         
         oscs       = np.array([x for _, x in zip(singlets, oscs)])
@@ -84,14 +121,14 @@ def pega_energias(file,relaxed=True):
         ind_s    = ind_s[order_s]
         ind_t    = ind_t[order_t]
 
-        return singlets, triplets, oscs, ind_s, ind_t
+        return singlets, triplets, oscs, ind_s, ind_t, ss_s, ss_t
 #########################################################################################        
 
 
 ##GETS SOC BETWEEN Sn STATE AND TRIPLETS#################################################
 def pega_soc_S(file,n_state):
     socs = []
-    _, _, _, ind_s, ind_t = pega_energias('Geometries/'+file)
+    _, _, _, ind_s, ind_t, _, _ = pega_energias('Geometries/'+file)
     order_s = np.argsort(ind_s)
     order_t = np.argsort(ind_t)
     n_state = order_s[n_state] + 1
@@ -113,7 +150,7 @@ def pega_soc_S(file,n_state):
 ##GETS SOC BETWEEN Tn STATE AND SINGLETS#################################################      
 def pega_soc_T(file,n_state):
     socs = []
-    _, _, _, ind_s, ind_t = pega_energias('Geometries/'+file)
+    _, _, _, ind_s, ind_t, _, _ = pega_energias('Geometries/'+file)
     order_s = np.argsort(ind_s)
     order_t = np.argsort(ind_t)
     n_state = order_t[n_state] + 1
@@ -201,7 +238,8 @@ def pega_dipolos(file, ind,frase, state):
 
 ##GETS TRANSITION DIPOLE MOMENTS#########################################################
 def pega_oscs(file, ind,spin, ind_s):
-    frase    = "Transition Moments Between "+spin+" Excited States"
+    mapa = {'1':'Singlet','3':'Triplet'}
+    frase    = "Transition Moments Between "+mapa[spin]+" Excited States"
     location = np.where(ind_s == ind)[0][0]
     ind_s = ind_s[location+1:]
     order_s  = np.argsort(ind_s)
@@ -333,7 +371,7 @@ def analysis():
     Ms = np.zeros((1,n_state))
 
     for file in files:
-        singlets, triplets, oscs, ind_s, ind_t = pega_energias('Geometries/'+file)       
+        singlets, triplets, oscs, ind_s, ind_t, ss_s, ss_t = pega_energias('Geometries/'+file)       
         singlets, triplets, oscs, ind_s, ind_t = singlets[:n_state], triplets[:n_state], oscs[:n_state], ind_s[:n_state], ind_t[:n_state]     
         zero = ['0']
         zero.extend(ind_s)
@@ -359,19 +397,25 @@ def analysis():
         singlets = np.array([singlets[:n_state]])
         triplets = np.array([triplets[:n_state]])
         oscs     = np.array([oscs[:n_state]]).astype(float)
+        ss_s     = np.array([ss_s[:n_state]])
+        ss_t     = np.array([ss_t[:n_state]])
         try:
             Singlets = np.vstack((Singlets,singlets))
             Triplets = np.vstack((Triplets,triplets))
             Oscs     = np.vstack((Oscs,oscs))
+            Ss_s     = np.vstack((Ss_s,ss_s))
+            Ss_t     = np.vstack((Ss_t,ss_t))
         except:
             Singlets = singlets
             Triplets = triplets
             Oscs     = oscs
+            Ss_s     = ss_s
+            Ss_t     = ss_t
 
     Ms = Ms[1:,:]
     term = e*(hbar2**2)/Triplets
     Os = (2*mass)*Ms/(3*term)
-    return Os, Singlets, Triplets, Oscs
+    return Os, Singlets, Triplets, Oscs, Ss_s, Ss_t
 #########################################################################################
 
 
@@ -385,29 +429,33 @@ def isc(initial):
     elif 't' in initial.lower():
         tipo = 'triplet'
         final = 'S'    
-    _, Singlets, Triplets, _ = analysis()
+    _, Singlets, Triplets, _, Ss_s, Ss_t = analysis()
+    print(Singlets.shape,Triplets.shape, Ss_s.shape, Ss_t.shape)
     delta_s = np.mean(np.diff(Singlets,axis=1),axis=0)
     delta_t = np.mean(np.diff(Triplets,axis=1),axis=0)
     socs_complete = avg_socs(tipo,n_state)
     try:
-        lambdas_list = np.loadtxt('lambdas.txt')
+        lambdas_list = np.loadtxt('lambdas.lx')[1:,:]
     except:
-        nemo.tools.fatal_error('No lambdas.txt file found. Reorganization energies are required for this calculation! Goodbye!')
-    with open('ISC_rates_{}_.txt'.format(initial.upper()), 'w') as f:
+        nemo.tools.fatal_error('No lambdas.lx file found. Use option 8 first! Goodbye!')
+    with open('ISC_rates_{}_.lx'.format(initial.upper()), 'w') as f:
         f.write('#Intersystem Crossing Rates:\n')
         f.write('#Transition    Rate(s^-1)    Error(s^-1)   AvgGap(eV)  AvgSOC(meV)\n')
         for j in range(np.shape(socs_complete)[1]):
             try:
-                lambdas = lambdas_list[j]
+                if tipo == 'singlet':
+                    delta    = Triplets[:,j] - Singlets[:,n_state]   #Tn (final) - Sm (initial)
+                    lambda_s = Ss_t[:,j]
+                    lambdas  = lambdas_list[j,1]    
+                elif tipo == 'triplet':
+                    delta    = Singlets[:,j] - Triplets[:,n_state]    #Sm (final) - Tn (initial)
+                    lambda_s = Ss_s[:,j]
+                    lambdas  = lambdas_list[j,0]
             except:
                 break
-            if tipo == 'singlet':
-                delta =  Triplets[:,j] - Singlets[:,n_state]   #Tn (final) - Sm (initial)    
-            elif tipo == 'triplet':
-                delta = Singlets[:,j] - Triplets[:,n_state]    #Sm (final) - Tn (initial)
             socs = socs_complete[:,j]
-            sigma = np.sqrt(2*lambdas*kbT + (kbT)**2)
-            y = (2*np.pi/hbar)*(socs[:,np.newaxis]**2)*nemo.tools.gauss(delta[:,np.newaxis]+lambdas,0,sigma)
+            sigma = np.sqrt(2*lambda_s*kbT + lambdas**2)
+            y = (2*np.pi/hbar)*(socs[:,np.newaxis]**2)*nemo.tools.gauss(delta[:,np.newaxis],0,sigma[:,np.newaxis])
             N = len(Singlets)
             rate  = np.sum(y)/N 
             #Error estimate
@@ -421,5 +469,5 @@ def isc(initial):
             f.write('S{0:}->S{1:}         {2:+5.3f}        T{0:}->T{1:}         {3:+5.3f}\n'.format(j+1,j+2,delta_s[j],delta_t[j]))
 
 
-    print('Results are written in the {} file'.format('ISC_rates_{}_.txt'.format(initial.upper())))        
+    print('Results are written in the {} file'.format('ISC_rates_{}_.lx'.format(initial.upper())))        
 #########################################################################################    

@@ -23,8 +23,10 @@ def main():
     print("\t6 - Estimate ISC rates")
     print('EXCITON ANALYSIS:')
     print("\t7 - Estimate Förster radius, fluorescence lifetime and exciton diffusion lengths")
+    print('REORGANIZATION ENERGIES')
+    print("\t8 - Calculates reorganization energies for use in spectrum and ISC calculations")
     print('OTHER FEATURES:')
-    print("\t8 - Retrieve last geometry from log file") 
+    print("\t9 - Retrieve last geometry from log file") 
     op = input()
     if op == '1':
         freqlog = nemo.tools.fetch_file("frequency",['.out', '.log'])
@@ -119,6 +121,8 @@ def main():
         from lx.tools import ld
         ld()
     elif op == '8':
+        nemo.tools.lambdas()
+    elif op == '9':
         freqlog = nemo.tools.fetch_file("log",['.log','.out'])
         rem, cm, spec = nemo.tools.busca_input(freqlog)
         G, atomos = nemo.tools.pega_geom(freqlog)
