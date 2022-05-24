@@ -363,9 +363,6 @@ def spectra(tipo, num_ex, nr, opc):
         num_ex = [estado]
         constante = (1/3)*((nr**2)*(e**2)/(2*np.pi*hbar*mass*(c**3)*epsilon0))
         gather_data(opc)
-    V, L, O, S = [], [], [], []
-    N = 0
-    num_ex = [float(i) for i in num_ex]
     data   = np.loadtxt('Samples.lx')
     data   = data[data[:,-1] == float(spin)]
     data   = data[np.isin(data[:,0],num_ex)]
@@ -375,7 +372,7 @@ def spectra(tipo, num_ex, nr, opc):
     O      = data[:,3]
     S      = data[:,4]
     S      = np.sqrt(L*kbT + S**2)
-    coms = start_counter()
+    coms   = start_counter()
     if len(V) == 0 or len(O) == 0:
         fatal_error("You need to run steps 1 and 2 first! Goodbye!")
     elif len(V) != coms*len(num_ex):
@@ -401,7 +398,7 @@ def spectra(tipo, num_ex, nr, opc):
     if tipo == 'emi':
         #Emission rate calculations
         mean_rate, error_rate = calc_emi_rate(x, mean_y,sigma) 
-        segunda = '# Total Rate {}{} -> S0: {:5.2e} +/- {:5.2e} s^-1\n'.format(spin[0],num_ex[0],mean_rate,error_rate)
+        segunda = '# Total Rate {}{} -> S0: {:5.2e} +/- {:5.2e} s^-1\n'.format(label,num_ex[0],mean_rate,error_rate)
     else:
         segunda = '# Absorption from State: {}\n'.format(label)
 
