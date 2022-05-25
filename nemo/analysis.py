@@ -401,23 +401,23 @@ def analysis(relaxed=True, phosph=True):
         ss_s     = np.array([ss_s[:n_state]])
         ss_t     = np.array([ss_t[:n_state]])
         if phosph:
-            os       = phosph_osc(file,n_state,ind_s,ind_t,singlets,triplets)
+            tos       = phosph_osc(file,n_state,ind_s,ind_t,singlets,triplets)
         else:
-            os       = np.zeros(triplets.shape)
+            tos       = np.zeros(triplets.shape)
         try:
             Singlets = np.vstack((Singlets,singlets))
             Triplets = np.vstack((Triplets,triplets))
             Oscs     = np.vstack((Oscs,oscs))
             Ss_s     = np.vstack((Ss_s,ss_s))
             Ss_t     = np.vstack((Ss_t,ss_t))
-            Os       = np.vstack((Os,os))
+            Os       = np.vstack((Os,tos))
         except:
             Singlets = singlets
             Triplets = triplets
             Oscs     = oscs
             Ss_s     = ss_s
             Ss_t     = ss_t    
-            Os       = os
+            Os       = tos
 
     return Os, Singlets, Triplets, Oscs, Ss_s, Ss_t
 #########################################################################################
