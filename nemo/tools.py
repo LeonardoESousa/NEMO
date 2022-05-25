@@ -369,7 +369,7 @@ def spectra(tipo, num_ex, nr):
     N      = len(data[data[:,0] == data[0,0]])    
     V      = data[:,1]
     O      = data[:,3]
-    S      = np.sqrt(data[:,2]*kbT + data[:,4]**2)
+    S      = np.sqrt(2*data[:,2]*kbT + data[:,4]*kbT)
     coms   = start_counter()
     if len(V) == 0 or len(O) == 0:
         fatal_error("You need to run steps 1 and 2 first! Goodbye!")
@@ -380,8 +380,8 @@ def spectra(tipo, num_ex, nr):
     else:
         espectro = (constante*(V**2)*O)
         tdm = calc_tdm(O,V)
-    left  = max(min(V)-3*max(S),0)
-    right = max(V)+ 3*max(S)    
+    left  = max(min(V-3*S),0)
+    right = max(V+3*S)    
     x  = np.linspace(left,right, int((right-left)/0.01))
     if tipo == 'abs':
         arquivo = 'cross_section_'+label+'_.lx'

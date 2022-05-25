@@ -454,7 +454,7 @@ def isc(initial):
             except:
                 break
             socs = socs_complete[:,j]
-            sigma = np.sqrt(2*lambda_s*kbT + lambdas**2)
+            sigma = np.sqrt(2*lambda_s*kbT + lambdas*kbT)
             y = (2*np.pi/hbar)*(socs[:,np.newaxis]**2)*nemo.tools.gauss(delta[:,np.newaxis],0,sigma[:,np.newaxis])
             N = len(Singlets)
             rate  = np.sum(y)/N 
