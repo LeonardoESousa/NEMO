@@ -362,59 +362,63 @@ def read_cis(file):
     return n_state                
 #########################################################################################      
 
+def phosph_osc(file,n_state,ind_s,ind_t,singlets,triplets):
+    zero = ['0']
+    zero.extend(ind_s)
+    MMs = []
+    MS0      = pega_dipolos(file, zero,"Electron Dipole Moments of Ground State",0)            
+    MS0resto = pega_dipolos(file, zero,"Transition Moments Between Ground and Singlet Excited States",0) 
+    MS0      = np.vstack((MS0,MS0resto))    
+    for n_triplet in range(n_state):
+        MT1      = pega_dipolos(file, ind_t,"Electron Dipole Moments of Triplet Excited State",n_triplet)            
+        MT1resto = pega_dipolos(file, ind_t,"Transition Moments Between Triplet Excited States",n_triplet)           
+        MT1      = np.vstack((MT1,MT1resto))
+        #Fixing the order
+        order = np.arange(1,n_state)
+        order = np.insert(order,n_triplet,0)
+        MT1   = MT1[order,:]
+        ms    = moment(file,singlets,triplets,MS0,MT1,n_triplet,ind_s,ind_t)  
+        MMs.append(ms)
+    MMs  = np.array(MMs)
+    term = e*(hbar2**2)/triplets
+    Os = (2*mass)*MMs/(3*term)
+    return Os[np.newaxis,:]
+
+
 ##GETS ALL RELEVANT INFORMATION FROM LOG FILES###########################################
-def analysis():         
+def analysis(relaxed=True, phosph=True):         
     files =  [i for i in os.listdir('Geometries') if '.log' in i]    
     files = check_normal(files)
     files = sorted(files, key=lambda pair: float(pair.split('-')[1]))
     n_state = read_cis(files[0])
-    Ms = np.zeros((1,n_state))
 
     for file in files:
-        singlets, triplets, oscs, ind_s, ind_t, ss_s, ss_t = pega_energias('Geometries/'+file)       
+        singlets, triplets, oscs, ind_s, ind_t, ss_s, ss_t = pega_energias('Geometries/'+file,relaxed)       
         singlets, triplets, oscs, ind_s, ind_t = singlets[:n_state], triplets[:n_state], oscs[:n_state], ind_s[:n_state], ind_t[:n_state]     
-        zero = ['0']
-        zero.extend(ind_s)
-
-        MMs = []
-        MS0      = pega_dipolos(file, zero,"Electron Dipole Moments of Ground State",0)            
-        MS0resto = pega_dipolos(file, zero,"Transition Moments Between Ground and Singlet Excited States",0) 
-        MS0      = np.vstack((MS0,MS0resto))    
-        for n_triplet in range(n_state):
-            MT1      = pega_dipolos(file, ind_t,"Electron Dipole Moments of Triplet Excited State",n_triplet)            
-            MT1resto = pega_dipolos(file, ind_t,"Transition Moments Between Triplet Excited States",n_triplet)           
-            MT1      = np.vstack((MT1,MT1resto))
-            #Fixing the order
-            order = np.arange(1,n_state)
-            order = np.insert(order,n_triplet,0)
-            MT1   = MT1[order,:]
-            ms    = moment(file,singlets,triplets,MS0,MT1,n_triplet,ind_s,ind_t)  
-            MMs.append(ms)
-        MMs = np.array(MMs)
-        MMs = MMs[np.newaxis,:]
-        Ms = np.vstack((Ms,MMs))
-
         singlets = np.array([singlets[:n_state]])
         triplets = np.array([triplets[:n_state]])
         oscs     = np.array([oscs[:n_state]]).astype(float)
         ss_s     = np.array([ss_s[:n_state]])
         ss_t     = np.array([ss_t[:n_state]])
+        if phosph:
+            os       = phosph_osc(file,n_state,ind_s,ind_t,singlets,triplets)
+        else:
+            os       = np.zeros(triplets.shape)
         try:
             Singlets = np.vstack((Singlets,singlets))
             Triplets = np.vstack((Triplets,triplets))
             Oscs     = np.vstack((Oscs,oscs))
             Ss_s     = np.vstack((Ss_s,ss_s))
             Ss_t     = np.vstack((Ss_t,ss_t))
+            Os       = np.vstack((Os,os))
         except:
             Singlets = singlets
             Triplets = triplets
             Oscs     = oscs
             Ss_s     = ss_s
-            Ss_t     = ss_t
+            Ss_t     = ss_t    
+            Os       = os
 
-    Ms = Ms[1:,:]
-    term = e*(hbar2**2)/Triplets
-    Os = (2*mass)*Ms/(3*term)
     return Os, Singlets, Triplets, Oscs, Ss_s, Ss_t
 #########################################################################################
 
@@ -426,11 +430,13 @@ def isc(initial):
     if 's' in initial.lower():
         tipo = 'singlet'
         final = 'T'
+        _, Singlets,        _, _, Ss_s, _    = analysis(relaxed=True,phosph=False)
+        _,        _, Triplets, _,    _, Ss_t = analysis(relaxed=False,phosph=False)
     elif 't' in initial.lower():
         tipo = 'triplet'
         final = 'S'    
-    _, Singlets, Triplets, _, Ss_s, Ss_t = analysis()
-    print(Singlets.shape,Triplets.shape, Ss_s.shape, Ss_t.shape)
+        _,        _, Triplets, _,    _, Ss_t = analysis(relaxed=True,phosph=False)
+        _, Singlets,        _, _, Ss_s, _    = analysis(relaxed=False,phosph=False)
     delta_s = np.mean(np.diff(Singlets,axis=1),axis=0)
     delta_t = np.mean(np.diff(Triplets,axis=1),axis=0)
     socs_complete = avg_socs(tipo,n_state)
