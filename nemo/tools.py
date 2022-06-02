@@ -414,7 +414,7 @@ def spectra(tipo, num_ex, nr):
 
 ##LIST OF KEYWORDS THAT SHOULD NOT BE READ#####################
 def delist(elem):
-    words = ['jobtype','$molecule', '-----', 'cis_n', 'cis_s', 'cis_t', 'gui', 'nto_', 'soc', 'sts_', '$comment' ]
+    words = ['jobtype','$molecule', '-----', 'cis_n', 'cis_s', 'cis_t', 'gui', 'nto_', 'soc', 'sts_', '$comment', 'CIS_RELAXED_DENSITY' ]
     for w in words:
         if w in elem.lower():
             return False
