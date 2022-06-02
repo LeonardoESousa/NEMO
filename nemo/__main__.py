@@ -82,7 +82,7 @@ def main():
         else:    
             nemo.tools.make_ensemble(freqlog, num_geoms, T, header,'$end\n')  
             G, atomos = nemo.tools.pega_geom(freqlog)  
-        nemo.tools.write_input(atomos,G,rem.replace('$rem',"$comment\n{}\n$end\n\n$rem\ncis_n_roots             {}\ncis_singlets            true\ncis_triplets            true\ncalc_soc                false\nSTS_MOM                 false\nCIS_RELAXED_DENSITY     TRUE\n$molecule\n{}\n".format(spec,num_ex,cm)),'$end\n',"Opt_Lambda.com")    
+        nemo.tools.write_input(atomos,G,rem.replace('$rem',"$comment\n{}\n$end\n\n$rem\ncis_n_roots             {}\ncis_singlets            true\ncis_triplets            true\ncalc_soc                false\nSTS_MOM                 false\nCIS_RELAXED_DENSITY     TRUE".format(spec,num_ex))+'\n$molecule\n{}\n'.format(cm),'$end\n',"Opt_Lambda.com")    
     elif op == '2':
         nemo.tools.batch() 
     elif op == '3':
