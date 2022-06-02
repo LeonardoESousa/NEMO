@@ -17,14 +17,14 @@ def main():
     print("\t2 - Run the ensemble calculations")
     print("\t3 - Check the progress of the calculations")
     print("\t4 - Abort my calculations")
-    print('SPECTRUM SIMULATIONS:')
-    print("\t5 - Generate the spectrum")
-    print("INTERSYSTEM CROSSING (ISC):")
-    print("\t6 - Estimate ISC rates")
-    print('EXCITON ANALYSIS:')
-    print("\t7 - Estimate Förster radius, fluorescence lifetime and exciton diffusion lengths")
     print('REORGANIZATION ENERGIES')
-    print("\t8 - Calculates reorganization energies for use in spectrum and ISC calculations")
+    print("\t5 - Calculates reorganization energies for use in spectrum and ISC calculations")
+    print('SPECTRUM SIMULATIONS:')
+    print("\t6 - Generate the spectrum")
+    print("INTERSYSTEM CROSSING (ISC):")
+    print("\t7 - Estimate ISC rates")
+    print('EXCITON ANALYSIS:')
+    print("\t8 - Estimate Förster radius, fluorescence lifetime and exciton diffusion lengths")
     print('OTHER FEATURES:')
     print("\t9 - Retrieve last geometry from log file") 
     op = input()
@@ -82,14 +82,16 @@ def main():
         else:    
             nemo.tools.make_ensemble(freqlog, num_geoms, T, header,'$end\n')  
             G, atomos = nemo.tools.pega_geom(freqlog)  
-        nemo.tools.write_input(atomos,G,rem.replace('$rem',"$comment\n{}\n$end\n\n$rem\ncis_n_roots             {}\ncis_singlets            true\ncis_triplets            true\ncalc_soc                false\nSTS_MOM                 true".format(spec,num_ex)),'$end\n',"Opt_Lambda.com")    
+        nemo.tools.write_input(atomos,G,rem.replace('$rem',"$comment\n{}\n$end\n\n$rem\ncis_n_roots             {}\ncis_singlets            true\ncis_triplets            true\ncalc_soc                false\nSTS_MOM                 false\nCIS_RELAXED_DENSITY     TRUE\n$molecule\n{}\n".format(spec,num_ex,cm)),'$end\n',"Opt_Lambda.com")    
     elif op == '2':
         nemo.tools.batch() 
     elif op == '3':
         nemo.tools.andamento()
     elif op == '4':
-        nemo.tools.abort_batch()        
+        nemo.tools.abort_batch()
     elif op == '5':
+        nemo.tools.lambdas()            
+    elif op == '6':
         tipo = nemo.tools.get_spec()
         nr = nemo.tools.get_nr() 
         print('The spectrum will be run with the following parameters:\n')
@@ -107,17 +109,15 @@ def main():
         elif tipo == 'emi':
             estados = nemo.tools.ask_states("Emission from which state (S1, T1, etc)?\n")
             nemo.tools.spectra('emi', estados, nr)    
-    elif op == '6':
+    elif op == '7':
         state = input('What is the initial state (S1, T1, S2 ...)? Accepts comma separated values Ex: T1,T2\n')
         from nemo.analysis import isc
         states = state.split(',')
         for state in states:
             isc(state)
-    elif op == '7':
+    elif op == '8':
         from lx.tools import ld
         ld()
-    elif op == '8':
-        nemo.tools.lambdas()
     elif op == '9':
         freqlog = nemo.tools.fetch_file("log",['.log','.out'])
         rem, cm, spec = nemo.tools.busca_input(freqlog)
