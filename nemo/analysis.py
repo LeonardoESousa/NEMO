@@ -398,7 +398,7 @@ def analysis(relaxed=True, phosph=True):
         ss_s     = np.array([ss_s[:n_state]])
         ss_t     = np.array([ss_t[:n_state]])
         if phosph:
-            tos       = phosph_osc(file,n_state,ind_s,ind_t,singlets,triplets)
+            tos       = phosph_osc(file,n_state,ind_s,ind_t,singlets[0,:],triplets[0,:])
         else:
             tos       = np.zeros(triplets.shape)
         try:
