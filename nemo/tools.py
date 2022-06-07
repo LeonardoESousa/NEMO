@@ -241,7 +241,7 @@ def gather_data():
     try:
         lambdas_list = np.loadtxt('lambdas.lx')
     except:
-        fatal_error('No lambdas.lx file found. Use option 8 first! Goodbye!')
+        fatal_error('No lambdas.lx file found. Use option 5 first! Goodbye!')
     Os, Singlets, Triplets, Oscs, Ss_s, Ss_t = analysis()
     num = np.shape(Singlets)[1]
     with open("Samples.lx", 'w') as f:
@@ -266,20 +266,21 @@ def gather_data_abs(num_ex,spin):
         fatal_error('No lambdas.txt file found. Reorganization energies are required for this calculation! Goodbye!')
     with open("Samples.lx", 'w') as f:
         for file in files:
-            singlets, triplets, oscs, ind_s, ind_t, ss_s, ss_t = pega_energias('Geometries/'+file,False)
+            singlets, triplets, oscs, ind_s, ind_t, ss_s, ss_t = pega_energias('Geometries/'+file,True)
             if num_ex == 0:
                 engs = singlets
                 lambdas = lambdas_list[num_ex:,0]
             else:
+                singlets_u, triplets_u, _, _, _, _, _ = pega_energias('Geometries/'+file,False)
                 if spin == '1':
                     ind   = ind_s[num_ex-1]
-                    engs  = np.array(singlets[num_ex:]) - singlets[num_ex-1]
+                    engs  = np.array(singlets[num_ex:]) - singlets_u[num_ex-1]
                     order = ind_s
                     ss    = ss_s[num_ex:]
                     lambdas = lambdas_list[num_ex:,0]
                 else:    
                     ind   = ind_t[num_ex-1]
-                    engs  = np.array(triplets[num_ex:]) - triplets[num_ex-1]
+                    engs  = np.array(triplets[num_ex:]) - triplets_u[num_ex-1]
                     order = ind_t
                     ss    = ss_t[num_ex:]
                     lambdas = lambdas_list[num_ex:,1]
@@ -673,14 +674,34 @@ def calc_emi_rate(xd,yd,dyd):
     return taxa, error 
 ###############################################################
 
+
+def search_opt_lambda(folder='.'):
+    files = [i for i in os.listdir(folder) if 'Opt_Lambda' in i]
+    for file in files:
+        with open(file, 'r') as f:
+            for line in f:
+                if 'Have a nice day.' in line:
+                    return file
+    fatal_error('No valid QChem log file was found! You must run the Opt_Lambda.com calculation. Bye!')                
+
 ##CALCULATES REORGANIZATION ENERGIES###########################
 def lambdas():
     from nemo.analysis import get_minimum_energies
-    opt   = input('Path to initial state optimized log file?\n')
-    files = input('Path to extra Files? (comma separated)\n')
-    files = files.split(',')
-    files = [i.strip() for i in files]
-    files.extend([opt])
+    opt   = search_opt_lambda()
+    files = [opt]
+    folders = input('Path to folders with Opt_Lambda files for other states? (comma separated)\n')
+    folders = folders.split(',')
+    folders = [i.strip() for i in folders]
+    if folders == '':
+        fatal_error('You must provide at least one path to other Opt_Lambda files. Bye!')
+    for folder in folders:
+        file = search_opt_lambda(folder=folder)
+        path = os.path.join(folder,file)
+        path = os.path.normpath(path)
+        files.extend([path])
+    print('Using the following files:')
+    for f in files:
+        print(f)
     try:
         min_singlets, min_triplets = get_minimum_energies(files)
         base_s, base_t = get_minimum_energies([opt])

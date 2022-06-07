@@ -67,10 +67,7 @@ def check_normal(files):
 
 ##GETS ENERGIES, OSCS, AND INDICES FOR Sn AND Tn STATES##################################
 def pega_energias(file,relaxed=True):
-    if relaxed:
-        ss = 'Excited-state properties with   relaxed density'
-    else:
-        ss = 'Excited-state properties with unrelaxed density'    
+    ss = 'Excited-state properties with   relaxed density'
     with open(file, 'r') as f:
         exc = False
         corr = False
@@ -79,7 +76,7 @@ def pega_energias(file,relaxed=True):
             if 'TDDFT/TDA Excitation Energies' in line or 'TDDFT Excitation Energies' in line:
                 energies, spins, oscs, ind = [], [], [], []
                 exc = True
-            elif ss in line:
+            elif ss in line and relaxed:
                 corrected = []
                 corr = True
             elif 'Excited state' in line and exc:
