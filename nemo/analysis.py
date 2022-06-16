@@ -25,7 +25,7 @@ def pega_total_energy(file):
 def get_minimum_energies(files):
     for file in files:
         try:
-            ss, ts, _, _, _, ss_s, ss_t = pega_energias(file,True)
+            ss, ts, _, _, _, ss_s, ss_t = pega_energias(file)
             total = pega_total_energy(file)
             ss = ss + ss_s + total
             ts = ts + ss_t + total
@@ -392,7 +392,7 @@ def analysis(relaxed=True, phosph=True):
     n_state = read_cis(files[0])
 
     for file in files:
-        singlets, triplets, oscs, ind_s, ind_t, ss_s, ss_t = pega_energias('Geometries/'+file,relaxed)       
+        singlets, triplets, oscs, ind_s, ind_t, ss_s, ss_t = pega_energias('Geometries/'+file)       
         singlets, triplets, oscs, ind_s, ind_t = singlets[:n_state], triplets[:n_state], oscs[:n_state], ind_s[:n_state], ind_t[:n_state]     
         singlets = np.array([singlets[:n_state]])
         triplets = np.array([triplets[:n_state]])
