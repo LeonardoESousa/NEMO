@@ -96,15 +96,15 @@ def main():
         epsilon, nr = nemo.tools.get_nr() 
         print('The spectrum will be run with the following parameters:\n')
         print('Spectrum type: {}'.format(tipo.title()))
-        print('Solvent dielectric constant: {:.3f}\n'.format(epsilon))
+        print('Solvent dielectric constant: {:.3f}'.format(epsilon))
         print('Solvent refractive index: {:.3f}\n'.format(nr))
         change = input('Are you satisfied with these parameters? y or n?\n')
         if change.lower() == 'n':
             tipo = input("What kind of spectrum? Type abs (absorption) or emi (emission)\n")
             if tipo != 'abs' and tipo != 'emi':
                 nemo.tools.fatal_error('It must be either one. Goodbye!')
-            epsilon = input('What is the dielectric constant of the solvent?\n')
-            nr      = input('What is the refractive index of the solvent?\n')      
+            epsilon = float(input('What is the dielectric constant of the solvent?\n'))
+            nr      = float(input('What is the refractive index of the solvent?\n'))      
         tipo = tipo[:3]
         if tipo == 'abs':
             estados = nemo.tools.ask_states("Absorption from which state (S0, S1, T1 ..)\n")
