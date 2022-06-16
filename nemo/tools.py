@@ -242,15 +242,15 @@ def gather_data(alpha):
         lambdas_list = np.loadtxt('lambdas.lx')
     except:
         fatal_error('No lambdas.lx file found. Use option 5 first! Goodbye!')
-    Os, Singlets, Triplets, Oscs, Ss_s, Ss_t = analysis()
+    Os, Singlets, Triplets, Oscs, Ss_s, Ss_t, GP = analysis()
     num = np.shape(Singlets)[1]
     with open("Samples.lx", 'w') as f:
         for i in range(np.shape(Singlets)[0]):
-            f.write("{:14}\t{:12}\t{:14}\t{:12}\t{:14}\t{:7}\n".format("#Geometry_"+str(i+1),"Vertical(eV)","Correction(eV)","Oscillator","Broadening(eV)","Spin"))        
+            f.write("{:14}\t{:12}\t{:14}\t{:10}\t{:12}\t{:14}\t{:7}\n".format("#Geometry_"+str(i+1),"Vertical(eV)","Correction(eV)","Ground(eV)","Oscillator","Broadening(eV)","Spin"))        
             for j in range(num):
-                f.write("{:14}\t{:12.3f}\t{:10.3f}\t{:12.5e}\t{:14.3f}\t{:7}\n".format(j+1,Singlets[i,j], alpha*Ss_s[i,j],Oscs[i,j],lambdas_list[0,0],'1'))        
+                f.write("{:14}\t{:12.3f}\t{:10.3f}\t{:10.3f}\t{:12.5e}\t{:14.3f}\t{:7}\n".format(j+1,Singlets[i,j], alpha*Ss_s[i,j], (1/alpha)*GP[i],Oscs[i,j],lambdas_list[0,0],'1'))        
             for j in range(num):
-                f.write("{:14}\t{:12.3f}\t{:10.3f}\t{:12.5e}\t{:14.3f}\t{:7}\n".format(j+1,Triplets[i,j], alpha*Ss_t[i,j],Os[i,j],  lambdas_list[0,1],'3'))
+                f.write("{:14}\t{:12.3f}\t{:10.3f}\t{:10.3f}\t{:12.5e}\t{:14.3f}\t{:7}\n".format(j+1,Triplets[i,j], alpha*Ss_t[i,j], (1/alpha)*GP[i],Os[i,j],  lambdas_list[0,1],'3'))
 ############################################################### 
 
 ##COLLECTS RESULTS############################################## 
@@ -377,9 +377,10 @@ def spectra(tipo, num_ex, dielec):
     N      = len(data[data[:,0] == data[0,0]])    
     V      = data[:,1]
     S      = data[:,2]
-    O      = data[:,3]
-    L      = (alpha_stopt - 1)*S
-    Ltotal = np.sqrt(2*L*kbT + data[:,4]*kbT)
+    G      = data[:,3]
+    O      = data[:,4]
+    L      = (alpha_stopt - 1)*G
+    Ltotal = np.sqrt(2*L*kbT + data[:,5]*kbT)
     coms   = start_counter()
     if len(V) == 0 or len(O) == 0:
         fatal_error("You need to run steps 1 and 2 first! Goodbye!")
@@ -392,7 +393,7 @@ def spectra(tipo, num_ex, dielec):
         espectro = (constante*(V**2)*O)
         tdm = calc_tdm(O,V)
         sign = -1
-    left  = max(min(V-3*S),0)
+    left  = max(min(V-3*S),0.01)
     right = max(V+3*S)    
     x  = np.linspace(left,right, int((right-left)/0.01))
     if tipo == 'abs':
@@ -402,7 +403,7 @@ def spectra(tipo, num_ex, dielec):
         arquivo = tipo+'_differential_rate.lx'
         primeira = "{:4s} {:4s} {:4s} TDM={:.3f} au\n".format("#Energy(ev)", "diff_rate", "error",tdm)
     arquivo = naming(arquivo)
-    y = espectro[:,np.newaxis]*gauss(x,V[:,np.newaxis] - S[:,np.newaxis] +sign*L[:,np.newaxis] ,Ltotal[:,np.newaxis])
+    y = espectro[:,np.newaxis]*gauss(x,V[:,np.newaxis] + G[:,np.newaxis] - S[:,np.newaxis] +sign*L[:,np.newaxis] ,Ltotal[:,np.newaxis])
     mean_y =   np.sum(y,axis=0)/N 
     #Error estimate
     sigma  =   np.sqrt(np.sum((y-mean_y)**2,axis=0)/(N*(N-1))) 

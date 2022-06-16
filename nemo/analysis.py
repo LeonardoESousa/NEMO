@@ -71,14 +71,17 @@ def pega_energias(file):
     with open(file, 'r') as f:
         exc = False
         corr = False
-        corrected = []
         for line in f:
             if 'TDDFT/TDA Excitation Energies' in line or 'TDDFT Excitation Energies' in line:
                 energies, spins, oscs, ind = [], [], [], []
                 exc = True
             elif ss in line:
-                corrected = []
+                correction = []
                 corr = True
+            elif 'Solute Internal Energy' in line:
+                sol_int = float(line.split()[5])
+            elif 'Total Free Energy' in line:  
+                total_free = float(line.split()[9])
             elif 'Excited state' in line and exc:
                 energies.append(float(line.split()[7]))
                 ind.append(int(line.split()[2].replace(':','')))
@@ -88,22 +91,17 @@ def pega_energias(file):
                 oscs.append(float(line.split()[2]))
             elif '---------------------------------------------------' in line and exc and len(energies) > 0:
                 exc = False
-            elif 'Total  1st-order corrected excitation energy' in line and corr:
-                corrected.append(float(line.split()[6]))
+            elif 'SS-PCM correction' in line and corr:
+                correction.append(-1*float(line.split()[3]))
             elif '------------------------ END OF SUMMARY -----------------------' in line and corr:
                 corr = False      
-        if len(corrected) > 0:
-            stspec   = np.array(energies) - np.array(corrected)
-            #energies = corrected
-        else:
-            stspec   = np.zeros(len(energies))    
-
+        
         singlets   = np.array([energies[i] for i in range(len(energies)) if spins[i] == 'Singlet'])
-        ss_s       = np.array([stspec[i]   for i in range(len(stspec))   if spins[i] == 'Singlet'])
+        ss_s       = np.array([correction[i]   for i in range(len(correction))   if spins[i] == 'Singlet'])
         ind_s      = np.array([ind[i] for i in range(len(ind)) if spins[i] == 'Singlet'])
         oscs       = np.array([oscs[i] for i in range(len(energies)) if spins[i] == 'Singlet'])
         triplets   = np.array([energies[i] for i in range(len(energies)) if spins[i] == 'Triplet'])
-        ss_t       = np.array([stspec[i]   for i in range(len(stspec))   if spins[i] == 'Triplet'])
+        ss_t       = np.array([correction[i]   for i in range(len(correction))   if spins[i] == 'Triplet'])
         ind_t      = np.array([ind[i] for i in range(len(ind)) if spins[i] == 'Triplet'])
         
         oscs       = np.array([x for _, x in zip(singlets, oscs)])
@@ -118,7 +116,7 @@ def pega_energias(file):
         ind_s    = ind_s[order_s]
         ind_t    = ind_t[order_t]
 
-        return singlets, triplets, oscs, ind_s, ind_t, ss_s, ss_t
+        return singlets, triplets, oscs, ind_s, ind_t, ss_s, ss_t, (sol_int - total_free)*27.2114
 #########################################################################################        
 
 
@@ -385,20 +383,21 @@ def phosph_osc(file,n_state,ind_s,ind_t,singlets,triplets):
 
 
 ##GETS ALL RELEVANT INFORMATION FROM LOG FILES###########################################
-def analysis(relaxed=True, phosph=True):         
+def analysis(phosph=True):         
     files =  [i for i in os.listdir('Geometries') if '.log' in i]    
     files = check_normal(files)
     files = sorted(files, key=lambda pair: float(pair.split('-')[1]))
     n_state = read_cis(files[0])
 
     for file in files:
-        singlets, triplets, oscs, ind_s, ind_t, ss_s, ss_t = pega_energias('Geometries/'+file)       
+        singlets, triplets, oscs, ind_s, ind_t, ss_s, ss_t, ground_pol = pega_energias('Geometries/'+file)       
         singlets, triplets, oscs, ind_s, ind_t = singlets[:n_state], triplets[:n_state], oscs[:n_state], ind_s[:n_state], ind_t[:n_state]     
         singlets = np.array([singlets[:n_state]])
         triplets = np.array([triplets[:n_state]])
         oscs     = np.array([oscs[:n_state]]).astype(float)
         ss_s     = np.array([ss_s[:n_state]])
         ss_t     = np.array([ss_t[:n_state]])
+        gp       = np.array([ground_pol])
         if phosph:
             tos       = phosph_osc(file,n_state,ind_s,ind_t,singlets[0,:],triplets[0,:])
         else:
@@ -410,6 +409,7 @@ def analysis(relaxed=True, phosph=True):
             Ss_s     = np.vstack((Ss_s,ss_s))
             Ss_t     = np.vstack((Ss_t,ss_t))
             Os       = np.vstack((Os,tos))
+            GP       = np.append(GP,gp)
         except:
             Singlets = singlets
             Triplets = triplets
@@ -417,8 +417,9 @@ def analysis(relaxed=True, phosph=True):
             Ss_s     = ss_s
             Ss_t     = ss_t    
             Os       = tos
+            GP       = gp
 
-    return Os, Singlets, Triplets, Oscs, Ss_s, Ss_t
+    return Os, Singlets, Triplets, Oscs, Ss_s, Ss_t, GP
 #########################################################################################
 
 
