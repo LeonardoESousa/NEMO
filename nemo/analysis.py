@@ -66,7 +66,7 @@ def check_normal(files):
 #########################################################################################
 
 ##GETS ENERGIES, OSCS, AND INDICES FOR Sn AND Tn STATES##################################
-def pega_energias(file,relaxed=True):
+def pega_energias(file):
     ss = 'Excited-state properties with   relaxed density'
     with open(file, 'r') as f:
         exc = False
@@ -76,7 +76,7 @@ def pega_energias(file,relaxed=True):
             if 'TDDFT/TDA Excitation Energies' in line or 'TDDFT Excitation Energies' in line:
                 energies, spins, oscs, ind = [], [], [], []
                 exc = True
-            elif ss in line and relaxed:
+            elif ss in line:
                 corrected = []
                 corr = True
             elif 'Excited state' in line and exc:
@@ -94,7 +94,7 @@ def pega_energias(file,relaxed=True):
                 corr = False      
         if len(corrected) > 0:
             stspec   = np.array(energies) - np.array(corrected)
-            energies = corrected
+            #energies = corrected
         else:
             stspec   = np.zeros(len(energies))    
 
@@ -178,8 +178,10 @@ def avg_socs(tipo,n_state):
     for file in files:
         socs = pega_soc(file,n_state)
         try:
+            socs  = socs[:,:col]
             Socs  = np.vstack((Socs,socs))
         except:
+            col   = socs.shape[1] 
             Socs  = socs        
     return Socs  
 #########################################################################################
@@ -448,11 +450,11 @@ def isc(initial):
             try:
                 if tipo == 'singlet':
                     delta    = Triplets[:,j] - Singlets[:,n_state]   #Tn (final) - Sm (initial)
-                    lambda_s = Ss_t[:,j]
+                    lambda_s = Ss_s[:,n_state]
                     lambdas  = lambdas_list[j,1]    
                 elif tipo == 'triplet':
                     delta    = Singlets[:,j] - Triplets[:,n_state]    #Sm (final) - Tn (initial)
-                    lambda_s = Ss_s[:,j]
+                    lambda_s = Ss_t[:,n_state]
                     lambdas  = lambdas_list[j,0]
             except:
                 break

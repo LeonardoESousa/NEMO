@@ -236,7 +236,7 @@ def make_ensemble(freqlog, num_geoms, T, header, bottom):
 ################################################################
             
 ##COLLECTS RESULTS############################################## 
-def gather_data():
+def gather_data(alpha):
     from nemo.analysis import analysis
     try:
         lambdas_list = np.loadtxt('lambdas.lx')
@@ -246,15 +246,15 @@ def gather_data():
     num = np.shape(Singlets)[1]
     with open("Samples.lx", 'w') as f:
         for i in range(np.shape(Singlets)[0]):
-            f.write("{:14}\t{:12}\t{:10}\t{:12}\t{:14}\t{:7}\n".format("#Geometry_"+str(i+1),"Vertical(eV)","Lambda_s(eV)","Oscillator","Broadening(eV)","Spin"))        
+            f.write("{:14}\t{:12}\t{:14}\t{:12}\t{:14}\t{:7}\n".format("#Geometry_"+str(i+1),"Vertical(eV)","Correction(eV)","Oscillator","Broadening(eV)","Spin"))        
             for j in range(num):
-                f.write("{:14}\t{:12.3f}\t{:10.3f}\t{:12.5e}\t{:14.3f}\t{:7}\n".format(j+1,Singlets[i,j], Ss_s[i,j],Oscs[i,j],lambdas_list[0,0],'1'))        
+                f.write("{:14}\t{:12.3f}\t{:10.3f}\t{:12.5e}\t{:14.3f}\t{:7}\n".format(j+1,Singlets[i,j], alpha*Ss_s[i,j],Oscs[i,j],lambdas_list[0,0],'1'))        
             for j in range(num):
-                f.write("{:14}\t{:12.3f}\t{:10.3f}\t{:12.5e}\t{:14.3f}\t{:7}\n".format(j+1,Triplets[i,j], Ss_t[i,j],Os[i,j],  lambdas_list[0,1],'3'))
+                f.write("{:14}\t{:12.3f}\t{:10.3f}\t{:12.5e}\t{:14.3f}\t{:7}\n".format(j+1,Triplets[i,j], alpha*Ss_t[i,j],Os[i,j],  lambdas_list[0,1],'3'))
 ############################################################### 
 
 ##COLLECTS RESULTS############################################## 
-def gather_data_abs(num_ex,spin):
+def gather_data_abs(num_ex,spin,alpha,alpha_e):
     from nemo.analysis import pega_oscs, pega_energias, check_normal
     files =  [i for i in os.listdir('Geometries') if '.log' in i]    
     files = check_normal(files)
@@ -266,29 +266,29 @@ def gather_data_abs(num_ex,spin):
         fatal_error('No lambdas.txt file found. Reorganization energies are required for this calculation! Goodbye!')
     with open("Samples.lx", 'w') as f:
         for file in files:
-            singlets, triplets, oscs, ind_s, ind_t, ss_s, ss_t = pega_energias('Geometries/'+file,True)
+            singlets, triplets, oscs, ind_s, ind_t, ss_s, ss_t = pega_energias('Geometries/'+file)
             if num_ex == 0:
                 engs = singlets
                 lambdas = lambdas_list[num_ex:,0]
             else:
-                singlets_u, triplets_u, _, _, _, _, _ = pega_energias('Geometries/'+file,False)
+                singlets_u, triplets_u, _, _, _, _, _ = pega_energias('Geometries/'+file)
                 if spin == '1':
                     ind   = ind_s[num_ex-1]
-                    engs  = np.array(singlets[num_ex:]) - singlets_u[num_ex-1]
+                    engs  = np.array(singlets[num_ex:]) - singlets_u[num_ex-1] + alpha*alpha_e*ss_s[num_ex-1]
                     order = ind_s
                     ss    = ss_s[num_ex:]
                     lambdas = lambdas_list[num_ex:,0]
                 else:    
                     ind   = ind_t[num_ex-1]
-                    engs  = np.array(triplets[num_ex:]) - triplets_u[num_ex-1]
+                    engs  = np.array(triplets[num_ex:]) - triplets_u[num_ex-1] + alpha*alpha_e*ss_t[num_ex-1]
                     order = ind_t
                     ss    = ss_t[num_ex:]
                     lambdas = lambdas_list[num_ex:,1]
                 oscs = pega_oscs(file,ind,spin,order)
-            f.write("{:14}\t{:12}\t{:10}\t{:12}\t{:14}\t{:7}\n".format("#Geometry_"+str(i+1),"Vertical(eV)","Lambda_s(eV)","Oscillator","Broadening(eV)","Spin"))
+            f.write("{:14}\t{:12}\t{:14}\t{:12}\t{:14}\t{:7}\n".format("#Geometry_"+str(i+1),"Vertical(eV)","Correction(eV)","Oscillator","Broadening(eV)","Spin"))
             i += 1
             for j in range(len(oscs)):
-                f.write("{:14}\t{:12.3f}\t{:10.3f}\t{:12.5e}\t{:14.3f}\t{:7}\n".format(num_ex+j+1,engs[j],ss[j],oscs[j],lambdas[j],spin))       
+                f.write("{:14}\t{:12.3f}\t{:10.3f}\t{:12.5e}\t{:14.3f}\t{:7}\n".format(num_ex+j+1,engs[j],alpha*ss[j],oscs[j],lambdas[j],spin))       
 ############################################################### 
 
 
@@ -337,8 +337,15 @@ def ask_states(frase):
     return estados.upper()
 ###############################################################
 
+def get_alpha(eps):
+    return (eps-1)/(eps+1)
+
 ##COMPUTES SPECTRA############################################# 
-def spectra(tipo, num_ex, nr):
+def spectra(tipo, num_ex, dielec):
+    eps, nr = dielec[0], dielec[1]
+    _ , nr_i  = get_nr()
+    alpha_stopt  = get_alpha(eps)/get_alpha(nr**2) # multiplica o lambda para emissao 
+    alpha_optopt = get_alpha(nr**2)/get_alpha(nr_i**2) #multiplica todos os lambdas 
     kbT = detect_sigma()
     if 'S' in num_ex.upper():
         spin  = '1'
@@ -353,24 +360,26 @@ def spectra(tipo, num_ex, nr):
         num_ex = list(map(int,num_ex))
         constante = (np.pi*(e**2)*hbar)/(2*nr*mass*c*epsilon0)*10**(20)
         try:
-            gather_data_abs(estado,spin)
+            gather_data_abs(estado,spin,alpha_optopt,alpha_stopt)
         except:
             fatal_error('Something went wrong. The requested state may be higher than the available energies.')    
     elif tipo == 'emi' and 'S' in num_ex.upper():
         num_ex = [estado]
         constante = ((nr**2)*(e**2)/(2*np.pi*hbar*mass*(c**3)*epsilon0))
-        gather_data()
+        gather_data(alpha_optopt*alpha_stopt)
     elif tipo == 'emi' and 'T' in num_ex.upper():
         num_ex = [estado]
         constante = (1/3)*((nr**2)*(e**2)/(2*np.pi*hbar*mass*(c**3)*epsilon0))
-        gather_data()
+        gather_data(alpha_optopt*alpha_stopt)
     data   = np.loadtxt('Samples.lx')
     data   = data[data[:,-1] == float(spin)]
     data   = data[np.isin(data[:,0],num_ex)]
     N      = len(data[data[:,0] == data[0,0]])    
     V      = data[:,1]
+    S      = data[:,2]
     O      = data[:,3]
-    S      = np.sqrt(2*data[:,2]*kbT + data[:,4]*kbT)
+    L      = (alpha_stopt - 1)*S
+    Ltotal = np.sqrt(2*L*kbT + data[:,4]*kbT)
     coms   = start_counter()
     if len(V) == 0 or len(O) == 0:
         fatal_error("You need to run steps 1 and 2 first! Goodbye!")
@@ -378,9 +387,11 @@ def spectra(tipo, num_ex, nr):
         print("Number of log files is less than the number of inputs. Something is not right! Computing the spectrum anyway...")
     if tipo == 'abs':
         espectro = (constante*O)
+        sign = 1
     else:
         espectro = (constante*(V**2)*O)
         tdm = calc_tdm(O,V)
+        sign = -1
     left  = max(min(V-3*S),0)
     right = max(V+3*S)    
     x  = np.linspace(left,right, int((right-left)/0.01))
@@ -391,7 +402,7 @@ def spectra(tipo, num_ex, nr):
         arquivo = tipo+'_differential_rate.lx'
         primeira = "{:4s} {:4s} {:4s} TDM={:.3f} au\n".format("#Energy(ev)", "diff_rate", "error",tdm)
     arquivo = naming(arquivo)
-    y = espectro[:,np.newaxis]*gauss(x,V[:,np.newaxis],S[:,np.newaxis])
+    y = espectro[:,np.newaxis]*gauss(x,V[:,np.newaxis] - S[:,np.newaxis] +sign*L[:,np.newaxis] ,Ltotal[:,np.newaxis])
     mean_y =   np.sum(y,axis=0)/N 
     #Error estimate
     sigma  =   np.sqrt(np.sum((y-mean_y)**2,axis=0)/(N*(N-1))) 
@@ -402,7 +413,7 @@ def spectra(tipo, num_ex, nr):
         segunda = '# Total Rate {}{} -> S0: {:5.2e} +/- {:5.2e} s^-1\n'.format(label,num_ex[0],mean_rate,error_rate)
     else:
         segunda = '# Absorption from State: {}\n'.format(label)
-
+    segunda += '#Epsilon: {:.3f} nr: {:.3f}\n'.format(eps,nr)
     print(N, "geometries considered.")     
     with open(arquivo, 'w') as f:
         f.write(primeira)
@@ -577,14 +588,10 @@ def get_nr():
     with open('Geometries/'+coms[0],'r') as f:
         for line in f:
             if 'opticaldielectric' in line.lower():
-                line = line.split()
-                for elem in line:
-                    try:
-                        nr = np.sqrt(float(elem))
-                        break
-                    except:
-                        pass
-    return nr                
+                nr = np.sqrt(float(line.split()[1]))    
+            elif 'dielectric' in line.lower() and 'optical' not in line.lower():
+                epsilon = float(line.split()[1])
+    return epsilon, nr                
 ###############################################################
 
 ##QUERY FUNCTION###############################################
