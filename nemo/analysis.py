@@ -82,9 +82,9 @@ def pega_energias(file):
                 sol_int = float(line.split()[5])
             elif 'Total Free Energy' in line:  
                 total_free = float(line.split()[9])
-            elif 'Excited state' in line and exc:
-                energies.append(float(line.split()[7]))
-                ind.append(int(line.split()[2].replace(':','')))
+            elif 'Total energy for state' in line and exc:#'Excited state' in line and exc:
+                energies.append(float(line.split()[5]))
+                ind.append(int(line.split()[4].replace(':','')))
             elif 'Multiplicity' in line and exc:
                 spins.append(line.split()[1])
             elif 'Strength' in line and exc:
@@ -95,7 +95,7 @@ def pega_energias(file):
                 correction.append(-1*float(line.split()[3]))
             elif '------------------------ END OF SUMMARY -----------------------' in line and corr:
                 corr = False      
-        
+        energies   = (np.array(energies) - sol_int)*27.2114
         singlets   = np.array([energies[i] for i in range(len(energies)) if spins[i] == 'Singlet'])
         ss_s       = np.array([correction[i]   for i in range(len(correction))   if spins[i] == 'Singlet'])
         ind_s      = np.array([ind[i] for i in range(len(ind)) if spins[i] == 'Singlet'])
