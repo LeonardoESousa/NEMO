@@ -723,9 +723,12 @@ def lambdas():
         base_s, base_t = get_minimum_energies([opt])
     except:
         fatal_error('Something went wrong. One or more of the files were not found or are not QChem log files.')    
-    low_s = max(base_s - min_singlets,0.001) #Prevents zero lambdas
-    low_t = max(base_t - min_triplets,0.001)
-    
+    low_s = base_s - min_singlets 
+    low_t = base_t - min_triplets
+    #Prevents zero lambdas
+    low_s[low_s <= 0] = 0.001
+    low_t[low_t <= 0] = 0.001
+
     with open('lambdas.lx', 'w') as f:
         for i in range(len(low_s)):
             if i == 0:
