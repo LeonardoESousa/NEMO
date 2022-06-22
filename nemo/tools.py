@@ -732,5 +732,5 @@ def lambdas():
                 f.write('#S{}    S{}\n'.format(i,i))
             else:
                 f.write('#S{}    T{}\n'.format(i,i))
-            f.write('{:.2f}    {:.2f}\n'.format(low_s[i], low_t[i]))
+            f.write('{:.3f}    {:.3f}\n'.format(low_s[i], low_t[i]))
 ###############################################################            
