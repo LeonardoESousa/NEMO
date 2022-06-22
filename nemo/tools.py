@@ -345,9 +345,10 @@ def get_alpha(eps):
 ##COMPUTES SPECTRA############################################# 
 def spectra(tipo, num_ex, dielec):
     eps, nr = dielec[0], dielec[1]
-    _ , nr_i  = get_nr()
+    eps_i , nr_i  = get_nr()
     alpha_stopt  = get_alpha(eps)/get_alpha(nr**2) # multiplica o lambda para emissao 
     alpha_optopt = get_alpha(nr**2)/get_alpha(nr_i**2) #multiplica todos os lambdas 
+    alpha_epseps = get_alpha(eps)/get_alpha(eps_i)
     kbT = detect_sigma()
     if 'S' in num_ex.upper():
         spin  = '1'
@@ -379,7 +380,7 @@ def spectra(tipo, num_ex, dielec):
     N      = len(data[data[:,0] == data[0,0]])    
     V      = data[:,1]
     S      = data[:,2]*alpha_optopt
-    G      = data[:,3]*alpha_optopt
+    G      = data[:,3]*alpha_epseps
     O      = data[:,4]
     coms   = start_counter()
     if len(V) == 0 or len(O) == 0:
