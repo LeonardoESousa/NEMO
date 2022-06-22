@@ -378,8 +378,8 @@ def spectra(tipo, num_ex, dielec):
     data   = data[np.isin(data[:,0],num_ex)]
     N      = len(data[data[:,0] == data[0,0]])    
     V      = data[:,1]
-    S      = data[:,2]
-    G      = data[:,3]
+    S      = data[:,2]*alpha_optopt
+    G      = data[:,3]*alpha_optopt
     O      = data[:,4]
     coms   = start_counter()
     if len(V) == 0 or len(O) == 0:
@@ -387,14 +387,11 @@ def spectra(tipo, num_ex, dielec):
     elif len(V) != coms*len(num_ex):
         print("Number of log files is less than the number of inputs. Something is not right! Computing the spectrum anyway...")
     if tipo == 'abs':
-        if num_ex != 0:
-            S *= alpha_optopt
-            G *= alpha_optopt*alpha_stopt
         espectro = (constante*O)
         sign = 1
     else:
-        S *= alpha_optopt*alpha_stopt
-        G *= 1/(alpha_optopt*alpha_stopt)
+        S *= alpha_stopt
+        G *= 1/alpha_stopt
         espectro = (constante*(V**2)*O)
         tdm = calc_tdm(O,V)
         sign = -1
