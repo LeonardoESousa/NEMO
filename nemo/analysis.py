@@ -15,9 +15,9 @@ mass  = nemo.tools.mass
 def pega_total_energy(file):
     with open(file, 'r') as f:
         for line in f:
-            if 'Total Free Energy' in line:
+            if 'Solute Internal Energy' in line:
                 line = line.split()
-                total =  float(line[9])*27.2114
+                total =  float(line[5])*27.2114
                 return total
 ###############################################################
 
@@ -25,10 +25,10 @@ def pega_total_energy(file):
 def get_minimum_energies(files):
     for file in files:
         try:
-            ss, ts, _, _, _, ss_s, ss_t = pega_energias(file)
+            ss, ts, _, _, _, _, _, _ = pega_energias(file)
             total = pega_total_energy(file)
-            ss = ss + ss_s + total
-            ts = ts + ss_t + total
+            ss += total 
+            ts += total 
             ss = np.insert(ss,0,total)
             ts = np.insert(ts,0,total)
             try:
