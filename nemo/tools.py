@@ -236,7 +236,7 @@ def make_ensemble(freqlog, num_geoms, T, header, bottom):
 ################################################################
             
 ##COLLECTS RESULTS############################################## 
-def gather_data(alpha):
+def gather_data():
     from nemo.analysis import analysis
     try:
         lambdas_list = np.loadtxt('lambdas.lx')
@@ -248,13 +248,13 @@ def gather_data(alpha):
         for i in range(np.shape(Singlets)[0]):
             f.write("{:14}\t{:12}\t{:14}\t{:10}\t{:12}\t{:14}\t{:7}\n".format("#Geometry_"+str(i+1),"Vertical(eV)","Correction(eV)","Ground(eV)","Oscillator","Broadening(eV)","Spin"))        
             for j in range(num):
-                f.write("{:14}\t{:12.3f}\t{:14.3f}\t{:10.3f}\t{:12.3e}\t{:14.3f}\t{:7}\n".format(j+1,Singlets[i,j], alpha*Ss_s[i,j], (1/alpha)*GP[i],Oscs[i,j],lambdas_list[0,0],'1'))        
+                f.write("{:14}\t{:12.3f}\t{:14.3f}\t{:10.3f}\t{:12.3e}\t{:14.3f}\t{:7}\n".format(j+1,Singlets[i,j], Ss_s[i,j], GP[i],Oscs[i,j],lambdas_list[0,0],'1'))        
             for j in range(num):
-                f.write("{:14}\t{:12.3f}\t{:14.3f}\t{:10.3f}\t{:12.3e}\t{:14.3f}\t{:7}\n".format(j+1,Triplets[i,j], alpha*Ss_t[i,j], (1/alpha)*GP[i],Os[i,j],  lambdas_list[0,1],'3'))
+                f.write("{:14}\t{:12.3f}\t{:14.3f}\t{:10.3f}\t{:12.3e}\t{:14.3f}\t{:7}\n".format(j+1,Triplets[i,j], Ss_t[i,j], GP[i],Os[i,j],  lambdas_list[0,1],'3'))
 ############################################################### 
 
 ##COLLECTS RESULTS############################################## 
-def gather_data_abs(num_ex,spin,alpha,alpha_e):
+def gather_data_abs(num_ex,spin):
     from nemo.analysis import pega_oscs, pega_energias, check_normal
     files =  [i for i in os.listdir('Geometries') if '.log' in i]    
     files = check_normal(files)
@@ -266,29 +266,31 @@ def gather_data_abs(num_ex,spin,alpha,alpha_e):
         fatal_error('No lambdas.txt file found. Reorganization energies are required for this calculation! Goodbye!')
     with open("Samples.lx", 'w') as f:
         for file in files:
-            singlets, triplets, oscs, ind_s, ind_t, ss_s, ss_t = pega_energias('Geometries/'+file)
+            singlets, triplets, oscs, ind_s, ind_t, ss_s, ss_t, gp = pega_energias('Geometries/'+file)
             if num_ex == 0:
                 engs = singlets
                 lambdas = lambdas_list[num_ex:,0]
+                GP = gp
             else:
-                singlets_u, triplets_u, _, _, _, _, _ = pega_energias('Geometries/'+file)
                 if spin == '1':
                     ind   = ind_s[num_ex-1]
-                    engs  = np.array(singlets[num_ex:]) - singlets_u[num_ex-1] + alpha*alpha_e*ss_s[num_ex-1]
+                    engs  = np.array(singlets[num_ex:]) - singlets[num_ex-1] 
                     order = ind_s
                     ss    = ss_s[num_ex:]
+                    GP    = ss_s[num_ex-1]
                     lambdas = lambdas_list[num_ex:,0]
                 else:    
                     ind   = ind_t[num_ex-1]
-                    engs  = np.array(triplets[num_ex:]) - triplets_u[num_ex-1] + alpha*alpha_e*ss_t[num_ex-1]
+                    engs  = np.array(triplets[num_ex:]) - triplets[num_ex-1] 
                     order = ind_t
                     ss    = ss_t[num_ex:]
+                    GP    = ss_t[num_ex-1]
                     lambdas = lambdas_list[num_ex:,1]
                 oscs = pega_oscs(file,ind,spin,order)
-            f.write("{:14}\t{:12}\t{:14}\t{:12}\t{:14}\t{:7}\n".format("#Geometry_"+str(i+1),"Vertical(eV)","Correction(eV)","Oscillator","Broadening(eV)","Spin"))
+            f.write("{:14}\t{:12}\t{:14}\t{:10}\t{:12}\t{:14}\t{:7}\n".format("#Geometry_"+str(i+1),"Vertical(eV)","Correction(eV)","Ground(eV)","Oscillator","Broadening(eV)","Spin"))
             i += 1
             for j in range(len(oscs)):
-                f.write("{:14}\t{:12.3f}\t{:10.3f}\t{:12.5e}\t{:14.3f}\t{:7}\n".format(num_ex+j+1,engs[j],alpha*ss[j],oscs[j],lambdas[j],spin))       
+                f.write("{:14}\t{:12.3f}\t{:14.3f}\t{:10.3f}\t{:12.3e}\t{:14.3f}\t{:7}\n".format(num_ex+j+1,engs[j], ss[j], GP, oscs[j],lambdas[j],spin)) 
 ############################################################### 
 
 
@@ -360,17 +362,17 @@ def spectra(tipo, num_ex, dielec):
         num_ex = list(map(int,num_ex))
         constante = (np.pi*(e**2)*hbar)/(2*nr*mass*c*epsilon0)*10**(20)
         try:
-            gather_data_abs(estado,spin,alpha_optopt,alpha_stopt)
+            gather_data_abs(estado,spin)
         except:
             fatal_error('Something went wrong. The requested state may be higher than the available energies.')    
     elif tipo == 'emi' and 'S' in num_ex.upper():
         num_ex = [estado]
         constante = ((nr**2)*(e**2)/(2*np.pi*hbar*mass*(c**3)*epsilon0))
-        gather_data(alpha_optopt*alpha_stopt)
+        gather_data()
     elif tipo == 'emi' and 'T' in num_ex.upper():
         num_ex = [estado]
         constante = (1/3)*((nr**2)*(e**2)/(2*np.pi*hbar*mass*(c**3)*epsilon0))
-        gather_data(alpha_optopt*alpha_stopt)
+        gather_data()
     data   = np.loadtxt('Samples.lx')
     data   = data[data[:,-1] == float(spin)]
     data   = data[np.isin(data[:,0],num_ex)]
@@ -379,21 +381,26 @@ def spectra(tipo, num_ex, dielec):
     S      = data[:,2]
     G      = data[:,3]
     O      = data[:,4]
-    DE     = V + G - S
-    L      = (alpha_stopt - 1)*G
-    Ltotal = np.sqrt(2*L*kbT + data[:,5]*kbT)
     coms   = start_counter()
     if len(V) == 0 or len(O) == 0:
         fatal_error("You need to run steps 1 and 2 first! Goodbye!")
     elif len(V) != coms*len(num_ex):
         print("Number of log files is less than the number of inputs. Something is not right! Computing the spectrum anyway...")
     if tipo == 'abs':
+        if num_ex != 0:
+            S *= alpha_optopt
+            G *= alpha_optopt*alpha_stopt
         espectro = (constante*O)
         sign = 1
     else:
+        S *= alpha_optopt*alpha_stopt
+        G *= 1/(alpha_optopt*alpha_stopt)
         espectro = (constante*(V**2)*O)
         tdm = calc_tdm(O,V)
         sign = -1
+    DE     = V + G - S
+    L      = (alpha_stopt - 1)*G
+    Ltotal = np.sqrt(2*L*kbT + data[:,5]*kbT)
     left  = max(min(DE-2*Ltotal),0.01)
     right = max(DE+2*Ltotal)    
     x  = np.linspace(left,right, int((right-left)/0.01))

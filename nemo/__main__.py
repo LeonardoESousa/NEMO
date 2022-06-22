@@ -40,7 +40,9 @@ def main():
         if gauss:             
             print('You are using a Gaussian log file.')
             template = nemo.tools.fetch_file("QChem template",['.out', '.in'])
-            rem, cm, spec = nemo.tools.busca_input(template)
+            import lx.tools
+            _, _, _, _, _, spec = lx.tools.busca_input(freqlog)
+            rem, cm, _ = nemo.tools.busca_input(template)
         else:    
             rem, cm, spec = nemo.tools.busca_input(freqlog)        
         print('\nThe suggested configurations for you are:\n')
@@ -103,8 +105,13 @@ def main():
             tipo = input("What kind of spectrum? Type abs (absorption) or emi (emission)\n")
             if tipo != 'abs' and tipo != 'emi':
                 nemo.tools.fatal_error('It must be either one. Goodbye!')
-            epsilon = float(input('What is the dielectric constant of the solvent?\n'))
-            nr      = float(input('What is the refractive index of the solvent?\n'))      
+            epsilon = nemo.tools.default(epsilon,'Solvent dielectric constant is {:.3f}. If ok, Enter. Otherwise, type value.\n'.format(epsilon))
+            nr      = nemo.tools.default(nr,'Refractive index is {:.3f}. If ok, Enter. Otherwise, type value.\n'.format(nr))
+            try:
+                epsilon = float(epsilon)
+                nr      = float(nr)
+            except:
+                nemo.tools.fatal_error('Dielectric constant and refractive index must be numbers. Bye!')          
         tipo = tipo[:3]
         if tipo == 'abs':
             estados = nemo.tools.ask_states("Absorption from which state (S0, S1, T1 ..)\n")
