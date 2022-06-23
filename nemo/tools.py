@@ -390,7 +390,10 @@ def spectra(tipo, num_ex, dielec):
     if tipo == 'abs':
         espectro = (constante*O)
         sign = 1
+        if alpha_epseps != 1 or alpha_optopt != 1:
+            V += data[:,3] # makes vertical energy closer to vacuum values. For alpha = 1, no correction is needed.    
     else:
+        V += data[:,3] # makes vertical energy closer to vacuum values
         S *= alpha_stopt
         G *= 1/alpha_stopt
         espectro = (constante*(V**2)*O)
