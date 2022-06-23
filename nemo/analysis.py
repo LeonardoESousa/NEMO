@@ -15,9 +15,9 @@ mass  = nemo.tools.mass
 def pega_total_energy(file):
     with open(file, 'r') as f:
         for line in f:
-            if 'Solute Internal Energy' in line:
+            if 'Total energy in the final basis set' in line:
                 line = line.split()
-                total =  float(line[5])*27.2114
+                total =  float(line[8])*27.2114
                 return total
 ###############################################################
 
@@ -95,6 +95,10 @@ def pega_energias(file):
                 correction.append(-1*float(line.split()[3]))
             elif '------------------------ END OF SUMMARY -----------------------' in line and corr:
                 corr = False      
+        if len(correction) == 0: #When run on logs that do not employ pcm
+            correction = np.zeros(len(energies))
+            sol_int = 0
+            total_free = 0
         energies   = (np.array(energies) - sol_int)*27.2114
         singlets   = np.array([energies[i] for i in range(len(energies)) if spins[i] == 'Singlet'])
         ss_s       = np.array([correction[i]   for i in range(len(correction))   if spins[i] == 'Singlet'])
