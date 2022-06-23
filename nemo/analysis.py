@@ -71,12 +71,12 @@ def pega_energias(file):
     with open(file, 'r') as f:
         exc = False
         corr = False
+        correction = []
         for line in f:
             if 'TDDFT/TDA Excitation Energies' in line or 'TDDFT Excitation Energies' in line:
                 energies, spins, oscs, ind = [], [], [], []
                 exc = True
             elif ss in line:
-                correction = []
                 corr = True
             elif 'Solute Internal Energy' in line:
                 sol_int = float(line.split()[5])
@@ -95,10 +95,13 @@ def pega_energias(file):
                 correction.append(-1*float(line.split()[3]))
             elif '------------------------ END OF SUMMARY -----------------------' in line and corr:
                 corr = False      
+            elif 'Total energy in the final basis set' in line:
+                line = line.split()
+                total_nopcm =  float(line[8])    
         if len(correction) == 0: #When run on logs that do not employ pcm
             correction = np.zeros(len(energies))
-            sol_int = 0
-            total_free = 0
+            sol_int = total_nopcm
+            total_free = total_nopcm
         energies   = (np.array(energies) - sol_int)*27.2114
         singlets   = np.array([energies[i] for i in range(len(energies)) if spins[i] == 'Singlet'])
         ss_s       = np.array([correction[i]   for i in range(len(correction))   if spins[i] == 'Singlet'])
