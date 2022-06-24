@@ -448,11 +448,13 @@ def isc(initial,dielec):
     delta_s = np.mean(np.diff(Singlets - alpha_optopt*Ss_s,axis=1),axis=0)
     delta_t = np.mean(np.diff(Triplets - alpha_optopt*Ss_t,axis=1),axis=0)
     socs_complete = avg_socs(tipo,n_state)
+    arquivo = 'ISC_rates_{}_.lx'.format(initial.upper())
+    arquivo = nemo.tools.naming(arquivo)
     try:
         lambdas_list = np.loadtxt('lambdas.lx')[1:,:]
     except:
         nemo.tools.fatal_error('No lambdas.lx file found. Use option 8 first! Goodbye!')
-    with open('ISC_rates_{}_.lx'.format(initial.upper()), 'w') as f:
+    with open(arquivo, 'w') as f:
         f.write('#Intersystem Crossing Rates:\n')
         f.write('#Epsilon: {:.3f} nr: {:.3f}\n'.format(eps,nr))
         f.write('#Transition    Rate(s^-1)    Error(s^-1)   AvgGap(eV)  AvgSOC(meV)\n')
@@ -484,5 +486,5 @@ def isc(initial,dielec):
             f.write('S{0:}->S{1:}         {2:+5.3f}        T{0:}->T{1:}         {3:+5.3f}\n'.format(j+1,j+2,delta_s[j],delta_t[j]))
 
 
-    print('Results are written in the {} file'.format('ISC_rates_{}_.lx'.format(initial.upper())))        
+    print('Results are written in the {} file'.format(arquivo))        
 #########################################################################################    
