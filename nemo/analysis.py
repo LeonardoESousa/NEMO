@@ -130,7 +130,7 @@ def pega_energias(file):
 ##GETS SOC BETWEEN Sn STATE AND TRIPLETS#################################################
 def pega_soc_S(file,n_state):
     socs = []
-    _, _, _, ind_s, ind_t, _, _ = pega_energias('Geometries/'+file)
+    _, _, _, ind_s, ind_t, _, _, _ = pega_energias('Geometries/'+file)
     order_s = np.argsort(ind_s)
     order_t = np.argsort(ind_t)
     n_state = order_s[n_state] + 1
@@ -152,7 +152,7 @@ def pega_soc_S(file,n_state):
 ##GETS SOC BETWEEN Tn STATE AND SINGLETS#################################################      
 def pega_soc_T(file,n_state):
     socs = []
-    _, _, _, ind_s, ind_t, _, _ = pega_energias('Geometries/'+file)
+    _, _, _, ind_s, ind_t, _, _, _ = pega_energias('Geometries/'+file)
     order_s = np.argsort(ind_s)
     order_t = np.argsort(ind_t)
     n_state = order_t[n_state] + 1
