@@ -454,6 +454,7 @@ def isc(initial,dielec):
         nemo.tools.fatal_error('No lambdas.lx file found. Use option 8 first! Goodbye!')
     with open('ISC_rates_{}_.lx'.format(initial.upper()), 'w') as f:
         f.write('#Intersystem Crossing Rates:\n')
+        f.write('#Epsilon: {:.3f} nr: {:.3f}\n'.format(eps,nr))
         f.write('#Transition    Rate(s^-1)    Error(s^-1)   AvgGap(eV)  AvgSOC(meV)\n')
         for j in range(np.shape(socs_complete)[1]):
             try:

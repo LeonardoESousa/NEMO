@@ -120,11 +120,24 @@ def main():
             estados = nemo.tools.ask_states("Emission from which state (S1, T1, etc)?\n")
             nemo.tools.spectra('emi', estados, [epsilon,nr])    
     elif op == '7':
+        epsilon, nr = nemo.tools.get_nr()
+        print('The rate will be calculated with the following parameters:\n')
+        print('Solvent dielectric constant: {:.3f}'.format(epsilon))
+        print('Solvent refractive index: {:.3f}\n'.format(nr))
+        change = input('Are you satisfied with these parameters? y or n?\n')
+        if change.lower() == 'n':
+            epsilon = nemo.tools.default(epsilon,'Solvent dielectric constant is {:.3f}. If ok, Enter. Otherwise, type value.\n'.format(epsilon))
+            nr      = nemo.tools.default(nr,'Refractive index is {:.3f}. If ok, Enter. Otherwise, type value.\n'.format(nr))
+            try:
+                epsilon = float(epsilon)
+                nr      = float(nr)
+            except:
+                nemo.tools.fatal_error('Dielectric constant and refractive index must be numbers. Bye!')
         state = input('What is the initial state (S1, T1, S2 ...)? Accepts comma separated values Ex: T1,T2\n')
         from nemo.analysis import isc
         states = state.split(',')
         for state in states:
-            isc(state)
+            isc(state,[epsilon,nr])
     elif op == '8':
         from lx.tools import ld
         ld()
