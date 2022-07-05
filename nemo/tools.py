@@ -345,9 +345,9 @@ def get_alpha(eps):
 ##COMPUTES SPECTRA############################################# 
 def spectra(tipo, num_ex, dielec):
     eps, nr = dielec[0], dielec[1]
-    eps_i , nr_i  = get_nr()
-    alpha_stopt  = get_alpha(eps)/get_alpha(nr**2) # multiplica o lambda para emissao 
-    alpha_optopt = get_alpha(nr**2)/get_alpha(nr_i**2) #multiplica todos os lambdas 
+    eps_i , nr_i = get_nr()
+    alpha_stopt  = get_alpha(eps)/get_alpha(nr**2)  
+    alpha_optopt = get_alpha(nr**2)/get_alpha(nr_i**2) 
     alpha_epseps = get_alpha(eps)/get_alpha(eps_i)
     kbT = detect_sigma()
     if 'S' in num_ex.upper():
@@ -379,8 +379,8 @@ def spectra(tipo, num_ex, dielec):
     data   = data[np.isin(data[:,0],num_ex)]
     N      = len(data[data[:,0] == data[0,0]])    
     V      = data[:,1]
-    S      = data[:,2]*alpha_optopt
-    G      = data[:,3]*alpha_epseps
+    S      = data[:,2]
+    G      = data[:,3]
     O      = data[:,4]
     coms   = start_counter()
     if len(V) == 0 or len(O) == 0:
@@ -389,18 +389,16 @@ def spectra(tipo, num_ex, dielec):
         print("Number of log files is less than the number of inputs. Something is not right! Computing the spectrum anyway...")
     if tipo == 'abs':
         espectro = (constante*O)
-        sign = 1
-        if alpha_epseps != 1 or alpha_optopt != 1:
-            V += data[:,3] # makes vertical energy closer to vacuum values. For alpha = 1, no correction is needed.    
+        L   = (alpha_epseps*alpha_stopt - alpha_optopt)*S
+        if estado == 0:
+            DE  = V + (1 - alpha_epseps)*abs(G-S) + G*alpha_epseps - S*alpha_optopt
+        else:
+            DE  = V + G*alpha_epseps*alpha_stopt - S*alpha_optopt
     else:
-        V += data[:,3] # makes vertical energy closer to vacuum values
-        S *= alpha_stopt
-        G *= 1/alpha_stopt
-        espectro = (constante*(V**2)*O)
         tdm = calc_tdm(O,V)
-        sign = -1
-    DE     = V + G - S
-    L      = (alpha_stopt - 1)*G
+        L   = (alpha_epseps - alpha_optopt/alpha_stopt)*G
+        DE  = V + (1 - alpha_optopt/alpha_stopt)*abs(G-S) + G*alpha_epseps/alpha_stopt - S*alpha_stopt*alpha_optopt
+        espectro = (constante*(V**2)*O)
     Ltotal = np.sqrt(2*L*kbT + data[:,5]*kbT)
     left  = max(min(DE-2*Ltotal),0.01)
     right = max(DE+2*Ltotal)    
@@ -412,7 +410,7 @@ def spectra(tipo, num_ex, dielec):
         arquivo = tipo+'_differential_rate.lx'
         primeira = "{:4s} {:4s} {:4s} TDM={:.3f} au\n".format("#Energy(ev)", "diff_rate", "error",tdm)
     arquivo = naming(arquivo)
-    y = espectro[:,np.newaxis]*gauss(x,DE[:,np.newaxis] +sign*L[:,np.newaxis] ,Ltotal[:,np.newaxis])
+    y = espectro[:,np.newaxis]*gauss(x,DE[:,np.newaxis],Ltotal[:,np.newaxis])
     mean_y =   np.sum(y,axis=0)/N 
     #Error estimate
     sigma  =   np.sqrt(np.sum((y-mean_y)**2,axis=0)/(N*(N-1))) 

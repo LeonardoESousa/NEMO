@@ -433,9 +433,10 @@ def analysis(phosph=True):
 ##CALCULATES ISC RATES FROM INITIAL STATE TO SEVERAL STATES OF OPPOSITE SPIN#############
 def isc(initial,dielec):
     eps, nr = dielec[0], dielec[1]
-    _ , nr_i  = nemo.tools.get_nr()
-    alpha_stopt  = nemo.tools.get_alpha(eps)/nemo.tools.get_alpha(nr**2) # multiplica o lambda para emissao 
-    alpha_optopt = nemo.tools.get_alpha(nr**2)/nemo.tools.get_alpha(nr_i**2) #multiplica todos os lambdas 
+    eps_i, nr_i  = nemo.tools.get_nr()
+    alpha_stopt  = nemo.tools.get_alpha(eps_i)/nemo.tools.get_alpha(nr_i**2) 
+    alpha_optopt = nemo.tools.get_alpha(nr**2)/nemo.tools.get_alpha(nr_i**2) 
+    alpha_epseps = nemo.tools.get_alpha(eps)/nemo.tools.get_alpha(eps_i)
     n_state = int(initial[1:]) -1
     kbT = nemo.tools.detect_sigma()
     _, Singlets, Triplets, _, Ss_s, Ss_t, _   = analysis(phosph=False)
@@ -444,7 +445,7 @@ def isc(initial,dielec):
         final = 'T'
     elif 't' in initial.lower():
         tipo = 'triplet'
-        final = 'S'    
+        final = 'S'
     delta_s = np.mean(np.diff(Singlets - alpha_optopt*Ss_s,axis=1),axis=0)
     delta_t = np.mean(np.diff(Triplets - alpha_optopt*Ss_t,axis=1),axis=0)
     socs_complete = avg_socs(tipo,n_state)
@@ -461,18 +462,18 @@ def isc(initial,dielec):
         for j in range(np.shape(socs_complete)[1]):
             try:
                 if tipo == 'singlet':
-                    delta    = Triplets[:,j] - Singlets[:,n_state] - alpha_optopt*Ss_t[:,j] + alpha_stopt*alpha_optopt*Ss_s[:,n_state]   #Tn (final) - Sm (initial)
-                    lambda_s = (alpha_stopt -1)*alpha_optopt*Ss_t[:,j]
-                    lambdas  = lambdas_list[j,1]    
+                    delta    = Triplets[:,j] - Singlets[:,n_state] - alpha_optopt*Ss_t[:,j] + alpha_stopt*alpha_epseps*Ss_s[:,n_state]   #Tn (final) - Sm (initial)
+                    lambda_s = (alpha_epseps*alpha_stopt -alpha_optopt)*Ss_t[:,j]
+                    lambdas  = lambdas_list[j,1]
                 elif tipo == 'triplet':
-                    delta    = Singlets[:,j] - Triplets[:,n_state] - alpha_optopt*Ss_s[:,j] + alpha_stopt*alpha_optopt*Ss_t[:,n_state]   #Sm (final) - Tn (initial)
-                    lambda_s = (alpha_stopt -1)*alpha_optopt*Ss_s[:,j]
+                    delta    = Singlets[:,j] - Triplets[:,n_state] - alpha_optopt*Ss_s[:,j] + alpha_stopt*alpha_epseps*Ss_t[:,n_state]   #Sm (final) - Tn (initial)
+                    lambda_s = (alpha_epseps*alpha_stopt -alpha_optopt)*Ss_s[:,j]
                     lambdas  = lambdas_list[j,0]
             except:
                 break
             socs = socs_complete[:,j]
             sigma = np.sqrt(2*lambda_s*kbT + lambdas*kbT)
-            y = (2*np.pi/hbar)*(socs[:,np.newaxis]**2)*nemo.tools.gauss(delta[:,np.newaxis]+lambda_s[:,np.newaxis],0,sigma[:,np.newaxis])
+            y = (2*np.pi/hbar)*(socs[:,np.newaxis]**2)*nemo.tools.gauss(delta[:,np.newaxis],0,sigma[:,np.newaxis])
             N = len(Singlets)
             rate  = np.sum(y)/N 
             #Error estimate
