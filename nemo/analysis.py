@@ -478,8 +478,9 @@ def isc(initial,dielec):
             rate  = np.sum(y)/N 
             #Error estimate
             error = np.sqrt(np.sum((y-rate)**2)/(N*(N-1)))
-            gap = np.mean(delta)
-            mean_soc = 1000*np.mean(socs)
+            pesos = y/N
+            gap = np.average(delta,weights=pesos[:,0])
+            mean_soc = 1000*np.average(socs,weights=pesos[:,0])
             f.write('{}->{}{}         {:5.2e}      {:5.2e}      {:+5.3f}      {:5.3f}\n'.format(initial.upper(),final,j+1,rate,error,gap,mean_soc))
 
         f.write('\n#Transition    AvgGap(eV)    Transition    AvgGap(eV)\n')
