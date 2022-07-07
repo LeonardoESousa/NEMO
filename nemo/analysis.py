@@ -458,7 +458,7 @@ def isc(initial,dielec):
     with open(arquivo, 'w') as f:
         f.write('#Intersystem Crossing Rates:\n')
         f.write('#Epsilon: {:.3f} nr: {:.3f}\n'.format(eps,nr))
-        f.write('#Transition    Rate(s^-1)    Error(s^-1)   AvgGap(eV)  AvgSOC(meV)\n')
+        f.write('#Transition    Rate(s^-1)    Error(s^-1)   AvgGap(eV)  AvgSOC(meV)  AvgSigma(eV)\n')
         for j in range(np.shape(socs_complete)[1]):
             try:
                 if tipo == 'singlet':
@@ -481,7 +481,8 @@ def isc(initial,dielec):
             pesos = y/N
             gap = np.average(delta,weights=pesos[:,0])
             mean_soc = 1000*np.average(socs,weights=pesos[:,0])
-            f.write('{}->{}{}         {:5.2e}      {:5.2e}      {:+5.3f}      {:5.3f}\n'.format(initial.upper(),final,j+1,rate,error,gap,mean_soc))
+            mean_sigma = np.average(sigma,weights=pesos[:,0])
+            f.write('{}->{}{}         {:5.2e}      {:5.2e}      {:+5.3f}      {:5.3f}         {:5.3f}\n'.format(initial.upper(),final,j+1,rate,error,gap,mean_soc,mean_sigma))
 
         f.write('\n#Transition    AvgGap(eV)    Transition    AvgGap(eV)\n')
         for j in range(len(delta_s)):
