@@ -303,13 +303,13 @@ def gauss(x,v,s):
 
 
 ##COMPUTES AVG TRANSITION DIPOLE MOMENT########################
-def calc_tdm(O,V):
+def calc_tdm(O,V,pesos):
     #Energy terms converted to J
     term = e*(hbar2**2)/V
     dipoles = np.sqrt(3*term*O/(2*mass))
     #Conversion in au
     dipoles *= 1.179474389E29
-    return np.mean(dipoles)
+    return np.average(dipoles,weights=pesos)
 ###############################################################
 
 ##PREVENTS OVERWRITING#########################################
@@ -395,10 +395,10 @@ def spectra(tipo, num_ex, dielec):
         else:
             DE  = V + G*alpha_epseps*alpha_stopt - S*alpha_optopt
     else:
-        tdm = calc_tdm(O,V)
         L   = (alpha_epseps - alpha_optopt/alpha_stopt)*G
         DE  = V + (1 - alpha_optopt/alpha_stopt)*abs(G-S) + G*alpha_epseps/alpha_stopt - S*alpha_stopt*alpha_optopt
         espectro = (constante*(V**2)*O)
+        tdm = calc_tdm(O,V,espectro)
     Ltotal = np.sqrt(2*L*kbT + data[:,5]*kbT)
     left  = max(min(DE-2*Ltotal),0.01)
     right = max(DE+2*Ltotal)    
