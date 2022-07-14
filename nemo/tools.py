@@ -236,13 +236,14 @@ def make_ensemble(freqlog, num_geoms, T, header, bottom):
 ################################################################
             
 ##COLLECTS RESULTS############################################## 
-def gather_data():
-    from nemo.analysis import analysis
+def gather_data(alphast2,alphaopt1):
+    from nemo.analysis import analysis, get_osc_phosph
     try:
         lambdas_list = np.loadtxt('lambdas.lx')
     except:
         fatal_error('No lambdas.lx file found. Use option 5 first! Goodbye!')
-    Os, Singlets, Triplets, Oscs, Ss_s, Ss_t, GP = analysis()
+    Singlets, Triplets, Oscs, Ss_s, Ss_t, GP, IND_S, IND_T = analysis(phosph=True)
+    Os  = get_osc_phosph(alphast2,alphaopt1,Singlets, Triplets, Ss_s, Ss_t, IND_S, IND_T)
     num = np.shape(Singlets)[1]
     with open("Samples.lx", 'w') as f:
         for i in range(np.shape(Singlets)[0]):
@@ -346,9 +347,10 @@ def get_alpha(eps):
 def spectra(tipo, num_ex, dielec):
     eps, nr = dielec[0], dielec[1]
     eps_i , nr_i = get_nr()
-    alpha_stopt  = get_alpha(eps)/get_alpha(nr**2)  
-    alpha_optopt = get_alpha(nr**2)/get_alpha(nr_i**2) 
-    alpha_epseps = get_alpha(eps)/get_alpha(eps_i)
+    alphast1  = get_alpha(eps_i)
+    alphast2  = get_alpha(eps)  
+    alphaopt1 = get_alpha(nr_i**2)
+    alphaopt2 = get_alpha(nr**2)
     kbT = detect_sigma()
     if 'S' in num_ex.upper():
         spin  = '1'
@@ -369,11 +371,11 @@ def spectra(tipo, num_ex, dielec):
     elif tipo == 'emi' and 'S' in num_ex.upper():
         num_ex = [estado]
         constante = ((nr**2)*(e**2)/(2*np.pi*hbar*mass*(c**3)*epsilon0))
-        gather_data()
+        gather_data(alphast2,alphaopt1)
     elif tipo == 'emi' and 'T' in num_ex.upper():
         num_ex = [estado]
         constante = (1/3)*((nr**2)*(e**2)/(2*np.pi*hbar*mass*(c**3)*epsilon0))
-        gather_data()
+        gather_data(alphast2,alphaopt1)
     data   = np.loadtxt('Samples.lx')
     data   = data[data[:,-1] == float(spin)]
     data   = data[np.isin(data[:,0],num_ex)]
@@ -389,20 +391,20 @@ def spectra(tipo, num_ex, dielec):
         print("Number of log files is less than the number of inputs. Something is not right! Computing the spectrum anyway...")
     if tipo == 'abs':
         espectro = (constante*O)
-        L   = (alpha_epseps*alpha_stopt - alpha_optopt)*S
+        lambda_b = (alphast2/alphaopt1 - alphaopt2/alphaopt1)*S
         if estado == 0:
-            DE  = V + (1 - alpha_epseps)*abs(G-S) + G*alpha_epseps - S*alpha_optopt
+            DE  = V - (alphaopt2/alphaopt1)*S
         else:
-            DE  = V + G*alpha_epseps*alpha_stopt - S*alpha_optopt
+            DE  = V + (alphast2/alphaopt1)*G - (alphaopt2/alphaopt1)*S
     else:
-        L   = (alpha_epseps - alpha_optopt/alpha_stopt)*G
-        DE  = V + (1 - alpha_optopt/alpha_stopt)*abs(G-S) + G*alpha_epseps/alpha_stopt - S*alpha_stopt*alpha_optopt
-        espectro = (constante*(V**2)*O)
-        tdm = calc_tdm(O,V,espectro)
-    Ltotal = np.sqrt(2*L*kbT + data[:,5]*kbT)
-    left  = max(min(DE-2*Ltotal),0.01)
-    right = max(DE+2*Ltotal)    
-    x  = np.linspace(left,right, int((right-left)/0.01))
+        lambda_b  = (alphast2/alphast1 - alphaopt2/alphast1)*G
+        DE        = V - (alphast2/alphaopt1)*S
+        espectro  = (constante*((DE-lambda_b)**2)*O)
+        tdm       = calc_tdm(O,V,espectro)
+    Ltotal = np.sqrt(2*lambda_b*kbT + data[:,5]*kbT)
+    left   = max(min(DE-2*Ltotal),0.01)
+    right  = max(DE+2*Ltotal)    
+    x      = np.linspace(left,right, int((right-left)/0.01))
     if tipo == 'abs':
         arquivo = 'cross_section_'+label+'_.lx'
         primeira = "{:8s} {:8s} {:8s}\n".format("#Energy(ev)", "cross_section(A^2)", "error")
@@ -410,7 +412,7 @@ def spectra(tipo, num_ex, dielec):
         arquivo = tipo+'_differential_rate.lx'
         primeira = "{:4s} {:4s} {:4s} TDM={:.3f} au\n".format("#Energy(ev)", "diff_rate", "error",tdm)
     arquivo = naming(arquivo)
-    y = espectro[:,np.newaxis]*gauss(x,DE[:,np.newaxis],Ltotal[:,np.newaxis])
+    y      = espectro[:,np.newaxis]*gauss(x,DE[:,np.newaxis],Ltotal[:,np.newaxis])
     mean_y =   np.sum(y,axis=0)/N 
     #Error estimate
     sigma  =   np.sqrt(np.sum((y-mean_y)**2,axis=0)/(N*(N-1))) 

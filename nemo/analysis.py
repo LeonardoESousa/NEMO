@@ -82,9 +82,9 @@ def pega_energias(file):
                 sol_int = float(line.split()[5])
             elif 'Total Free Energy' in line:  
                 total_free = float(line.split()[9])
-            elif 'Total energy for state' in line and exc:
-                energies.append(float(line.split()[5]))
-                ind.append(int(line.split()[4].replace(':','')))
+            elif 'Excited state' in line and exc:
+                energies.append(float(line.split()[7]))
+                ind.append(int(line.split()[2].replace(':','')))
             elif 'Multiplicity' in line and exc:
                 spins.append(line.split()[1])
             elif 'Strength' in line and exc:
@@ -102,7 +102,6 @@ def pega_energias(file):
             correction = np.zeros(len(energies))
             sol_int = total_nopcm
             total_free = total_nopcm
-        energies   = (np.array(energies) - sol_int)*27.2114
         singlets   = np.array([energies[i] for i in range(len(energies)) if spins[i] == 'Singlet'])
         ss_s       = np.array([correction[i]   for i in range(len(correction))   if spins[i] == 'Singlet'])
         ind_s      = np.array([ind[i] for i in range(len(ind)) if spins[i] == 'Singlet'])
@@ -388,6 +387,20 @@ def phosph_osc(file,n_state,ind_s,ind_t,singlets,triplets):
     Os = (2*mass)*MMs/(3*term)
     return Os[np.newaxis,:]
 
+def get_osc_phosph(alphast2,alphaopt1,Singlets, Triplets, Ss_s, Ss_t, IND_S, IND_T):
+    files =  [i for i in os.listdir('Geometries') if '.log' in i]    
+    files = check_normal(files)
+    files = sorted(files, key=lambda pair: float(pair.split('-')[1]))
+    n_state = read_cis(files[0])
+    Es  = Singlets - (alphast2/alphaopt1)*Ss_s
+    Et  = Triplets - (alphast2/alphaopt1)*Ss_t 
+    for j in range(Singlets.shape[0]):
+        tos = phosph_osc(files[j],n_state,IND_S[j,:],IND_T[j,:],Es[j,:],Et[j,:])        
+        try:
+            Os  = np.vstack((Os,tos))
+        except:
+            Os  = tos
+    return Os
 
 ##GETS ALL RELEVANT INFORMATION FROM LOG FILES###########################################
 def analysis(phosph=True):         
@@ -398,56 +411,57 @@ def analysis(phosph=True):
 
     for file in files:
         singlets, triplets, oscs, ind_s, ind_t, ss_s, ss_t, gp = pega_energias('Geometries/'+file)       
-        singlets, triplets, oscs, ind_s, ind_t = singlets[:n_state], triplets[:n_state], oscs[:n_state], ind_s[:n_state], ind_t[:n_state]     
         singlets = np.array([singlets[:n_state]])
         triplets = np.array([triplets[:n_state]])
-        oscs     = np.array([oscs[:n_state]]).astype(float)
+        oscs     = np.array([oscs[:n_state]])
         ss_s     = np.array([ss_s[:n_state]])
         ss_t     = np.array([ss_t[:n_state]])
+        ind_s    = np.array([ind_s[:n_state]])
+        ind_t    = np.array([ind_t[:n_state]])
         gp       = np.array([gp])
-        if phosph:
-            tos       = phosph_osc(file,n_state,ind_s,ind_t,singlets[0,:],triplets[0,:])
-        else:
-            tos       = np.zeros(triplets.shape)
         try:
             Singlets = np.vstack((Singlets,singlets))
             Triplets = np.vstack((Triplets,triplets))
             Oscs     = np.vstack((Oscs,oscs))
             Ss_s     = np.vstack((Ss_s,ss_s))
             Ss_t     = np.vstack((Ss_t,ss_t))
-            Os       = np.vstack((Os,tos))
-            GP       = np.append(GP,gp)
+            IND_S    = np.vstack((IND_S,ind_s))
+            IND_T    = np.vstack((IND_T,ind_t))
+            GP       = np.append(GP,gp) 
         except:
             Singlets = singlets
             Triplets = triplets
             Oscs     = oscs
             Ss_s     = ss_s
             Ss_t     = ss_t    
-            Os       = tos
+            IND_S    = ind_s
+            IND_T    = ind_t
             GP       = gp
-
-    return Os, Singlets, Triplets, Oscs, Ss_s, Ss_t, GP
+    if phosph:
+        return Singlets, Triplets, Oscs, Ss_s, Ss_t, GP, IND_S, IND_T
+    else:    
+        return Singlets, Triplets, Oscs, Ss_s, Ss_t, GP
 #########################################################################################
 
 
 ##CALCULATES ISC RATES FROM INITIAL STATE TO SEVERAL STATES OF OPPOSITE SPIN#############
 def isc(initial,dielec):
     eps, nr = dielec[0], dielec[1]
-    eps_i, nr_i  = nemo.tools.get_nr()
-    alpha_stopt  = nemo.tools.get_alpha(eps_i)/nemo.tools.get_alpha(nr_i**2) 
-    alpha_optopt = nemo.tools.get_alpha(nr**2)/nemo.tools.get_alpha(nr_i**2) 
-    alpha_epseps = nemo.tools.get_alpha(eps)/nemo.tools.get_alpha(eps_i)
+    _, nr_i  = nemo.tools.get_nr()
+    alphast2  = nemo.tools.get_alpha(eps)  
+    alphaopt1 = nemo.tools.get_alpha(nr_i**2)
+    alphaopt2 = nemo.tools.get_alpha(nr**2)
     n_state = int(initial[1:]) -1
     kbT = nemo.tools.detect_sigma()
-    _, Singlets, Triplets, _, Ss_s, Ss_t, _   = analysis(phosph=False)
+    Singlets, Triplets, _, Ss_s, Ss_t, _   = analysis(phosph=False)
     if 's' in initial.lower():
         tipo = 'singlet'
         final = 'T'
     elif 't' in initial.lower():
         tipo = 'triplet'
         final = 'S'
-    delta_s = np.mean(np.diff(Singlets - alpha_optopt*Ss_s,axis=1),axis=0)
-    delta_t = np.mean(np.diff(Triplets - alpha_optopt*Ss_t,axis=1),axis=0)
+    delta_s = np.mean(np.diff(Singlets - (alphast2/alphaopt1)*Ss_s,axis=1),axis=0)
+    delta_t = np.mean(np.diff(Triplets - (alphast2/alphaopt1)*Ss_t,axis=1),axis=0)
     socs_complete = avg_socs(tipo,n_state)
     arquivo = 'ISC_rates_{}_.lx'.format(initial.upper())
     arquivo = nemo.tools.naming(arquivo)
@@ -458,31 +472,31 @@ def isc(initial,dielec):
     with open(arquivo, 'w') as f:
         f.write('#Intersystem Crossing Rates:\n')
         f.write('#Epsilon: {:.3f} nr: {:.3f}\n'.format(eps,nr))
-        f.write('#Transition    Rate(s^-1)    Error(s^-1)   AvgGap(eV)  AvgSOC(meV)  AvgSigma(eV)\n')
+        f.write('#Transition    Rate(s^-1)    Error(s^-1)   AvgGap(eV)  AvgSOC(meV)  AvgSigma(eV)   AvgConc(%)\n')
         for j in range(np.shape(socs_complete)[1]):
             try:
                 if tipo == 'singlet':
-                    delta    = Triplets[:,j] - Singlets[:,n_state] - alpha_optopt*Ss_t[:,j] + alpha_stopt*alpha_epseps*Ss_s[:,n_state]   #Tn (final) - Sm (initial)
-                    lambda_s = (alpha_epseps*alpha_stopt -alpha_optopt)*Ss_t[:,j]
+                    delta    = Triplets[:,j] - Singlets[:,n_state] + (alphast2/alphaopt1)*Ss_s[:,n_state] - (alphaopt2/alphaopt1)*Ss_t[:,j]   #Tn (final) - Sm (initial) + lambda_b
+                    lambda_b = (alphast2/alphaopt1 - alphaopt2/alphaopt1)*Ss_t[:,j]
                     lambdas  = lambdas_list[j,1]
                 elif tipo == 'triplet':
-                    delta    = Singlets[:,j] - Triplets[:,n_state] - alpha_optopt*Ss_s[:,j] + alpha_stopt*alpha_epseps*Ss_t[:,n_state]   #Sm (final) - Tn (initial)
-                    lambda_s = (alpha_epseps*alpha_stopt -alpha_optopt)*Ss_s[:,j]
+                    delta    = Singlets[:,j] - Triplets[:,n_state] + (alphast2/alphaopt1)*Ss_t[:,n_state] - (alphaopt2/alphaopt1)*Ss_s[:,j]    #Sm (final) - Tn (initial) + lambda_b
+                    lambda_b = (alphast2/alphaopt1 - alphaopt2/alphaopt1)*Ss_s[:,j]
                     lambdas  = lambdas_list[j,0]
             except:
                 break
             socs = socs_complete[:,j]
-            sigma = np.sqrt(2*lambda_s*kbT + lambdas*kbT)
+            sigma = np.sqrt(2*lambda_b*kbT + lambdas*kbT)
             y = (2*np.pi/hbar)*(socs[:,np.newaxis]**2)*nemo.tools.gauss(delta[:,np.newaxis],0,sigma[:,np.newaxis])
             N = len(Singlets)
             rate  = np.sum(y)/N 
             #Error estimate
             error = np.sqrt(np.sum((y-rate)**2)/(N*(N-1)))
-            pesos = y/N
-            gap = np.average(delta,weights=pesos[:,0])
-            mean_soc = 1000*np.average(socs,weights=pesos[:,0])
-            mean_sigma = np.average(sigma,weights=pesos[:,0])
-            f.write('{}->{}{}         {:5.2e}      {:5.2e}      {:+5.3f}      {:5.3f}         {:5.3f}\n'.format(initial.upper(),final,j+1,rate,error,gap,mean_soc,mean_sigma))
+            gap = np.average(delta,weights=y[:,0])
+            mean_soc = 1000*np.average(socs,weights=y[:,0])
+            mean_sigma = np.average(sigma,weights=y[:,0])
+            mean_part  = (100/N)/np.average(y[:,0],weights=y[:,0])
+            f.write('{}->{}{}         {:5.2e}      {:5.2e}      {:+5.3f}      {:5.3f}         {:5.3f}   {:5.1f}\n'.format(initial.upper(),final,j+1,rate,error,gap,mean_soc,mean_sigma,mean_part))
 
         f.write('\n#Transition    AvgGap(eV)    Transition    AvgGap(eV)\n')
         for j in range(len(delta_s)):
