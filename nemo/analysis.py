@@ -495,8 +495,8 @@ def isc(initial,dielec):
             gap = np.average(delta,weights=y[:,0])
             mean_soc = 1000*np.average(socs,weights=y[:,0])
             mean_sigma = np.average(sigma,weights=y[:,0])
-            mean_part  = (100/N)/np.average(y[:,0],weights=y[:,0])
-            f.write('{}->{}{}         {:5.2e}      {:5.2e}      {:+5.3f}      {:5.3f}         {:5.3f}   {:5.1f}\n'.format(initial.upper(),final,j+1,rate,error,gap,mean_soc,mean_sigma,mean_part))
+            mean_part  = (100/N)/np.average(y[:,0]/np.sum(y),weights=y[:,0])
+            f.write('{}->{}{}         {:5.2e}      {:5.2e}      {:+5.3f}      {:5.3f}         {:5.3f}       {:5.1f}\n'.format(initial.upper(),final,j+1,rate,error,gap,mean_soc,mean_sigma,mean_part))
 
         f.write('\n#Transition    AvgGap(eV)    Transition    AvgGap(eV)\n')
         for j in range(len(delta_s)):
