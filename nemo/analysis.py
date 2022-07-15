@@ -460,8 +460,8 @@ def isc(initial,dielec):
     elif 't' in initial.lower():
         tipo = 'triplet'
         final = 'S'
-    delta_s = np.mean(np.diff(Singlets - (alphast2/alphaopt1)*Ss_s,axis=1) + (alphast2/alphaopt1 -alphaopt2/alphaopt1)*Ss_s[:,:-1]       ,axis=0)
-    delta_t = np.mean(np.diff(Triplets - (alphast2/alphaopt1)*Ss_t,axis=1) + (alphast2/alphaopt1 -alphaopt2/alphaopt1)*Ss_t[:,:-1]       ,axis=0)
+    delta_s = np.mean(-1*np.diff(Singlets - (alphast2/alphaopt1)*Ss_s,axis=1) + (alphast2/alphaopt1 -alphaopt2/alphaopt1)*Ss_s[:,:-1],axis=0)
+    delta_t = np.mean(-1*np.diff(Triplets - (alphast2/alphaopt1)*Ss_t,axis=1) + (alphast2/alphaopt1 -alphaopt2/alphaopt1)*Ss_t[:,:-1],axis=0)
     socs_complete = avg_socs(tipo,n_state)
     arquivo = 'ISC_rates_{}_.lx'.format(initial.upper())
     arquivo = nemo.tools.naming(arquivo)
