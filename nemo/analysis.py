@@ -446,13 +446,13 @@ def analysis(phosph=True):
 
 ##CALCULATES ISC RATES FROM INITIAL STATE TO SEVERAL STATES OF OPPOSITE SPIN#############
 def isc(initial,dielec):
-    eps, nr = dielec[0], dielec[1]
-    _, nr_i  = nemo.tools.get_nr()
+    eps, nr   = dielec[0], dielec[1]
+    _, nr_i   = nemo.tools.get_nr()
     alphast2  = nemo.tools.get_alpha(eps)  
     alphaopt1 = nemo.tools.get_alpha(nr_i**2)
     alphaopt2 = nemo.tools.get_alpha(nr**2)
-    n_state = int(initial[1:]) -1
-    kbT = nemo.tools.detect_sigma()
+    n_state   = int(initial[1:]) -1
+    kbT       = nemo.tools.detect_sigma()
     Singlets, Triplets, _, Ss_s, Ss_t, _   = analysis(phosph=False)
     if 's' in initial.lower():
         tipo = 'singlet'
@@ -460,8 +460,8 @@ def isc(initial,dielec):
     elif 't' in initial.lower():
         tipo = 'triplet'
         final = 'S'
-    delta_s = np.mean(np.diff(Singlets - (alphast2/alphaopt1)*Ss_s,axis=1),axis=0)
-    delta_t = np.mean(np.diff(Triplets - (alphast2/alphaopt1)*Ss_t,axis=1),axis=0)
+    delta_s = np.mean(np.diff(Singlets - (alphast2/alphaopt1)*Ss_s,axis=1) + (alphast2/alphaopt1 -alphaopt2/alphaopt1)*Ss_s[:,:-1]       ,axis=0)
+    delta_t = np.mean(np.diff(Triplets - (alphast2/alphaopt1)*Ss_t,axis=1) + (alphast2/alphaopt1 -alphaopt2/alphaopt1)*Ss_t[:,:-1]       ,axis=0)
     socs_complete = avg_socs(tipo,n_state)
     arquivo = 'ISC_rates_{}_.lx'.format(initial.upper())
     arquivo = nemo.tools.naming(arquivo)
@@ -472,7 +472,7 @@ def isc(initial,dielec):
     with open(arquivo, 'w') as f:
         f.write('#Intersystem Crossing Rates:\n')
         f.write('#Epsilon: {:.3f} nr: {:.3f}\n'.format(eps,nr))
-        f.write('#Transition    Rate(s^-1)    Error(s^-1)   AvgGap(eV)  AvgSOC(meV)  AvgSigma(eV)   AvgConc(%)\n')
+        f.write('#Transition    Rate(s^-1)    Error(s^-1)   AvgDE+L(eV)  AvgSOC(meV)  AvgSigma(eV)   AvgConc(%)\n')
         for j in range(np.shape(socs_complete)[1]):
             try:
                 if tipo == 'singlet':
@@ -496,11 +496,11 @@ def isc(initial,dielec):
             mean_soc = 1000*np.average(socs,weights=y[:,0])
             mean_sigma = np.average(sigma,weights=y[:,0])
             mean_part  = (100/N)/np.average(y[:,0]/np.sum(y),weights=y[:,0])
-            f.write('{}->{}{}         {:5.2e}      {:5.2e}      {:+5.3f}      {:5.3f}         {:5.3f}       {:5.1f}\n'.format(initial.upper(),final,j+1,rate,error,gap,mean_soc,mean_sigma,mean_part))
+            f.write('{}->{}{}         {:5.2e}      {:5.2e}      {:+5.3f}       {:5.3f}         {:5.3f}        {:5.1f}%\n'.format(initial.upper(),final,j+1,rate,error,gap,mean_soc,mean_sigma,mean_part))
 
-        f.write('\n#Transition    AvgGap(eV)    Transition    AvgGap(eV)\n')
+        f.write('\n#Transition    AvgDE+L(eV)    Transition    AvgDE+L(eV)\n')
         for j in range(len(delta_s)):
-            f.write('S{0:}->S{1:}         {2:+5.3f}        T{0:}->T{1:}         {3:+5.3f}\n'.format(j+1,j+2,delta_s[j],delta_t[j]))
+            f.write('S{1:}->S{0:}         {2:+5.3f}         T{0:}->T{1:}         {3:+5.3f}\n'.format(j+1,j+2,delta_s[j],delta_t[j]))
 
 
     print('Results are written in the {} file'.format(arquivo))        
