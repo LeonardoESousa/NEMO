@@ -238,20 +238,16 @@ def make_ensemble(freqlog, num_geoms, T, header, bottom):
 ##COLLECTS RESULTS############################################## 
 def gather_data(alphast2,alphaopt1):
     from nemo.analysis import analysis, get_osc_phosph
-    try:
-        lambdas_list = np.loadtxt('lambdas.lx')
-    except:
-        fatal_error('No lambdas.lx file found. Use option 5 first! Goodbye!')
     Singlets, Triplets, Oscs, Ss_s, Ss_t, GP, IND_S, IND_T = analysis(phosph=True)
     Os  = get_osc_phosph(alphast2,alphaopt1,Singlets, Triplets, Ss_s, Ss_t, IND_S, IND_T)
     num = np.shape(Singlets)[1]
     with open("Samples.lx", 'w') as f:
         for i in range(np.shape(Singlets)[0]):
-            f.write("{:14}\t{:12}\t{:14}\t{:10}\t{:12}\t{:14}\t{:7}\n".format("#Geometry_"+str(i+1),"Vertical(eV)","Correction(eV)","Ground(eV)","Oscillator","Broadening(eV)","Spin"))        
+            f.write("{:14}\t{:12}\t{:14}\t{:10}\t{:12}\t{:14}\t{:7}\n".format("#Geometry_"+str(i+1),"Vertical(eV)","Correction(eV)","Ground(eV)","Oscillator","Spin"))        
             for j in range(num):
-                f.write("{:14}\t{:12.3f}\t{:14.3f}\t{:10.3f}\t{:12.3e}\t{:14.3f}\t{:7}\n".format(j+1,Singlets[i,j], Ss_s[i,j], GP[i],Oscs[i,j],lambdas_list[0,0],'1'))        
+                f.write("{:14}\t{:12.3f}\t{:14.3f}\t{:10.3f}\t{:12.3e}\t{:7}\n".format(j+1,Singlets[i,j], Ss_s[i,j], GP[i],Oscs[i,j],'1'))        
             for j in range(num):
-                f.write("{:14}\t{:12.3f}\t{:14.3f}\t{:10.3f}\t{:12.3e}\t{:14.3f}\t{:7}\n".format(j+1,Triplets[i,j], Ss_t[i,j], GP[i],Os[i,j],  lambdas_list[0,1],'3'))
+                f.write("{:14}\t{:12.3f}\t{:14.3f}\t{:10.3f}\t{:12.3e}\t{:7}\n".format(j+1,Triplets[i,j], Ss_t[i,j], GP[i],Os[i,j],'3'))
 ############################################################### 
 
 ##COLLECTS RESULTS############################################## 
@@ -261,16 +257,11 @@ def gather_data_abs(num_ex,spin):
     files = check_normal(files)
     files = sorted(files, key=lambda pair: float(pair.split('-')[1]))
     i = 0
-    try:
-        lambdas_list = np.loadtxt('lambdas.txt')
-    except:
-        fatal_error('No lambdas.txt file found. Reorganization energies are required for this calculation! Goodbye!')
     with open("Samples.lx", 'w') as f:
         for file in files:
             singlets, triplets, oscs, ind_s, ind_t, ss_s, ss_t, gp = pega_energias('Geometries/'+file)
             if num_ex == 0:
                 engs = singlets
-                lambdas = lambdas_list[num_ex:,0]
                 GP = gp
             else:
                 if spin == '1':
@@ -279,19 +270,17 @@ def gather_data_abs(num_ex,spin):
                     order = ind_s
                     ss    = ss_s[num_ex:]
                     GP    = ss_s[num_ex-1]
-                    lambdas = lambdas_list[num_ex:,0]
                 else:    
                     ind   = ind_t[num_ex-1]
                     engs  = np.array(triplets[num_ex:]) - triplets[num_ex-1] 
                     order = ind_t
                     ss    = ss_t[num_ex:]
                     GP    = ss_t[num_ex-1]
-                    lambdas = lambdas_list[num_ex:,1]
                 oscs = pega_oscs(file,ind,spin,order)
-            f.write("{:14}\t{:12}\t{:14}\t{:10}\t{:12}\t{:14}\t{:7}\n".format("#Geometry_"+str(i+1),"Vertical(eV)","Correction(eV)","Ground(eV)","Oscillator","Broadening(eV)","Spin"))
+            f.write("{:14}\t{:12}\t{:14}\t{:10}\t{:12}\t{:14}\t{:7}\n".format("#Geometry_"+str(i+1),"Vertical(eV)","Correction(eV)","Ground(eV)","Oscillator","Spin"))
             i += 1
             for j in range(len(oscs)):
-                f.write("{:14}\t{:12.3f}\t{:14.3f}\t{:10.3f}\t{:12.3e}\t{:14.3f}\t{:7}\n".format(num_ex+j+1,engs[j], ss[j], GP, oscs[j],lambdas[j],spin)) 
+                f.write("{:14}\t{:12.3f}\t{:14.3f}\t{:10.3f}\t{:12.3e}\t{:7}\n".format(num_ex+j+1,engs[j], ss[j], GP, oscs[j],spin)) 
 ############################################################### 
 
 
@@ -401,7 +390,7 @@ def spectra(tipo, num_ex, dielec):
         DE        = V - (alphast2/alphaopt1)*S
         espectro  = (constante*((DE-lambda_b)**2)*O)
         tdm       = calc_tdm(O,V,espectro)
-    Ltotal = np.sqrt(2*lambda_b*kbT + data[:,5]*kbT)
+    Ltotal = np.sqrt(2*lambda_b*kbT + kbT**2)
     left   = max(min(DE-2*Ltotal),0.01)
     right  = max(DE+2*Ltotal)    
     x      = np.linspace(left,right, int((right-left)/0.01))
@@ -413,9 +402,9 @@ def spectra(tipo, num_ex, dielec):
         primeira = "{:4s} {:4s} {:4s} TDM={:.3f} au\n".format("#Energy(ev)", "diff_rate", "error",tdm)
     arquivo = naming(arquivo)
     y      = espectro[:,np.newaxis]*gauss(x,DE[:,np.newaxis],Ltotal[:,np.newaxis])
-    mean_y =   np.sum(y,axis=0)/N 
+    mean_y = np.sum(y,axis=0)/N 
     #Error estimate
-    sigma  =   np.sqrt(np.sum((y-mean_y)**2,axis=0)/(N*(N-1))) 
+    sigma  = np.sqrt(np.sum((y-mean_y)**2,axis=0)/(N*(N-1))) 
     
     if tipo == 'emi':
         #Emission rate calculations
