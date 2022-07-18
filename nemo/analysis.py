@@ -449,7 +449,7 @@ def printa_espectro_emi(initial,eps,nr,tdm,x,mean_y,error):
         primeira   = "{:4s} {:4s} {:4s} TDM={:.3f} au\n".format("#Energy(ev)", "diff_rate", "error",tdm)
         primeira  += '# Total Rate {} -> S0: {:5.2e} +/- {:5.2e} s^-1\n'.format(initial,mean_rate,error_rate)
         primeira  += '#Epsilon: {:.3f} nr: {:.3f}\n'.format(eps,nr)
-        arquivo    = nemo.tools.naming(initial.upper()+'_differential_rate.lx')
+        arquivo    = nemo.tools.naming('differential_rate_'+initial.upper()+'.lx')
         with open(arquivo, 'w') as f:
             f.write(primeira)
             for i in range(0,len(x)):
