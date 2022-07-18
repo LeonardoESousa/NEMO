@@ -243,7 +243,7 @@ def gather_data(alphast2,alphaopt1):
     num = np.shape(Singlets)[1]
     with open("Samples.lx", 'w') as f:
         for i in range(np.shape(Singlets)[0]):
-            f.write("{:14}\t{:12}\t{:14}\t{:10}\t{:12}\t{:14}\t{:7}\n".format("#Geometry_"+str(i+1),"Vertical(eV)","Correction(eV)","Ground(eV)","Oscillator","Spin"))        
+            f.write("{:14}\t{:12}\t{:14}\t{:10}\t{:12}\t{:7}\n".format("#Geometry_"+str(i+1),"Vertical(eV)","Correction(eV)","Ground(eV)","Oscillator","Spin"))        
             for j in range(num):
                 f.write("{:14}\t{:12.3f}\t{:14.3f}\t{:10.3f}\t{:12.3e}\t{:7}\n".format(j+1,Singlets[i,j], Ss_s[i,j], GP[i],Oscs[i,j],'1'))        
             for j in range(num):
@@ -277,7 +277,7 @@ def gather_data_abs(num_ex,spin):
                     ss    = ss_t[num_ex:]
                     GP    = ss_t[num_ex-1]
                 oscs = pega_oscs(file,ind,spin,order)
-            f.write("{:14}\t{:12}\t{:14}\t{:10}\t{:12}\t{:14}\t{:7}\n".format("#Geometry_"+str(i+1),"Vertical(eV)","Correction(eV)","Ground(eV)","Oscillator","Spin"))
+            f.write("{:14}\t{:12}\t{:14}\t{:10}\t{:12}\t{:7}\n".format("#Geometry_"+str(i+1),"Vertical(eV)","Correction(eV)","Ground(eV)","Oscillator","Spin"))
             i += 1
             for j in range(len(oscs)):
                 f.write("{:14}\t{:12.3f}\t{:14.3f}\t{:10.3f}\t{:12.3e}\t{:7}\n".format(num_ex+j+1,engs[j], ss[j], GP, oscs[j],spin)) 
