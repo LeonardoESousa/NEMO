@@ -525,20 +525,20 @@ def isc(initial,dielec):
         f.write('#Transition    Rate(s^-1)    Error(s^-1)   Prob(%)   AvgDE+L(eV)  AvgSOC(meV)  AvgSigma(eV)   AvgConc(%)\n')     
         f.write('{}->{}{}         {:5.2e}      {:5.2e}      {:5.1f}         {:+5.3f}       {:5}         {:5.3f}        {:5.1f}%\n'.format(initial.upper(),'S',0,emi_rate,emi_error,100*emi_rate/total ,gap_emi,'-',mean_sigma_emi,mean_part_emi))
 
-        gap        = np.average(delta,axis=0,weights=y)
-        mean_soc   = 1000*np.average(socs_complete,axis=0,weights=y)
-        mean_sigma = np.average(sigma,axis=0,weights=y)
-        mean_part  = (100/N)/np.average(y/np.sum(y,axis=0),axis=0,weights=y)
+        gap        = np.average(delta,axis=0,weights=y+1e-10)
+        mean_soc   = 1000*np.average(socs_complete,axis=0,weights=y+1e-10)
+        mean_sigma = np.average(sigma,axis=0,weights=y+1e-10)
+        mean_part  = (100/N)/np.average(y/np.sum(y,axis=0),axis=0,weights=y+1e-10)
         for j in range(delta.shape[1]):
             f.write('{}->{}{}         {:5.2e}      {:5.2e}      {:5.1f}         {:+5.3f}       {:5.3f}         {:5.3f}        {:5.1f}%\n'.format(initial.upper(),final,j+1,rate[j],error[j],100*rate[j]/total,gap[j],mean_soc[j],mean_sigma[j],mean_part[j]))
 
         #Internal conversion avg deltaE+L
-        delta_s = np.mean(-1*np.diff(Singlets - (alphast2/alphaopt1)*Ss_s,axis=1) + (alphast2/alphaopt1 -alphaopt2/alphaopt1)*Ss_s[:,:-1],axis=0)
-        delta_t = np.mean(-1*np.diff(Triplets - (alphast2/alphaopt1)*Ss_t,axis=1) + (alphast2/alphaopt1 -alphaopt2/alphaopt1)*Ss_t[:,:-1],axis=0)
+        delta_s = np.mean(np.diff(Singlets - (alphast2/alphaopt1)*Ss_s,axis=1) + (alphast2/alphaopt1 -alphaopt2/alphaopt1)*Ss_s[:,1:],axis=0)
+        delta_t = np.mean(np.diff(Triplets - (alphast2/alphaopt1)*Ss_t,axis=1) + (alphast2/alphaopt1 -alphaopt2/alphaopt1)*Ss_t[:,1:],axis=0)
         f.write('\n#Estimated Internal Conversion Driving Energies:\n')
         f.write('#Transition    AvgDE+L(eV)    Transition    AvgDE+L(eV)\n')
         for j in range(len(delta_s)):
-            f.write('S{1:}->S{0:}         {2:+5.3f}         T{1:}->T{0:}         {3:+5.3f}\n'.format(j+1,j+2,delta_s[j],delta_t[j]))
+            f.write('S{0:}->S{1:}         {2:+5.3f}         T{0:}->T{1:}         {3:+5.3f}\n'.format(j+1,j+2,delta_s[j],delta_t[j]))
 
 
     print('Results are written in the {} file'.format(arquivo))        
