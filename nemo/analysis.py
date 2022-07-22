@@ -528,7 +528,7 @@ def isc(initial,dielec):
         gap        = np.average(delta,axis=0,weights=y+1e-10)
         mean_soc   = 1000*np.average(socs_complete,axis=0,weights=y+1e-10)
         mean_sigma = np.average(sigma,axis=0,weights=y+1e-10)
-        mean_part  = (100/N)/np.average(y/np.sum(y,axis=0),axis=0,weights=y+1e-10)
+        mean_part  = 100*rate/np.average(y,axis=0,weights=y+1e-10)
         for j in range(delta.shape[1]):
             f.write('{}->{}{}         {:5.2e}      {:5.2e}      {:5.1f}         {:+5.3f}       {:5.3f}         {:5.3f}        {:5.1f}%\n'.format(initial.upper(),final,j+1,rate[j],error[j],100*rate[j]/total,gap[j],mean_soc[j],mean_sigma[j],mean_part[j]))
 
