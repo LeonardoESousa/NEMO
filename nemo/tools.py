@@ -263,6 +263,7 @@ def gather_data_abs(num_ex,spin):
             if num_ex == 0:
                 engs = singlets
                 GP = gp
+                ss = ss_s
             else:
                 if spin == '1':
                     ind   = ind_s[num_ex-1]
