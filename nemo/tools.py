@@ -643,10 +643,12 @@ def watcher(files,counter,first):
                         term += 1
                         if counter == 2:
                             delchk(input,term)
-                    elif 'fatal error' in line or 'failed standard' in line and not first:
+                    elif ('fatal error' in line or 'failed standard') in line and not first:
                         error = True
                         print('The following job returned an error: {}'.format(input))
-                        print('Please check the file for any syntax errors.')        
+                        print('Please check the file for any syntax errors.') 
+                    elif ('fatal error' in line or 'failed standard') in line and first:
+                        os.remove(input[:-3]+'log')          
             if term == counter or error:
                 done.append(input)
         except:
