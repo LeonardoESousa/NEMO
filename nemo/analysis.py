@@ -456,6 +456,17 @@ def printa_espectro_emi(initial,eps,nr,tdm,x,mean_y,error):
                 text = "{:.6f} {:.6e} {:.6e}\n".format(x[i],mean_y[i], error[i])
                 f.write(text)
 
+def save_data(Singlets,Triplets,Ss_s,Ss_t, GP,socs_complete,initial):
+    dados   = np.hstack((Singlets,Triplets,Ss_s,Ss_t, GP[:,np.newaxis],socs_complete))
+    header1 = ['S'+str(i) for i in range(1,1+Singlets.shape[1])]
+    header2 = ['T'+str(i) for i in range(1,1+Triplets.shape[1])]
+    header3 = ['DS'+str(i) for i in range(1,1+Ss_s.shape[1])]
+    header4 = ['DT'+str(i) for i in range(1,1+Ss_t.shape[1])]
+    header5 = ['GP']
+    header6 = ['SOC'+str(i) for i in range(1,1+socs_complete.shape[1])]
+    header  = ','.join(header1+header2+header3+header4+header5+header6)
+    np.savetxt(f'Ensemble_{initial}_.lx',dados,fmt='+%.4e',header=header, delimiter=',')
+
 
 ##CALCULATES ISC RATES FROM INITIAL STATE TO SEVERAL STATES OF OPPOSITE SPIN#############
 def isc(initial,dielec):
@@ -504,6 +515,7 @@ def isc(initial,dielec):
 
     #Intersystem Crossing Rates
     socs_complete = avg_socs(tipo,n_state)
+    save_data(Singlets,Triplets,Ss_s,Ss_t,GP,socs_complete,initial.upper())
     if tipo == 'singlet':
         delta    = Triplets + np.repeat((alphast2/alphaopt1)*Ss_s[:,n_state][:,np.newaxis] - Singlets[:,n_state][:,np.newaxis],Triplets.shape[1],axis=1) - (alphaopt2/alphaopt1)*Ss_t   #Tn (final) - Sm (initial) + lambda_b
         lambda_b = (alphast2/alphaopt1 - alphaopt2/alphaopt1)*Ss_t
