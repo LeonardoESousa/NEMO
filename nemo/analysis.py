@@ -456,7 +456,7 @@ def printa_espectro_emi(initial,eps,nr,tdm,x,mean_y,error):
                 text = "{:.6f} {:.6e} {:.6e}\n".format(x[i],mean_y[i], error[i])
                 f.write(text)
 
-def save_data(Singlets,Triplets,Ss_s,Ss_t, GP,socs_complete,initial):
+def save_data(Singlets,Triplets,Ss_s,Ss_t, GP,socs_complete,oscs,espectro,y,initial):
     dados   = np.hstack((Singlets,Triplets,Ss_s,Ss_t, GP[:,np.newaxis],socs_complete))
     header1 = ['S'+str(i) for i in range(1,1+Singlets.shape[1])]
     header2 = ['T'+str(i) for i in range(1,1+Triplets.shape[1])]
@@ -464,7 +464,10 @@ def save_data(Singlets,Triplets,Ss_s,Ss_t, GP,socs_complete,initial):
     header4 = ['DT'+str(i) for i in range(1,1+Ss_t.shape[1])]
     header5 = ['GP']
     header6 = ['SOC'+str(i) for i in range(1,1+socs_complete.shape[1])]
-    header  = ','.join(header1+header2+header3+header4+header5+header6)
+    header7 = ['OSC']
+    header8 = ['ke']
+    header9 = ['kisc'+str(i) for i in range(1,1+y.shape[1])]
+    header  = ','.join(header1+header2+header3+header4+header5+header6+header7+header8+header9)
     np.savetxt(f'Ensemble_{initial}_.lx',dados,fmt='+%.4e',header=header, delimiter=',')
 
 
@@ -515,7 +518,6 @@ def isc(initial,dielec):
 
     #Intersystem Crossing Rates
     socs_complete = avg_socs(tipo,n_state)
-    save_data(Singlets,Triplets,Ss_s,Ss_t,GP,socs_complete,initial.upper())
     if tipo == 'singlet':
         delta    = Triplets + np.repeat((alphast2/alphaopt1)*Ss_s[:,n_state][:,np.newaxis] - Singlets[:,n_state][:,np.newaxis],Triplets.shape[1],axis=1) - (alphaopt2/alphaopt1)*Ss_t   #Tn (final) - Sm (initial) + lambda_b
         lambda_b = (alphast2/alphaopt1 - alphaopt2/alphaopt1)*Ss_t
@@ -531,6 +533,7 @@ def isc(initial,dielec):
     #Error estimate
     error = np.sqrt(np.sum((y-rate)**2,axis=0)/(N*(N-1)))
     error[error< 1e-99] = 0 
+    save_data(Singlets,Triplets,Ss_s,Ss_t,GP,socs_complete,Oscs[:,n_state][:,np.newaxis],espectro[:,np.newaxis],y,initial.upper())
     arquivo = nemo.tools.naming('rates_{}_.lx'.format(initial.upper()))    
     with open(arquivo, 'w') as f:
         f.write('#Epsilon: {:.3f} nr: {:.3f}\n'.format(eps,nr))
