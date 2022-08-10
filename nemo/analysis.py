@@ -457,7 +457,7 @@ def printa_espectro_emi(initial,eps,nr,tdm,x,mean_y,error):
                 f.write(text)
 
 def save_data(Singlets,Triplets,Ss_s,Ss_t, GP,socs_complete,oscs,espectro,y,initial):
-    dados   = np.hstack((Singlets,Triplets,Ss_s,Ss_t, GP[:,np.newaxis],socs_complete))
+    dados   = np.hstack((Singlets,Triplets,Ss_s,Ss_t, GP[:,np.newaxis],socs_complete,oscs,espectro,y))
     header1 = ['S'+str(i) for i in range(1,1+Singlets.shape[1])]
     header2 = ['T'+str(i) for i in range(1,1+Triplets.shape[1])]
     header3 = ['DS'+str(i) for i in range(1,1+Ss_s.shape[1])]
