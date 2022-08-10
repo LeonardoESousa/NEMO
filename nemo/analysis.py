@@ -468,7 +468,8 @@ def save_data(Singlets,Triplets,Ss_s,Ss_t, GP,socs_complete,oscs,espectro,y,init
     header8 = ['ke']
     header9 = ['kisc'+str(i) for i in range(1,1+y.shape[1])]
     header  = ','.join(header1+header2+header3+header4+header5+header6+header7+header8+header9)
-    np.savetxt(f'Ensemble_{initial}_.lx',dados,fmt='+%.4e',header=header, delimiter=',')
+    arquivo = nemo.tools.naming(f'Ensemble_{initial}_.lx')
+    np.savetxt(arquivo,dados,fmt='+%.4e',header=header, delimiter=',')
 
 
 ##CALCULATES ISC RATES FROM INITIAL STATE TO SEVERAL STATES OF OPPOSITE SPIN#############
