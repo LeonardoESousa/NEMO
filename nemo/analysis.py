@@ -335,6 +335,8 @@ def moment(file,ess,ets,dipss,dipts,n_triplet,ind_s,ind_t):
         socst1 = np.vstack((socss0[0,:],socst1))    
         socst1[:,1] *= -1
         ess = ess[:np.shape(socst1)[0]]
+        if 0 in ets[n_triplet]-ess:
+            return 0
         for i in [0,1,2]:
             Ps = []
             for j in [0,1]:
