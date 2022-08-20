@@ -2,6 +2,7 @@
 import numpy as np
 import os
 import nemo.tools 
+import warnings
 
 c     = nemo.tools.c
 pi    = nemo.tools.pi
@@ -553,7 +554,9 @@ def isc(initial,dielec):
         gap        = means(delta,y)
         mean_soc   = 1000*means(socs_complete,y)
         mean_sigma = means(sigma,y)
-        mean_part  = np.nan_to_num(100*rate/means(y,y))
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            mean_part  = np.nan_to_num(100*rate/means(y,y))
         for j in range(delta.shape[1]):
             f.write('{}->{}{}         {:5.2e}      {:5.2e}      {:5.1f}         {:+5.3f}       {:5.3f}         {:5.3f}        {:5.1f}%\n'.format(initial.upper(),final,j+1,rate[j],error[j],100*rate[j]/total,gap[j],mean_soc[j],mean_sigma[j],mean_part[j]))
 
