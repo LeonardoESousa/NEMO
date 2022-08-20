@@ -393,8 +393,8 @@ def get_osc_phosph(alphast2,alphaopt1,Singlets, Triplets, Ss_s, Ss_t, IND_S, IND
     files = check_normal(files)
     files = sorted(files, key=lambda pair: float(pair.split('-')[1]))
     n_state = read_cis(files[0])
-    Es  = Singlets - (alphast2/alphaopt1)*Ss_s
-    Et  = Triplets - (alphast2/alphaopt1)*Ss_t 
+    Es  = Singlets #- (alphast2/alphaopt1)*Ss_s
+    Et  = Triplets #- (alphast2/alphaopt1)*Ss_t #removed correction from phosph_osc calculation 
     for j in range(Singlets.shape[0]):
         tos = phosph_osc(files[j],n_state,IND_S[j,:],IND_T[j,:],Es[j,:],Et[j,:])        
         try:
@@ -471,6 +471,13 @@ def save_data(Singlets,Triplets,Ss_s,Ss_t, GP,socs_complete,oscs,espectro,y,init
     arquivo = nemo.tools.naming(f'Ensemble_{initial}_.lx')
     np.savetxt(arquivo,dados,fmt='+%.4e',header=header, delimiter=',')
 
+def means(y,weigh):
+    try:
+        mean = np.average(y,axis=0,weights=weigh)
+    except:
+        mean = np.average(y,axis=0)
+    return mean        
+
 
 ##CALCULATES ISC RATES FROM INITIAL STATE TO SEVERAL STATES OF OPPOSITE SPIN#############
 def isc(initial,dielec):
@@ -541,10 +548,10 @@ def isc(initial,dielec):
         f.write('#Transition    Rate(s^-1)    Error(s^-1)   Prob(%)   AvgDE+L(eV)  AvgSOC(meV)  AvgSigma(eV)   AvgConc(%)\n')     
         f.write('{}->{}{}         {:5.2e}      {:5.2e}      {:5.1f}         {:+5.3f}       {:5}         {:5.3f}        {:5.1f}%\n'.format(initial.upper(),'S',0,emi_rate,emi_error,100*emi_rate/total ,gap_emi,'-',mean_sigma_emi,mean_part_emi))
 
-        gap        = np.average(delta,axis=0,weights=y+1e-10)
-        mean_soc   = 1000*np.average(socs_complete,axis=0,weights=y+1e-10)
-        mean_sigma = np.average(sigma,axis=0,weights=y+1e-10)
-        mean_part  = 100*rate/np.average(y,axis=0,weights=y+1e-10)
+        gap        = means(delta,y)
+        mean_soc   = 1000*means(socs_complete,y)
+        mean_sigma = means(sigma,y)
+        mean_part  = 100*rate/means(y,y)
         for j in range(delta.shape[1]):
             f.write('{}->{}{}         {:5.2e}      {:5.2e}      {:5.1f}         {:+5.3f}       {:5.3f}         {:5.3f}        {:5.1f}%\n'.format(initial.upper(),final,j+1,rate[j],error[j],100*rate[j]/total,gap[j],mean_soc[j],mean_sigma[j],mean_part[j]))
 
