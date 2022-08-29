@@ -49,14 +49,15 @@ try:
     for input in inputs:
         rodando = nemo.tools.watcher(rodando,factor,False)
         nlim    = limite()
-        newcommand += '{} {} {}log &\n'.format(command, input, input[:-3])
+        newcommand += f'{command} {input} {input[:-3]}log &\n'
         queue += 1
         if queue == num or (queue == leftover and batch_num >= len(inputs) - leftover):
             newcommand += 'wait'
-            newcommand = newcommand.replace('MMMM','{:.0f}'.format(num*nproc/newcommand.count('qchem')))
-            with open('cmd_{}_.sh'.format(batch_num), 'w') as q:
+            NN = num*nproc/newcommand.count('qchem')
+            newcommand = newcommand.replace('MMMM',f'{NN:.0f}')
+            with open(f'cmd_{batch_num}_.sh', 'w') as q:
                 q.write(newcommand)
-            a = subprocess.call(['bash',batch_file, 'cmd_{}_.sh'.format(batch_num)])
+            a = subprocess.call(['bash',batch_file, f'cmd_{batch_num}_.sh'])
             queue = 0
             newcommand = ''
         rodando.append(input)

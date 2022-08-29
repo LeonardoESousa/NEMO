@@ -173,7 +173,7 @@ def write_input(atomos,G,header,bottom,file):
     with open(file, 'w') as f:
         f.write(header)
         for i in range(0,len(atomos)):
-            texto = "{:2s}  {:.14f}  {:.14f}  {:.14f}\n".format(atomos[i],G[i,0],G[i,1],G[i,2])
+            texto = f"{atomos[i]:2s}  {G[i,0]:.14f}  {G[i,1]:.14f}  {G[i,2]:.14f}\n"
             f.write(texto)
         f.write(bottom+'\n')
 ###############################################################
@@ -224,31 +224,16 @@ def make_ensemble(freqlog, num_geoms, T, header, bottom):
     counter = start_counter()   
     print("\nGenerating geometries...\n")
     numbers, atomos, A = sample_geometries(freqlog,num_geoms,T)
-    with open('Magnitudes_{:.0f}K_.lx'.format(T), 'a') as file:
+    with open(f'Magnitudes_{T:.0f}K_.lx', 'a') as file:
         np.savetxt(file, numbers, delimiter='\t', fmt='%s')
     for n in range(0,np.shape(A)[1],3):
         Gfinal = A[:,n:n+3]  
         write_input(atomos,Gfinal,header,bottom,"Geometries/Geometry-"+str((n+3)//3+counter)+"-.com")
         progress = 100*((n+3)//3)/num_geoms
-        text = "{:2.1f}%".format(progress)
+        text = f"{progress:2.1f}%"
         print(' ', text, "of the geometries done.",end="\r", flush=True)
     print("\n\nDone! Ready to run.")   
 ################################################################
-            
-##COLLECTS RESULTS############################################## 
-def gather_data(alphast2,alphaopt1):
-    from nemo.analysis import analysis, get_osc_phosph
-    Singlets, Triplets, Oscs, Ss_s, Ss_t, GP, IND_S, IND_T = analysis(phosph=True)
-    Os  = get_osc_phosph(alphast2,alphaopt1,Singlets, Triplets, Ss_s, Ss_t, IND_S, IND_T)
-    num = np.shape(Singlets)[1]
-    with open("Samples.lx", 'w') as f:
-        for i in range(np.shape(Singlets)[0]):
-            f.write("{:14}\t{:12}\t{:14}\t{:10}\t{:12}\t{:7}\n".format("#Geometry_"+str(i+1),"Vertical(eV)","Correction(eV)","Ground(eV)","Oscillator","Spin"))        
-            for j in range(num):
-                f.write("{:14}\t{:12.3f}\t{:14.3f}\t{:10.3f}\t{:12.3e}\t{:7}\n".format(j+1,Singlets[i,j], Ss_s[i,j], GP[i],Oscs[i,j],'1'))        
-            for j in range(num):
-                f.write("{:14}\t{:12.3f}\t{:14.3f}\t{:10.3f}\t{:12.3e}\t{:7}\n".format(j+1,Triplets[i,j], Ss_t[i,j], GP[i],Os[i,j],'3'))
-############################################################### 
 
 ##COLLECTS RESULTS############################################## 
 def gather_data_abs(num_ex,spin):
@@ -278,10 +263,10 @@ def gather_data_abs(num_ex,spin):
                     ss    = ss_t[num_ex:]
                     GP    = ss_t[num_ex-1]
                 oscs = pega_oscs(file,ind,spin,order)
-            f.write("{:14}\t{:12}\t{:14}\t{:10}\t{:12}\t{:7}\n".format("#Geometry_"+str(i+1),"Vertical(eV)","Correction(eV)","Ground(eV)","Oscillator","Spin"))
+            f.write(f"#Geometry_{i+1:14}\t{'Vertical(eV)':12}\t{'Correction(eV)':14}\t{'Ground(eV)':10}\t{'Oscillator':12}\t{'Spin':7}\n")
             i += 1
             for j in range(len(oscs)):
-                f.write("{:14}\t{:12.3f}\t{:14.3f}\t{:10.3f}\t{:12.3e}\t{:7}\n".format(num_ex+j+1,engs[j], ss[j], GP, oscs[j],spin)) 
+                f.write(f"{num_ex+j+1:14}\t{engs[j]:12.5f}\t{ss[j]:14.5f}\t{GP:10.5f}\t{oscs[j]:12.5e}\t{spin:7}\n") 
 ############################################################### 
 
 
@@ -334,41 +319,26 @@ def get_alpha(eps):
     return (eps-1)/(eps+1)
 
 ##COMPUTES SPECTRA############################################# 
-def spectra(tipo, num_ex, dielec):
-    eps, nr = dielec[0], dielec[1]
-    eps_i , nr_i = get_nr()
-    alphast1  = get_alpha(eps_i)
+def spectra(num_ex, dielec):
+    eps, nr   = dielec[0], dielec[1]
+    _, nr_i   = get_nr()
     alphast2  = get_alpha(eps)  
     alphaopt1 = get_alpha(nr_i**2)
     alphaopt2 = get_alpha(nr**2)
-    kbT = detect_sigma()
+    kbT       = detect_sigma()
     if 'S' in num_ex.upper():
         spin  = '1'
-        label = 'S'
     else:
         spin  = '3'
-        label = 'T'
-    estado = int(num_ex[1:])     
-    if tipo == "abs":
-        label = num_ex.upper()
-        num_ex = range(estado+1,estado+1000)
-        num_ex = list(map(int,num_ex))
-        constante = (np.pi*(e**2)*hbar)/(2*nr*mass*c*epsilon0)*10**(20)
-        try:
-            gather_data_abs(estado,spin)
-        except:
-            fatal_error('Something went wrong. The requested state may be higher than the available energies.')    
-    elif tipo == 'emi' and 'S' in num_ex.upper():
-        num_ex = [estado]
-        constante = ((nr**2)*(e**2)/(2*np.pi*hbar*mass*(c**3)*epsilon0))
-        gather_data(alphast2,alphaopt1)
-    elif tipo == 'emi' and 'T' in num_ex.upper():
-        num_ex = [estado]
-        constante = (1/3)*((nr**2)*(e**2)/(2*np.pi*hbar*mass*(c**3)*epsilon0))
-        gather_data(alphast2,alphaopt1)
+    estado    = int(num_ex[1:])     
+    label     = num_ex.upper()
+    constante = (np.pi*(e**2)*hbar)/(2*nr*mass*c*epsilon0)*10**(20)
+    try:
+        gather_data_abs(estado,spin)
+    except:
+        fatal_error('Something went wrong. The requested state may be higher than the available energies.')    
     data   = np.loadtxt('Samples.lx')
     data   = data[data[:,-1] == float(spin)]
-    data   = data[np.isin(data[:,0],num_ex)]
     N      = len(data[data[:,0] == data[0,0]])    
     V      = data[:,1]
     S      = data[:,2]
@@ -377,56 +347,36 @@ def spectra(tipo, num_ex, dielec):
     coms   = start_counter()
     if len(V) == 0 or len(O) == 0:
         fatal_error("You need to run steps 1 and 2 first! Goodbye!")
-    elif len(V) != coms*len(num_ex):
-        print("Number of log files is less than the number of inputs. Something is not right! Computing the spectrum anyway...")
-    if tipo == 'abs':
-        espectro = (constante*O)
-        lambda_b = (alphast2/alphaopt1 - alphaopt2/alphaopt1)*S
-        if estado == 0:
-            DE  = V - (alphaopt2/alphaopt1)*S
-        else:
-            DE  = V + (alphast2/alphaopt1)*G - (alphaopt2/alphaopt1)*S
+    elif N != coms:
+        print(f"There are {coms} inputs and just {N} log files. Something is not right! Computing the spectrum anyway...")
+    espectro =  constante*O
+    lambda_b = (alphast2/alphaopt1 - alphaopt2/alphaopt1)*S
+    if estado == 0:
+        DE = V - (alphaopt2/alphaopt1)*S
     else:
-        lambda_b  = (alphast2/alphast1 - alphaopt2/alphast1)*G
-        DE        = V - (alphast2/alphaopt1)*S
-        espectro  = (constante*((DE-lambda_b)**2)*O)
-        tdm       = calc_tdm(O,V,espectro)
+        DE = V + (alphast2/alphaopt1)*G - (alphaopt2/alphaopt1)*S
     Ltotal = np.sqrt(2*lambda_b*kbT + kbT**2)
     left   = max(min(DE-2*Ltotal),0.01)
     right  = max(DE+2*Ltotal)    
     x      = np.linspace(left,right, int((right-left)/0.01))
-    if tipo == 'abs':
-        arquivo = 'cross_section_'+label+'_.lx'
-        primeira = "{:8s} {:8s} {:8s}\n".format("#Energy(ev)", "cross_section(A^2)", "error")
-    else:
-        arquivo = tipo+'_differential_rate.lx'
-        primeira = "{:4s} {:4s} {:4s} TDM={:.3f} au\n".format("#Energy(ev)", "diff_rate", "error",tdm)
-    arquivo = naming(arquivo)
     y      = espectro[:,np.newaxis]*gauss(x,DE[:,np.newaxis],Ltotal[:,np.newaxis])
     mean_y = np.sum(y,axis=0)/N 
     #Error estimate
-    sigma  = np.sqrt(np.sum((y-mean_y)**2,axis=0)/(N*(N-1))) 
-    
-    if tipo == 'emi':
-        #Emission rate calculations
-        mean_rate, error_rate = calc_emi_rate(x, mean_y,sigma) 
-        segunda = '# Total Rate {}{} -> S0: {:5.2e} +/- {:5.2e} s^-1\n'.format(label,num_ex[0],mean_rate,error_rate)
-    else:
-        segunda = '# Absorption from State: {}\n'.format(label)
-    segunda += '#Epsilon: {:.3f} nr: {:.3f}\n'.format(eps,nr)
-    print(N, "geometries considered.")     
+    sigma    = np.sqrt(np.sum((y-mean_y)**2,axis=0)/(N*(N-1))) 
+    arquivo  = naming('cross_section_'+label+'_.lx')
+    primeira = f"{'#Energy(ev)':8s} {'cross_section(A^2)':8s} {'error(A^2)':8s}\n# Absorption from State: {label}\n#Epsilon: {eps:.3f} nr: {nr:.3f}\n"
     with open(arquivo, 'w') as f:
         f.write(primeira)
-        f.write(segunda)
         for i in range(0,len(x)):
-            text = "{:.6f} {:.6e} {:.6e}\n".format(x[i],mean_y[i], sigma[i])
+            text = f"{x[i]:.6f} {mean_y[i]:.6e} {sigma[i]:.6e}\n"
             f.write(text)
-    print('Spectrum printed in the {} file'.format(arquivo))                
+    print(f'Spectrum printed in the {arquivo} file')                
 ############################################################### 
+ 
 
 ##LIST OF KEYWORDS THAT SHOULD NOT BE READ#####################
 def delist(elem):
-    words = ['jobtype','$molecule', '-----', 'cis_n', 'cis_s', 'cis_t', 'gui', 'nto_', 'soc', 'sts_', '$comment', 'CIS_RELAXED_DENSITY' ]
+    words = ['jobtype', '-----', 'cis_n', 'cis_s', 'cis_t', 'gui', 'nto_', 'soc', 'sts_', 'CIS_RELAXED_DENSITY', 'solvent_method']
     for w in words:
         if w in elem.lower():
             return False
@@ -435,50 +385,35 @@ def delist(elem):
 
 ##CHECKS THE FREQUENCY LOG'S LEVEL OF THEORY###################
 def busca_input(freqlog):
-    input_file = True
+    search = True
     with open(freqlog, 'r') as f:
         for line in f:
             if 'A Quantum Leap Into The Future Of Chemistry' in line:
-                input_file = False
+                search = False
                 break           
     spec = 'ABSSPCT'
-    root = '1'
+    rem  = ''
     with open(freqlog, 'r') as f:
-        if input_file:
-            search = True
-            rem = ''
-        else:    
-            search = False
-        molec  = False
-        comment = False
         for line in f:
-            if 'User input:' in line and not input_file:
-                rem = ''    
-                search = True
+            if 'User input:' in line and not search:    
+                search = True    
             elif search and delist(line):
                 rem += line
             elif 'CIS_STATE_DERIV' in line.upper():
                 spec = 'EMISPCT'
-                root = line.split()[-1]
-            elif search and '$molecule' in line.lower():
-                molec = True
-                search = False
-            elif molec:
-                line = line.split()
-                if len(line) == 2:
-                    cm = ' '.join(line)
-                elif '$end' in line:
-                    molec = False
-                    search = True
-            elif search and '$comment' in line.lower():
-                search = False
-                comment = True
-            elif comment:
-                if '$end' in line:
-                    comment = False
-                    search = True    
             elif '--------------------------------------------------------------' in line and search and rem != '':
                 search = False
+    rem = rem.split('$end')
+    for r in rem:
+        if '$rem' in r:
+            rem = r+'$end\n'
+        elif '$molecule' in r:
+            mol = r.split('\n')
+            for m in mol:
+                m = m.split()
+                if len(m) == 2:
+                    cm = ' '.join(m)
+                    break                 
     return rem, cm, spec                
 ###############################################################
 
@@ -503,7 +438,7 @@ def andamento():
                         error += 1    
         print("\n\nThere are", int(count/factor), "successfully completed calculations out of", len(coms), "inputs")
         if error > 0:
-            print("There are {} failed jobs. If you used option 2, check the nohup.out file for details.".format(error))                
+            print(f"There are {error} failed jobs. If you used option 2, check the nohup.out file for details.")                
         print(np.round(100*(count+error)/(factor*len(coms)),1), "% of the calculations have been run.")
     except:
         print('No files found! Check the folder!')                
@@ -518,16 +453,16 @@ def fetch_file(frase,ends):
             if end in file:
                  files.append(file)
     if len(files) == 0:
-        fatal_error("No {} file found. Goodbye!".format(frase))
+        fatal_error(f"No {frase} file found. Goodbye!")
     freqlog = 'nada0022'    
     for file in files:
         print("\n"+file)
-        resp = input('Is this the {} file? y ou n?\n'.format(frase))
+        resp = input(f'Is this the {frase} file? y ou n?\n')
         if resp.lower() == 'y':
             freqlog = file
             break
     if freqlog == 'nada0022':
-        fatal_error("No {} file found. Goodbye!".format(frase))
+        fatal_error(f"No {frase} file found. Goodbye!")
     return freqlog  
 ###############################################################  
    
@@ -562,24 +497,6 @@ def detect_sigma():
         sigma = 0.000
     return sigma
 ###############################################################    
-
-##CHECKS SPECTRUM TYPE#########################################
-def get_spec():
-    coms = [file for file in os.listdir("Geometries") if 'Geometr' in file and '.com' in file]
-    with open('Geometries/'+coms[0],'r') as f:
-        for line in f:
-            if 'ABSSPCT' in line:
-                tipo = 'absorption'
-                break
-            elif 'EMISPCT' in line:
-                tipo = 'emission'
-                break
-            elif 'FLUORSPCT' in line:
-                tipo = 'fluorescence'
-            elif 'PHOSPHSPCT' in line:
-                tipo = 'phosphorescence'    
-    return tipo       
-###############################################################
 
 ##FETCHES REFRACTIVE INDEX##################################### 
 def get_nr():
@@ -616,19 +533,6 @@ def abort_batch():
         print('OK, nevermind')
 ###############################################################
 
-##DELETES CHK FILES############################################
-def delchk(input,term):
-    num = input.split('-')[1]
-    if term == 1:
-        a = ''
-    elif term == 2:
-        a = '2'
-    try:        
-        os.remove('step{}_{}.chk'.format(a,num))
-    except:
-        pass      
-###############################################################
-
 ##CHECKS WHETHER JOBS ARE DONE#################################
 def watcher(files,counter,first):
     rodando = files.copy()
@@ -641,11 +545,9 @@ def watcher(files,counter,first):
                 for line in f:
                     if 'Have a nice day' in line:
                         term += 1
-                        if counter == 2:
-                            delchk(input,term)
                     elif ('fatal error' in line or 'failed standard') in line and not first:
                         error = True
-                        print('The following job returned an error: {}'.format(input))
+                        print(f'The following job returned an error: {input}')
                         print('Please check the file for any syntax errors.') 
                     elif ('fatal error' in line or 'failed standard') in line and first:
                         os.remove(input[:-3]+'log')          
@@ -683,50 +585,3 @@ def calc_emi_rate(xd,yd,dyd):
     return taxa, error 
 ###############################################################
 
-
-def search_opt_lambda(folder='.'):
-    files = [i for i in os.listdir(folder) if 'Opt_Lambda' in i]
-    for file in files:
-        with open(file, 'r') as f:
-            for line in f:
-                if 'Have a nice day.' in line:
-                    return file
-    fatal_error('No valid QChem log file was found! You must run the Opt_Lambda.com calculation. Bye!')                
-
-##CALCULATES REORGANIZATION ENERGIES###########################
-def lambdas():
-    from nemo.analysis import get_minimum_energies
-    opt   = search_opt_lambda()
-    files = [opt]
-    folders = input('Path to folders with Opt_Lambda files for other states? (comma separated)\n')
-    folders = folders.split(',')
-    folders = [i.strip() for i in folders]
-    if folders == '':
-        fatal_error('You must provide at least one path to other Opt_Lambda files. Bye!')
-    for folder in folders:
-        file = search_opt_lambda(folder=folder)
-        path = os.path.join(folder,file)
-        path = os.path.normpath(path)
-        files.extend([path])
-    print('Using the following files:')
-    for f in files:
-        print(f)
-    try:
-        min_singlets, min_triplets = get_minimum_energies(files)
-        base_s, base_t = get_minimum_energies([opt])
-    except:
-        fatal_error('Something went wrong. One or more of the files were not found or are not QChem log files.')    
-    low_s = base_s - min_singlets 
-    low_t = base_t - min_triplets
-    #Prevents zero lambdas
-    low_s[low_s <= 0] = 0.001
-    low_t[low_t <= 0] = 0.001
-
-    with open('lambdas.lx', 'w') as f:
-        for i in range(len(low_s)):
-            if i == 0:
-                f.write('#S{}    S{}\n'.format(i,i))
-            else:
-                f.write('#S{}    T{}\n'.format(i,i))
-            f.write('{:.3f}    {:.3f}\n'.format(low_s[i], low_t[i]))
-###############################################################            

@@ -13,38 +13,6 @@ e     = nemo.tools.e
 mass  = nemo.tools.mass
 epsilon0 = nemo.tools.epsilon0
 
-##GETS TOTAL ENERGY FROM FILE##################################
-def pega_total_energy(file):
-    with open(file, 'r') as f:
-        for line in f:
-            if 'Total energy in the final basis set' in line:
-                line = line.split()
-                total =  float(line[8])*27.2114
-                return total
-###############################################################
-
-##GETS MINIMUM ENERGIES FROM A LIST OF FILES###################
-def get_minimum_energies(files):
-    for file in files:
-        try:
-            ss, ts, _, _, _, _, _, _ = pega_energias(file)
-            total = pega_total_energy(file)
-            ss += total 
-            ts += total 
-            ss = np.insert(ss,0,total)
-            ts = np.insert(ts,0,total)
-            try:
-                singlets = np.vstack((singlets,ss))
-                triplets = np.vstack((triplets,ts))
-            except:
-                singlets = ss[np.newaxis,:]
-                triplets = ts[np.newaxis,:]
-        except:
-            pass
-    min_singlets = np.min(singlets,axis=0)
-    min_triplets = np.min(triplets,axis=0)
-    return min_singlets, min_triplets
-###############################################################
 
 ##RETURNS LIST OF LOG FILES WITH NORMAL TERMINATION######################################
 def check_normal(files):
@@ -449,15 +417,16 @@ def analysis(phosph=True):
 
 def printa_espectro_emi(initial,eps,nr,tdm,x,mean_y,error):
         mean_rate, error_rate = nemo.tools.calc_emi_rate(x, mean_y,error)
-        primeira   = "{:4s} {:4s} {:4s} TDM={:.3f} au\n".format("#Energy(ev)", "diff_rate", "error",tdm)
-        primeira  += '# Total Rate {} -> S0: {:5.2e} +/- {:5.2e} s^-1\n'.format(initial,mean_rate,error_rate)
-        primeira  += '#Epsilon: {:.3f} nr: {:.3f}\n'.format(eps,nr)
-        arquivo    = nemo.tools.naming('differential_rate_'+initial.upper()+'.lx')
+        primeira   = f"{'#Energy(ev)':4s} {'diff_rate':4s} {'error':4s} TDM={tdm:.3f} au\n"
+        primeira  += f'# Total Rate {initial} -> S0: {mean_rate:5.2e} +/- {error_rate:5.2e} s^-1\n'
+        primeira  += f'#Epsilon: {eps:.3f} nr: {nr:.3f}\n'
+        arquivo    = nemo.tools.naming(f'differential_rate_{initial.upper()}.lx')
         with open(arquivo, 'w') as f:
             f.write(primeira)
             for i in range(0,len(x)):
-                text = "{:.6f} {:.6e} {:.6e}\n".format(x[i],mean_y[i], error[i])
+                text = f"{x[i]:.6f} {mean_y[i]:.6e} {error[i]:.6e}\n"
                 f.write(text)
+        print(f'Spectrum printed in the {arquivo} file')        
 
 def save_data(Singlets,Triplets,Ss_s,Ss_t, GP,socs_complete,oscs,espectro,y,initial):
     dados   = np.hstack((Singlets,Triplets,Ss_s,Ss_t, GP[:,np.newaxis],socs_complete,oscs,espectro,y))
@@ -483,7 +452,7 @@ def means(y,weigh):
 
 
 ##CALCULATES ISC RATES FROM INITIAL STATE TO SEVERAL STATES OF OPPOSITE SPIN#############
-def isc(initial,dielec):
+def rates(initial,dielec):
     eps, nr     = dielec[0], dielec[1]
     eps_i, nr_i = nemo.tools.get_nr()
     alphast1    = nemo.tools.get_alpha(eps_i)
@@ -492,6 +461,9 @@ def isc(initial,dielec):
     alphaopt2   = nemo.tools.get_alpha(nr**2)
     n_state     = int(initial[1:]) -1
     kbT         = nemo.tools.detect_sigma()
+    coms        = nemo.tools.start_counter()
+    
+    #Emission Calculations
     if 's' in initial.lower():
         Singlets, Triplets, Oscs, Ss_s, Ss_t, GP   = analysis(phosph=False)
         tipo      = 'singlet'
@@ -518,17 +490,25 @@ def isc(initial,dielec):
     y         = espectro[:,np.newaxis]*nemo.tools.gauss(x,delta_emi[:,np.newaxis],Ltotal[:,np.newaxis])
     N         = y.shape[0]
     mean_y    = np.sum(y,axis=0)/N 
-    #Error estimate
     error     = np.sqrt(np.sum((y-mean_y)**2,axis=0)/(N*(N-1))) 
-    #Emission rate calculations
     emi_rate, emi_error = nemo.tools.calc_emi_rate(x, mean_y,error)     
     gap_emi        = np.average(delta_emi,weights=espectro)
     mean_sigma_emi = np.average(Ltotal,weights=espectro)
     mean_part_emi  = (100/N)/np.average(espectro/np.sum(espectro),weights=espectro)
     printa_espectro_emi(initial,eps,nr,tdm,x,mean_y,error)
 
+    
+    try:
+        socs_complete = avg_socs(tipo,n_state)
+    except:
+        socs_complete = np.zeros(Singlets.shape)
+        print('ISC rates are not available!')
+    #Checks number of logs
+    N = min(Singlets.shape[0],Triplets.shape[0],socs_complete.shape[0])
+    if N != coms:
+        print(f"There are {coms} inputs and just {N} log files. Something is not right! Computing the rates anyway...")
+    
     #Intersystem Crossing Rates
-    socs_complete = avg_socs(tipo,n_state)
     if tipo == 'singlet':
         delta    = Triplets + np.repeat((alphast2/alphaopt1)*Ss_s[:,n_state][:,np.newaxis] - Singlets[:,n_state][:,np.newaxis],Triplets.shape[1],axis=1) - (alphaopt2/alphaopt1)*Ss_t   #Tn (final) - Sm (initial) + lambda_b
         lambda_b = (alphast2/alphaopt1 - alphaopt2/alphaopt1)*Ss_t
@@ -545,11 +525,11 @@ def isc(initial,dielec):
     error = np.sqrt(np.sum((y-rate)**2,axis=0)/(N*(N-1)))
     error[error< 1e-99] = 0 
     save_data(Singlets,Triplets,Ss_s,Ss_t,GP,socs_complete,Oscs[:,n_state][:,np.newaxis],espectro[:,np.newaxis],y,initial.upper())
-    arquivo = nemo.tools.naming('rates_{}_.lx'.format(initial.upper()))    
+    arquivo = nemo.tools.naming(f'rates_{initial.upper()}_.lx')    
     with open(arquivo, 'w') as f:
-        f.write('#Epsilon: {:.3f} nr: {:.3f}\n'.format(eps,nr))
+        f.write(f'#Epsilon: {eps:.3f} nr: {nr:.3f}\n')
         f.write('#Transition    Rate(s^-1)    Error(s^-1)   Prob(%)   AvgDE+L(eV)  AvgSOC(meV)  AvgSigma(eV)   AvgConc(%)\n')     
-        f.write('{}->{}{}         {:5.2e}      {:5.2e}      {:5.1f}         {:+5.3f}       {:5}         {:5.3f}        {:5.1f}%\n'.format(initial.upper(),'S',0,emi_rate,emi_error,100*emi_rate/total ,gap_emi,'-',mean_sigma_emi,mean_part_emi))
+        f.write(f'{initial.upper()}->S0         {emi_rate:5.2e}      {emi_error:5.2e}      {100*emi_rate/total:5.1f}         {gap_emi:+5.3f}       {"-":5}         {mean_sigma_emi:5.3f}        {mean_part_emi:5.1f}%\n')
 
         gap        = means(delta,y)
         mean_soc   = 1000*means(socs_complete,y)
@@ -558,7 +538,7 @@ def isc(initial,dielec):
             warnings.simplefilter("ignore")
             mean_part  = np.nan_to_num(100*rate/means(y,y))
         for j in range(delta.shape[1]):
-            f.write('{}->{}{}         {:5.2e}      {:5.2e}      {:5.1f}         {:+5.3f}       {:5.3f}         {:5.3f}        {:5.1f}%\n'.format(initial.upper(),final,j+1,rate[j],error[j],100*rate[j]/total,gap[j],mean_soc[j],mean_sigma[j],mean_part[j]))
+            f.write(f'{initial.upper()}->{final}{j+1}         {rate[j]:5.2e}      {error[j]:5.2e}      {100*rate[j]/total:5.1f}         {gap[j]:+5.3f}       {mean_soc[j]:5.3f}         {mean_sigma[j]:5.3f}        {mean_part[j]:5.1f}%\n')
 
         #Internal conversion avg deltaE+L
         delta_s = np.mean(np.diff(Singlets - (alphast2/alphaopt1)*Ss_s,axis=1) + (alphast2/alphaopt1 -alphaopt2/alphaopt1)*Ss_s[:,1:],axis=0)
@@ -566,8 +546,8 @@ def isc(initial,dielec):
         f.write('\n#Estimated Internal Conversion Driving Energies:\n')
         f.write('#Transition    AvgDE+L(eV)    Transition    AvgDE+L(eV)\n')
         for j in range(len(delta_s)):
-            f.write('S{0:}->S{1:}         {2:+5.3f}         T{0:}->T{1:}         {3:+5.3f}\n'.format(j+1,j+2,delta_s[j],delta_t[j]))
+            f.write(f'S{j+1}->S{j+2}         {delta_s[j]:+5.3f}         T{j+1}->T{j+2}         {delta_t[j]:+5.3f}\n')
 
 
-    print('Results are written in the {} file'.format(arquivo))        
+    print(f'Rates are written in the {arquivo} file')        
 #########################################################################################    

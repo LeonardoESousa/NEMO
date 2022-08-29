@@ -17,16 +17,14 @@ def main():
     print("\t2 - Run the ensemble calculations")
     print("\t3 - Check the progress of the calculations")
     print("\t4 - Abort my calculations")
-    print('REORGANIZATION ENERGIES')
-    print("\t5 - Calculates reorganization energies for use in spectrum and ISC calculations")
-    print('SPECTRUM SIMULATIONS:')
-    print("\t6 - Generate the spectrum")
-    print("INTERSYSTEM CROSSING (ISC):")
-    print("\t7 - Estimate ISC rates")
+    print('ABSORPTION:')
+    print("\t5 - Generate the absorption spectrum")
+    print("EXCITED STATE PROPERTIES (FLUORESCENCE, PHOSPHORESCENCE, ISC):")
+    print("\t6 - Estimate rates and compute emission spectrum")
     print('EXCITON ANALYSIS:')
-    print("\t8 - Estimate Förster radius, fluorescence lifetime and exciton diffusion lengths")
+    print("\t7 - Estimate Förster radius, fluorescence lifetime and exciton diffusion lengths")
     print('OTHER FEATURES:')
-    print("\t9 - Retrieve last geometry from log file") 
+    print("\t8 - Retrieve last geometry from log file") 
     op = input()
     if op == '1':
         freqlog = nemo.tools.fetch_file("frequency",['.out', '.log'])
@@ -53,26 +51,39 @@ def main():
             for elem in rem.split('\n'):
                 if len(elem.split()) > 1:
                     if '$' not in elem:
-                        base = nemo.tools.default(elem, '{} is set to: {}. If ok, Enter. Otherwise, type the correct value. Type del to delete line.\n'.format(elem.split()[0], elem.split()[-1]))
+                        base = nemo.tools.default(elem, f'{elem.split()[0]} is set to: {elem.split()[-1]}. If ok, Enter. Otherwise, type the correct value. Type del to delete line.\n')
                         if base.lower() == 'del':
                             base = ''
                     else:    
                         base = elem
                     rem2 += base+'\n'
-        num_ex = input("How many excited states?\n")
+            rem = rem2
+        rem   += "\n$pcm\ntheory                  IEFPCM\nChargeSeparation        Marcus\nStateSpecific           Perturb\n$end\n"
+        static = input("Solvent's static dielectric constant?\n")
+        refrac = input("Solvent's refractive index?\n")
         try:
-            num_ex = int(num_ex)
+            static = float(static)
+            refrac = float(refrac)
         except:
-            nemo.tools.fatal_error("This must be a number! Goodbye!")
+            nemo.tools.fatal_error('Dielectric constant and refractive index must be numbers!')    
+        rem += f"\n$solvent\nDielectric              {static}\nOpticalDielectric       {refrac**2}\n$end\n\n"            
+        num_ex = input("How many excited states?\n")
+        go = False
+        while not go:
+            try:
+                num_ex = int(num_ex)
+                go = True
+            except:
+                print("This must be a number! Try again!\n")
         abs_only = input("Prepare input for absorption or fluorescence spectrum only? (y or n)\n")
         if abs_only.lower() == 'y':
             print('Ok, calculations will only be suitable for absorption or fluorescence spectrum simulations!\n')
-            header = "$comment\n{}\n$end\n\n$rem\ncis_n_roots             {}\ncis_singlets            true\ncis_triplets            true\ncalc_soc                false\nSTS_MOM                 true\nCIS_RELAXED_DENSITY     TRUE".format(spec,num_ex)
+            header = f"$comment\n{spec}\n$end\n\n$rem\ncis_n_roots             {num_ex}\ncis_singlets            true\ncis_triplets            true\ncalc_soc                false\nSTS_MOM                 true\nCIS_RELAXED_DENSITY     TRUE\nsolvent_method          PCM"
         else:
             print('Ok, calculations will be suitable for all spectra and ISC rate estimates!\n')
-            header = "$comment\n{}\n$end\n\n$rem\ncis_n_roots             {}\ncis_singlets            true\ncis_triplets            true\ncalc_soc                true\nSTS_MOM                 true\nCIS_RELAXED_DENSITY     TRUE".format(spec,num_ex)
-        header =  rem.replace('$rem',header)
-        header += '$molecule\n{}\n'.format(cm)
+            header = f"$comment\n{spec}\n$end\n\n$rem\ncis_n_roots             {num_ex}\ncis_singlets            true\ncis_triplets            true\ncalc_soc                true\nSTS_MOM                 true\nCIS_RELAXED_DENSITY     TRUE\nsolvent_method          PCM"
+        header  =  rem.replace('$rem',header)
+        header += f'$molecule\n{cm}\n'
         num_geoms = int(input("How many geometries to be sampled?\n"))
         T = float(input("Temperature in Kelvin?\n"))
         if T <= 0:
@@ -84,7 +95,7 @@ def main():
         else:    
             nemo.tools.make_ensemble(freqlog, num_geoms, T, header,'$end\n')  
             G, atomos = nemo.tools.pega_geom(freqlog)  
-        nemo.tools.write_input(atomos,G,rem.replace('$rem',"$comment\n{}\n$end\n\n$rem\ncis_n_roots             {}\ncis_singlets            true\ncis_triplets            true\ncalc_soc                false\nSTS_MOM                 false\nCIS_RELAXED_DENSITY     TRUE".format(spec,num_ex))+'\n$molecule\n{}\n'.format(cm),'$end\n',"Opt_Lambda.com")    
+        nemo.tools.write_input(atomos,G,rem.replace(f'$rem',"$comment\n{spec}\n$end\n\n$rem\ncis_n_roots             {num_ex}\ncis_singlets            true\ncis_triplets            true\ncalc_soc                false\nSTS_MOM                 false\nCIS_RELAXED_DENSITY     TRUE\n$molecule\n{cm}\n"),'$end\n',"Opt_Lambda.com")    
     elif op == '2':
         nemo.tools.batch() 
     elif op == '3':
@@ -92,60 +103,48 @@ def main():
     elif op == '4':
         nemo.tools.abort_batch()
     elif op == '5':
-        nemo.tools.lambdas()            
-    elif op == '6':
-        tipo = nemo.tools.get_spec()
         epsilon, nr = nemo.tools.get_nr() 
         print('The spectrum will be run with the following parameters:\n')
-        print('Spectrum type: {}'.format(tipo.title()))
-        print('Solvent dielectric constant: {:.3f}'.format(epsilon))
-        print('Solvent refractive index: {:.3f}\n'.format(nr))
+        print(f'Solvent dielectric constant: {epsilon:.3f}')
+        print(f'Solvent refractive index: {nr:.3f}\n')
         change = input('Are you satisfied with these parameters? y or n?\n')
         if change.lower() == 'n':
-            tipo = input("What kind of spectrum? Type abs (absorption) or emi (emission)\n")
-            if tipo != 'abs' and tipo != 'emi':
-                nemo.tools.fatal_error('It must be either one. Goodbye!')
-            epsilon = nemo.tools.default(epsilon,'Solvent dielectric constant is {:.3f}. If ok, Enter. Otherwise, type value.\n'.format(epsilon))
-            nr      = nemo.tools.default(nr,'Refractive index is {:.3f}. If ok, Enter. Otherwise, type value.\n'.format(nr))
+            epsilon = nemo.tools.default(epsilon,f'Solvent dielectric constant is {epsilon:.3f}. If ok, Enter. Otherwise, type value.\n')
+            nr      = nemo.tools.default(nr,f'Refractive index is {nr:.3f}. If ok, Enter. Otherwise, type value.\n')
             try:
                 epsilon = float(epsilon)
                 nr      = float(nr)
             except:
                 nemo.tools.fatal_error('Dielectric constant and refractive index must be numbers. Bye!')          
-        tipo = tipo[:3]
-        if tipo == 'abs':
-            estados = nemo.tools.ask_states("Absorption from which state (S0, S1, T1 ..)\n")
-            nemo.tools.spectra('abs', estados, [epsilon,nr])
-        elif tipo == 'emi':
-            estados = nemo.tools.ask_states("Emission from which state (S1, T1, etc)?\n")
-            nemo.tools.spectra('emi', estados, [epsilon,nr])    
-    elif op == '7':
+        estados = nemo.tools.ask_states("Absorption from which state (S0, S1, T1 ..)\n")
+        nemo.tools.spectra(estados, [epsilon,nr])    
+    elif op == '6':
         epsilon, nr = nemo.tools.get_nr()
-        print('The rate will be calculated with the following parameters:\n')
-        print('Solvent dielectric constant: {:.3f}'.format(epsilon))
-        print('Solvent refractive index: {:.3f}\n'.format(nr))
+        print('The rates will be calculated with the following parameters:\n')
+        print(f'Solvent dielectric constant: {epsilon:.3f}')
+        print(f'Solvent refractive index: {nr:.3f}\n')
         change = input('Are you satisfied with these parameters? y or n?\n')
         if change.lower() == 'n':
-            epsilon = nemo.tools.default(epsilon,'Solvent dielectric constant is {:.3f}. If ok, Enter. Otherwise, type value.\n'.format(epsilon))
-            nr      = nemo.tools.default(nr,'Refractive index is {:.3f}. If ok, Enter. Otherwise, type value.\n'.format(nr))
+            epsilon = nemo.tools.default(epsilon,f'Solvent dielectric constant is {epsilon:.3f}. If ok, Enter. Otherwise, type value.\n')
+            nr      = nemo.tools.default(nr,f'Refractive index is {nr:.3f}. If ok, Enter. Otherwise, type value.\n')
             try:
                 epsilon = float(epsilon)
                 nr      = float(nr)
             except:
                 nemo.tools.fatal_error('Dielectric constant and refractive index must be numbers. Bye!')
         state = input('What is the initial state (S1, T1, S2 ...)? Accepts comma separated values Ex: T1,T2\n')
-        from nemo.analysis import isc
+        from nemo.analysis import rates
         states = state.split(',')
         for state in states:
-            isc(state,[epsilon,nr])
-    elif op == '8':
+            rates(state,[epsilon,nr])
+    elif op == '7':
         from lx.tools import ld
         ld()
-    elif op == '9':
+    elif op == '8':
         freqlog = nemo.tools.fetch_file("log",['.log','.out'])
         rem, cm, spec = nemo.tools.busca_input(freqlog)
         G, atomos = nemo.tools.pega_geom(freqlog)
-        nemo.tools.write_input(atomos,G,'{}\n$molecule\n{}\n'.format(rem,cm),'$end','geom.lx')
+        nemo.tools.write_input(atomos,G,f'{rem}\n$molecule\n{cm}\n','$end','geom.lx')
         print('Geometry saved in the geom.lx file.')    
     else:
         nemo.tools.fatal_error("It must be one of the options... Goodbye!")
