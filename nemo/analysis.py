@@ -415,6 +415,7 @@ def analysis(phosph=True):
         return Singlets, Triplets, Oscs, Ss_s, Ss_t, GP
 #########################################################################################
 
+##PRINTS EMISSION SPECTRUM###############################################################
 def printa_espectro_emi(initial,eps,nr,tdm,x,mean_y,error):
         mean_rate, error_rate = nemo.tools.calc_emi_rate(x, mean_y,error)
         primeira   = f"{'#Energy(ev)':4s} {'diff_rate':4s} {'error':4s} TDM={tdm:.3f} au\n"
@@ -427,7 +428,9 @@ def printa_espectro_emi(initial,eps,nr,tdm,x,mean_y,error):
                 text = f"{x[i]:.6f} {mean_y[i]:.6e} {error[i]:.6e}\n"
                 f.write(text)
         print(f'Spectrum printed in the {arquivo} file')        
+#######################################################################################
 
+###SAVES ENSEMBLE DATA#################################################################
 def save_data(Singlets,Triplets,Ss_s,Ss_t, GP,socs_complete,oscs,espectro,y,initial):
     dados   = np.hstack((Singlets,Triplets,Ss_s,Ss_t, GP[:,np.newaxis],socs_complete,oscs,espectro,y))
     header1 = ['S'+str(i) for i in range(1,1+Singlets.shape[1])]
@@ -442,14 +445,24 @@ def save_data(Singlets,Triplets,Ss_s,Ss_t, GP,socs_complete,oscs,espectro,y,init
     header  = ','.join(header1+header2+header3+header4+header5+header6+header7+header8+header9)
     arquivo = nemo.tools.naming(f'Ensemble_{initial}_.lx')
     np.savetxt(arquivo,dados,fmt='+%.4e',header=header, delimiter=',')
+#######################################################################################    
 
+###CALCULATES WEIGHTED AVERAGES WHEN POSSIBLE##########################################
 def means(y,weigh):
     try:
         mean = np.average(y,axis=0,weights=weigh)
     except:
         mean = np.average(y,axis=0)
     return mean        
+########################################################################################
 
+###FORMATS RATES AND ERRORS IN THE SAME EXPONENT########################################
+def format_rate(r,dr):
+    exp = np.nan_to_num(np.floor(np.log10(r)))
+    pre_r = r/10**exp
+    pre_dr= dr/10**exp
+    return pre_r, pre_dr, exp
+#########################################################################################
 
 ##CALCULATES ISC RATES FROM INITIAL STATE TO SEVERAL STATES OF OPPOSITE SPIN#############
 def rates(initial,dielec):
@@ -527,9 +540,10 @@ def rates(initial,dielec):
     save_data(Singlets,Triplets,Ss_s,Ss_t,GP,socs_complete,Oscs[:,n_state][:,np.newaxis],espectro[:,np.newaxis],y,initial.upper())
     arquivo = nemo.tools.naming(f'rates_{initial.upper()}_.lx')    
     with open(arquivo, 'w') as f:
+        pre_r, pre_dr, exp = format_rate(emi_rate,emi_error)
         f.write(f'#Epsilon: {eps:.3f} nr: {nr:.3f}\n')
         f.write('#Transition    Rate(s^-1)    Error(s^-1)   Prob(%)   AvgDE+L(eV)  AvgSOC(meV)  AvgSigma(eV)   AvgConc(%)\n')     
-        f.write(f'{initial.upper()}->S0         {emi_rate:5.2e}      {emi_error:5.2e}      {100*emi_rate/total:5.1f}         {gap_emi:+5.3f}       {"-":5}         {mean_sigma_emi:5.3f}        {mean_part_emi:5.1f}%\n')
+        f.write(f'{initial.upper()}->S0         {pre_r:5.2f}e{exp:+03.0f}      {pre_dr:5.2f}e{exp:+03.0f}      {100*emi_rate/total:5.1f}         {gap_emi:+5.3f}       {"-":5}         {mean_sigma_emi:5.3f}        {mean_part_emi:5.1f}%\n')
 
         gap        = means(delta,y)
         mean_soc   = 1000*means(socs_complete,y)
@@ -537,8 +551,9 @@ def rates(initial,dielec):
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             mean_part  = np.nan_to_num(100*rate/means(y,y))
+        pre_r, pre_dr, exp = format_rate(rate,error)
         for j in range(delta.shape[1]):
-            f.write(f'{initial.upper()}->{final}{j+1}         {rate[j]:5.2e}      {error[j]:5.2e}      {100*rate[j]/total:5.1f}         {gap[j]:+5.3f}       {mean_soc[j]:5.3f}         {mean_sigma[j]:5.3f}        {mean_part[j]:5.1f}%\n')
+            f.write(f'{initial.upper()}->{final}{j+1}         {pre_r[j]:5.2f}e{exp[j]:+03.0f}      {pre_dr[j]:5.2f}e{exp[j]:+03.0f}      {100*rate[j]/total:5.1f}         {gap[j]:+5.3f}       {mean_soc[j]:5.3f}         {mean_sigma[j]:5.3f}        {mean_part[j]:5.1f}%\n')
 
         #Internal conversion avg deltaE+L
         delta_s = np.mean(np.diff(Singlets - (alphast2/alphaopt1)*Ss_s,axis=1) + (alphast2/alphaopt1 -alphaopt2/alphaopt1)*Ss_s[:,1:],axis=0)
