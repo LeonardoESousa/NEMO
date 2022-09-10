@@ -140,6 +140,56 @@ def pega_soc_T(file,n_state):
     return socs[np.newaxis,:]*0.12398/1000
 #########################################################################################
 
+##GETS SOC BETWEEN Tn STATE AND S0#######################################################      
+def pega_soc_ground(file,n_state):
+    socs = []
+    #_, _, _, ind_s, ind_t, _, _, _ = pega_energias('Geometries/'+file)
+    #order_s = np.argsort(ind_s)
+    #order_t = np.argsort(ind_t)
+    n_state += 1# order_t[n_state] + 1
+    with open('Geometries/'+file, 'r') as f:
+        catch = False
+        for line in f:
+            if "Total SOC between the singlet ground state and excited triplet states:" in line:
+                catch = True
+            elif catch and  'T'+str(n_state)+' ' in line and '(' not in line:
+                try:
+                    socs.append(float(line.split()[1]))
+                except:
+                    catch = False
+            elif len(line.split()) < 2:
+                    catch = False        
+    socs = np.array(socs)
+    #socs = socs[order_s]
+    return socs[np.newaxis,:]*0.12398/1000
+#########################################################################################
+
+##GETS SOC BETWEEN Tn STATE AND SINGLETS#################################################      
+def pega_soc_TT(file,n_state):
+    socs = []
+    #_, _, _, ind_s, ind_t, _, _, _ = pega_energias('Geometries/'+file)
+    #order_s = np.argsort(ind_s)
+    #order_t = np.argsort(ind_t)
+    n_state += 1 #order_t[n_state] + 1
+    with open('Geometries/'+file, 'r') as f:
+        catch, catch2 = False, False
+        for line in f:
+            if "Total SOC between the T"+str(n_state)+" state and excited triplet states:" in line:
+                catch2 = True
+            elif "Total SOC between the T" in line and "state and excited triplet states:" in line:
+                catch = True
+            elif (catch and  'T'+str(n_state)+' ' in line and '(' not in line) or (catch2 and 'T' in line and '(' not in line):
+                try:
+                    socs.append(float(line.split()[1]))
+                except:
+                    catch, catch2 = False, False
+            elif len(line.split()) < 2:
+                catch, catch2 = False, False
+    socs = np.array(socs)
+    #socs = socs[order_s]
+    return socs[np.newaxis,:]*0.12398/1000
+#########################################################################################
+
 ##DECIDES WHICH FUNCTION TO USE IN ORDER TO GET SOCS#####################################
 def avg_socs(tipo,n_state):
     files =  [i for i in os.listdir('Geometries') if '.log' in i]    
@@ -149,6 +199,10 @@ def avg_socs(tipo,n_state):
         pega_soc = pega_soc_S
     elif tipo == 'triplet':
         pega_soc = pega_soc_T
+    elif tipo == 'ground':
+        pega_soc = pega_soc_ground 
+    elif tipo == 'tts':
+        pega_soc = pega_soc_TT        
     for file in files:
         socs = pega_soc(file,n_state)
         try:
@@ -448,9 +502,9 @@ def save_data(Singlets,Triplets,Ss_s,Ss_t, GP,socs_complete,oscs,espectro,y,init
 #######################################################################################    
 
 ###CALCULATES WEIGHTED AVERAGES WHEN POSSIBLE##########################################
-def means(y,weigh):
+def means(y,weight):
     try:
-        mean = np.average(y,axis=0,weights=weigh)
+        mean = np.average(y,axis=0,weights=weight)
     except:
         mean = np.average(y,axis=0)
     return mean        
@@ -458,7 +512,13 @@ def means(y,weigh):
 
 ###FORMATS RATES AND ERRORS IN THE SAME EXPONENT########################################
 def format_rate(r,dr):
-    exp = np.nan_to_num(np.floor(np.log10(r)))
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        exp = np.nan_to_num(np.floor(np.log10(r)))
+    try:
+        exp[exp < -99] = -99
+    except:
+        exp = max(exp,-99)
     pre_r = r/10**exp
     pre_dr= dr/10**exp
     return pre_r, pre_dr, exp
@@ -480,23 +540,21 @@ def rates(initial,dielec):
     if 's' in initial.lower():
         Singlets, Triplets, Oscs, Ss_s, Ss_t, GP   = analysis(phosph=False)
         tipo      = 'singlet'
-        final     = 'T'
-        lambda_b  = (alphast2/alphast1 - alphaopt2/alphast1)*GP 
+        lambda_be  = (alphast2/alphast1 - alphaopt2/alphast1)*GP 
         delta_emi = Singlets[:,n_state] - (alphast2/alphaopt1)*Ss_s[:,n_state]
         constante = ((nr**2)*(e**2)/(2*np.pi*hbar*mass*(c**3)*epsilon0))
-        espectro  = (constante*((delta_emi-lambda_b)**2)*Oscs[:,n_state])
+        espectro  = (constante*((delta_emi-lambda_be)**2)*Oscs[:,n_state])
         tdm       = nemo.tools.calc_tdm(Oscs[:,n_state],Singlets[:,n_state],espectro)
     elif 't' in initial.lower():
         Singlets, Triplets, _, Ss_s, Ss_t, GP, IND_S, IND_T = analysis(phosph=True)
         Oscs      = get_osc_phosph(alphast2,alphaopt1,Singlets, Triplets, Ss_s, Ss_t, IND_S, IND_T)
         tipo      = 'triplet'
-        final     = 'S'
-        lambda_b  = (alphast2/alphast1 - alphaopt2/alphast1)*GP 
+        lambda_be  = (alphast2/alphast1 - alphaopt2/alphast1)*GP 
         delta_emi = Triplets[:,n_state] - (alphast2/alphaopt1)*Ss_t[:,n_state]
         constante = (1/3)*((nr**2)*(e**2)/(2*np.pi*hbar*mass*(c**3)*epsilon0))
-        espectro  = (constante*((delta_emi-lambda_b)**2)*Oscs[:,n_state])
+        espectro  = (constante*((delta_emi-lambda_be)**2)*Oscs[:,n_state])
         tdm       = nemo.tools.calc_tdm(Oscs[:,n_state],Triplets[:,n_state],espectro)
-    Ltotal    = np.sqrt(2*lambda_b*kbT + kbT**2)
+    Ltotal    = np.sqrt(2*lambda_be*kbT + kbT**2)
     left      = max(min(delta_emi-2*Ltotal),0.01)
     right     = max(delta_emi+2*Ltotal)    
     x         = np.linspace(left,right, int((right-left)/0.01))
@@ -525,24 +583,47 @@ def rates(initial,dielec):
     if tipo == 'singlet':
         delta    = Triplets + np.repeat((alphast2/alphaopt1)*Ss_s[:,n_state][:,np.newaxis] - Singlets[:,n_state][:,np.newaxis],Triplets.shape[1],axis=1) - (alphaopt2/alphaopt1)*Ss_t   #Tn (final) - Sm (initial) + lambda_b
         lambda_b = (alphast2/alphaopt1 - alphaopt2/alphaopt1)*Ss_t
-    elif tipo == 'triplet':
+        final    = ['T'+str(i) for i in range(Triplets.shape[1])]
+        ##FOR WHEN IC IS AVAILABLE
+        #socs_complete = np.hstack((socs_complete,0.0001*np.ones((Singlets.shape[0],Singlets.shape[1]-1))))
+        #delta_ss = Singlets + np.repeat((alphast2/alphaopt1)*Ss_s[:,n_state][:,np.newaxis] - Singlets[:,n_state][:,np.newaxis],Singlets.shape[1],axis=1) - (alphaopt2/alphaopt1)*Ss_s    #Sm (final) - Sn (initial) + lambda_b
+        #indices  = [i for i in range(Singlets.shape[1]) if i != n_state] #Removed Sn to Sn transfers
+        #delta    = np.hstack((delta,delta_ss[:,indices]))
+        #lambda_bt= (alphast2/alphaopt1 - alphaopt2/alphaopt1)*Ss_s
+        #lambda_b = np.hstack((lambda_b,lambda_bt[:,indices]))
+        #final.extend(['S'+str(i+1) for i in indices])
+    elif tipo == 'triplet': 
+        #Tn to S0 ISC
+        socs_complete = np.hstack((avg_socs('ground',n_state),socs_complete))
+        final    = ['S0']
+        #Tn to Sm ISC
         delta    = Singlets + np.repeat((alphast2/alphaopt1)*Ss_t[:,n_state][:,np.newaxis] - Triplets[:,n_state][:,np.newaxis],Singlets.shape[1],axis=1) - (alphaopt2/alphaopt1)*Ss_s    #Sm (final) - Tn (initial) + lambda_b
+        delta    = np.hstack((delta_emi[:,np.newaxis],delta))
         lambda_b = (alphast2/alphaopt1 - alphaopt2/alphaopt1)*Ss_s
+        lambda_b = np.hstack((lambda_be[:,np.newaxis],lambda_b))
+        final.extend(['S'+str(i+1) for i in range(Singlets.shape[1])])
+        #Tn to Tm ISC
+        socs_complete = np.hstack((socs_complete,avg_socs('tts',n_state)))
+        delta_tt = Triplets + np.repeat((alphast2/alphaopt1)*Ss_t[:,n_state][:,np.newaxis] - Triplets[:,n_state][:,np.newaxis],Triplets.shape[1],axis=1) - (alphaopt2/alphaopt1)*Ss_t    #Tm (final) - Tn (initial) + lambda_b
+        indices  = [i for i in range(Triplets.shape[1]) if i != n_state] #Removed Tn to Tn transfers
+        delta    = np.hstack((delta,delta_tt[:,indices]))
+        lambda_bt= (alphast2/alphaopt1 - alphaopt2/alphaopt1)*Ss_t
+        lambda_b = np.hstack((lambda_b,lambda_bt[:,indices]))
+        final.extend(['T'+str(i+1) for i in indices])
+        
     sigma = np.sqrt(2*lambda_b*kbT + kbT**2)
     y     = (2*np.pi/hbar)*(socs_complete**2)*nemo.tools.gauss(delta,0,sigma)
     N     = y.shape[0]
     rate  = np.sum(y,axis=0)/N
-    rate[rate< 1e-99] = 0 
     total = emi_rate + np.sum(rate)
     #Error estimate
     error = np.sqrt(np.sum((y-rate)**2,axis=0)/(N*(N-1)))
-    error[error< 1e-99] = 0 
     save_data(Singlets,Triplets,Ss_s,Ss_t,GP,socs_complete,Oscs[:,n_state][:,np.newaxis],espectro[:,np.newaxis],y,initial.upper())
     arquivo = nemo.tools.naming(f'rates_{initial.upper()}_.lx')    
     with open(arquivo, 'w') as f:
         pre_r, pre_dr, exp = format_rate(emi_rate,emi_error)
         f.write(f'#Epsilon: {eps:.3f} nr: {nr:.3f}\n')
-        f.write('#Transition    Rate(s^-1)    Error(s^-1)   Prob(%)   AvgDE+L(eV)  AvgSOC(meV)  AvgSigma(eV)   AvgConc(%)\n')     
+        f.write('#Transition    Rate(s^-1)    Error(s^-1)   Prob(%)    AvgDE+L(eV)  AvgSOC(meV)  AvgSigma(eV)   AvgConc(%)\n')     
         f.write(f'{initial.upper()}->S0         {pre_r:5.2f}e{exp:+03.0f}      {pre_dr:5.2f}e{exp:+03.0f}      {100*emi_rate/total:5.1f}         {gap_emi:+5.3f}       {"-":5}         {mean_sigma_emi:5.3f}        {mean_part_emi:5.1f}%\n')
 
         gap        = means(delta,y)
@@ -553,15 +634,15 @@ def rates(initial,dielec):
             mean_part  = np.nan_to_num(100*rate/means(y,y))
         pre_r, pre_dr, exp = format_rate(rate,error)
         for j in range(delta.shape[1]):
-            f.write(f'{initial.upper()}->{final}{j+1}         {pre_r[j]:5.2f}e{exp[j]:+03.0f}      {pre_dr[j]:5.2f}e{exp[j]:+03.0f}      {100*rate[j]/total:5.1f}         {gap[j]:+5.3f}       {mean_soc[j]:5.3f}         {mean_sigma[j]:5.3f}        {mean_part[j]:5.1f}%\n')
+            f.write(f'{initial.upper()}~>{final[j]}         {pre_r[j]:5.2f}e{exp[j]:+03.0f}      {pre_dr[j]:5.2f}e{exp[j]:+03.0f}      {100*rate[j]/total:5.1f}         {gap[j]:+5.3f}       {mean_soc[j]:5.3f}         {mean_sigma[j]:5.3f}        {mean_part[j]:5.1f}%\n')
 
         #Internal conversion avg deltaE+L
-        delta_s = np.mean(np.diff(Singlets - (alphast2/alphaopt1)*Ss_s,axis=1) + (alphast2/alphaopt1 -alphaopt2/alphaopt1)*Ss_s[:,1:],axis=0)
-        delta_t = np.mean(np.diff(Triplets - (alphast2/alphaopt1)*Ss_t,axis=1) + (alphast2/alphaopt1 -alphaopt2/alphaopt1)*Ss_t[:,1:],axis=0)
-        f.write('\n#Estimated Internal Conversion Driving Energies:\n')
-        f.write('#Transition    AvgDE+L(eV)    Transition    AvgDE+L(eV)\n')
-        for j in range(len(delta_s)):
-            f.write(f'S{j+1}->S{j+2}         {delta_s[j]:+5.3f}         T{j+1}->T{j+2}         {delta_t[j]:+5.3f}\n')
+        #delta_s = np.mean(np.diff(Singlets - (alphast2/alphaopt1)*Ss_s,axis=1) + (alphast2/alphaopt1 -alphaopt2/alphaopt1)*Ss_s[:,1:],axis=0)
+        #delta_t = np.mean(np.diff(Triplets - (alphast2/alphaopt1)*Ss_t,axis=1) + (alphast2/alphaopt1 -alphaopt2/alphaopt1)*Ss_t[:,1:],axis=0)
+        #f.write('\n#Estimated Internal Conversion Driving Energies:\n')
+        #f.write('#Transition    AvgDE+L(eV)    Transition    AvgDE+L(eV)\n')
+        #for j in range(len(delta_s)):
+        #    f.write(f'S{j+1}->S{j+2}         {delta_s[j]:+5.3f}         T{j+1}->T{j+2}         {delta_t[j]:+5.3f}\n')
 
 
     print(f'Rates are written in the {arquivo} file')        
