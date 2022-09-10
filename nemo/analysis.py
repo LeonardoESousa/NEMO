@@ -583,7 +583,7 @@ def rates(initial,dielec):
     if tipo == 'singlet':
         delta    = Triplets + np.repeat((alphast2/alphaopt1)*Ss_s[:,n_state][:,np.newaxis] - Singlets[:,n_state][:,np.newaxis],Triplets.shape[1],axis=1) - (alphaopt2/alphaopt1)*Ss_t   #Tn (final) - Sm (initial) + lambda_b
         lambda_b = (alphast2/alphaopt1 - alphaopt2/alphaopt1)*Ss_t
-        final    = ['T'+str(i) for i in range(Triplets.shape[1])]
+        final    = ['T'+str(i+1) for i in range(Triplets.shape[1])]
         ##FOR WHEN IC IS AVAILABLE
         #socs_complete = np.hstack((socs_complete,0.0001*np.ones((Singlets.shape[0],Singlets.shape[1]-1))))
         #delta_ss = Singlets + np.repeat((alphast2/alphaopt1)*Ss_s[:,n_state][:,np.newaxis] - Singlets[:,n_state][:,np.newaxis],Singlets.shape[1],axis=1) - (alphaopt2/alphaopt1)*Ss_s    #Sm (final) - Sn (initial) + lambda_b
