@@ -494,7 +494,8 @@ def detect_sigma():
         temp = float(file.split('_')[1].strip('K'))
         sigma =  np.round(kb*temp,3)
     except:
-        sigma = 0.000
+        print('WARNING: Magnitudes.lx file is absent! Temperature is being set to 300 K!')
+        sigma = 0.026
     return sigma
 ###############################################################    
 
