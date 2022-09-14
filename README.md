@@ -29,7 +29,7 @@ DOI: 10.1021/acs.jctc.1c00476
 
 ## What does this program do?
 
-1.  Photphysics with TD(A)-DFT:
+1.  Photophysics with TD(A)-DFT:
     - Calculates fluorescence and phosphorescence rates from an excited state.
     - Calculates ISC rates from a given singlet state to several triplet states and vice-versa.
     - Rate calculations include vibrational contributions and state-specific solvation effects.
@@ -42,13 +42,13 @@ DOI: 10.1021/acs.jctc.1c00476
     
 ## What is necessary to use it?
 
- -  The program requires that the QChem quantum chemistry software be installed, as it interfaces with it.
+ -  The program requires that the QChem quantum chemistry software be installed, since it interfaces with it.
 
  -  The first step for running spectrum calculations is providing either a QChem or Gaussian log file for a frequency calculation in the S0, S1 or T1 state, if the goal is computing an absorption, fluorescence or phosphorescence spectrum, respectively. All frequencies must be real.  
 
- -  For calculating ISC rates from the Sn state to different triplet states, a QChem frequency calculation at the Sn state must be provided.
+ -  For calculating ISC rates from the Sn state to different triplet states, a QChem/Gaussian frequency calculation at the Sn state must be provided.
 
- -  Similarly, for reverse ISC rates from the Tn state to different triplet states, a QChem frequency calculation at the Tn state must be provided.
+ -  Similarly, for reverse ISC rates from the Tn state to different triplet states, a QChem/Gaussian frequency calculation at the Tn state must be provided.
  
  -  To obtain the estimates of Förster radius, fluorescence lifetimes and singlet exciton diffusion lengths, it is necessary to first perform both absorption and fluorescence spectra calculations for the molecule of interest.
 
@@ -67,11 +67,11 @@ Once installed, you should be able to run the program from any folder by just us
 ## How to use it?
 
 1. Initial steps:
-    - Create a folder for your project. Add the log file for the frequency calculation to your folder. If the frequency calculation was run with Gaussian, you must also provide a QChem einput file containing the setting you wish to apply in the ensemble calculations (e.g. functional, basis set, solvent choice etc). An example of such file (td.in) is provided here [here](https://github.com/LeonardoESousa/NEMO/tree/main/batch_examples).
+    - Create a folder for your project. Add the log file for the frequency calculation to your folder. If the frequency calculation was run with Gaussian, you must also provide a QChem input file containing some settings you wish to apply in the ensemble calculations (e.g. functional, basis set, omega value, charge and multiplicity etc). An example of such file (td.in) is provided here [here](https://github.com/LeonardoESousa/NEMO/tree/main/batch_examples).
     - A frequency calculation in the S0 state is suitable for computing an absorption spectrum. For fluorescence spectra and/or ISC rates calculations from Sn states to triplet states, a Sn frequency calculation is expected. Finally, for phosphorescence spectra and/or rISC rates calculations from Tn states to singlet states, a Tn frequency calculation is expected.  
-    - Run the `nemo` command. Choose option 1 and follow the instructions to select the parameters of the calculation. This includes the dielectric constant and refractive index of the medium. This information will be used to obtaine state-specific solvent corrections to the TD(A)-DFT energies.  
-    - Add a bash script file to the folder. This file depends on which batch system you use. Examples of this file for users of slurm or task spooler (ts) are presented in [here](https://github.com/LeonardoESousa/NEMO/tree/main/batch_examples)).
-    - Run the `nemo` command again, choose option 2 and follow the instructions. Once the calculations are running, you may use option 3 to check the progress or option 4 to abort.
+    - Run the `nemo` command. Choose option 1 and follow the instructions to select the parameters of the calculation. This includes the dielectric constant and refractive index of the medium. This information will be used to obtain state-specific solvent corrections to the TD(A)-DFT energies.  
+    - Add a bash script file to the folder. This file depends on which batch system you use. Examples of this file for users of slurm or task spooler (ts) are presented [here](https://github.com/LeonardoESousa/NEMO/tree/main/batch_examples)).
+    - Run the `nemo` command again, choose option 2 and follow the instructions. Alternatively, just run all calculations created in the Geometries folder. Once the calculations are running, you may use option 3 to check the progress or option 4 to abort.
 
 2. For absorption spectrum simulations:
     - Once all calculations from step 1 are done, run the `nemo` command and choose option 5. Follow the instructions to set the parameters and the spectrum will be generated. 
