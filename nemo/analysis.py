@@ -3,6 +3,7 @@ import numpy as np
 import os
 import nemo.tools 
 import warnings
+import pandas as pd
 
 c     = nemo.tools.c
 pi    = nemo.tools.pi
@@ -413,7 +414,7 @@ def phosph_osc(file,n_state,ind_s,ind_t,singlets,triplets):
     Os = (2*mass)*MMs/(3*term)
     return Os[np.newaxis,:]
 
-def get_osc_phosph(alphast2,alphaopt1,Singlets, Triplets, Ss_s, Ss_t, IND_S, IND_T):
+def get_osc_phosph(Singlets, Triplets, Ss_s, Ss_t, IND_S, IND_T):
     files =  [i for i in os.listdir('Geometries') if '.log' in i]    
     files = check_normal(files)
     files = sorted(files, key=lambda pair: float(pair.split('-')[1]))
@@ -482,23 +483,6 @@ def printa_espectro_emi(initial,eps,nr,tdm,x,mean_y,error):
                 text = f"{x[i]:.6f} {mean_y[i]:.6e} {error[i]:.6e}\n"
                 f.write(text)
         print(f'Spectrum printed in the {arquivo} file')        
-#######################################################################################
-
-###SAVES ENSEMBLE DATA#################################################################
-def save_data(Singlets,Triplets,Ss_s,Ss_t, GP,socs_complete,oscs,espectro,y,initial):
-    dados   = np.hstack((Singlets,Triplets,Ss_s,Ss_t, GP[:,np.newaxis],socs_complete,oscs,espectro,y))
-    header1 = ['S'+str(i) for i in range(1,1+Singlets.shape[1])]
-    header2 = ['T'+str(i) for i in range(1,1+Triplets.shape[1])]
-    header3 = ['DS'+str(i) for i in range(1,1+Ss_s.shape[1])]
-    header4 = ['DT'+str(i) for i in range(1,1+Ss_t.shape[1])]
-    header5 = ['GP']
-    header6 = ['SOC'+str(i) for i in range(1,1+socs_complete.shape[1])]
-    header7 = ['OSC']
-    header8 = ['ke']
-    header9 = ['kisc'+str(i) for i in range(1,1+y.shape[1])]
-    header  = ','.join(header1+header2+header3+header4+header5+header6+header7+header8+header9)
-    arquivo = nemo.tools.naming(f'Ensemble_{initial}_.lx')
-    np.savetxt(arquivo,dados,fmt='+%.4e',header=header, delimiter=',')
 #######################################################################################    
 
 ###CALCULATES WEIGHTED AVERAGES WHEN POSSIBLE##########################################
@@ -524,41 +508,102 @@ def format_rate(r,dr):
     return pre_r, pre_dr, exp
 #########################################################################################
 
-##CALCULATES ISC RATES FROM INITIAL STATE TO SEVERAL STATES OF OPPOSITE SPIN#############
-def rates(initial,dielec):
-    eps, nr     = dielec[0], dielec[1]
-    eps_i, nr_i = nemo.tools.get_nr()
-    alphast1    = nemo.tools.get_alpha(eps_i)
-    alphast2    = nemo.tools.get_alpha(eps)  
-    alphaopt1   = nemo.tools.get_alpha(nr_i**2)
-    alphaopt2   = nemo.tools.get_alpha(nr**2)
+###SAVES ENSEMBLE DATA#################################################################
+def gather_data(initial,save=True):
     n_state     = int(initial[1:]) -1
+    eps_i, nr_i = nemo.tools.get_nr()
     kbT         = nemo.tools.detect_sigma()
-    coms        = nemo.tools.start_counter()
-    
-    #Emission Calculations
     if 's' in initial.lower():
-        Singlets, Triplets, Oscs, Ss_s, Ss_t, GP   = analysis(phosph=False)
-        tipo      = 'singlet'
-        lambda_be  = (alphast2/alphast1 - alphaopt2/alphast1)*GP 
-        delta_emi = Singlets[:,n_state] - (alphast2/alphaopt1)*Ss_s[:,n_state]
-        constante = ((nr**2)*(e**2)/(2*np.pi*hbar*mass*(c**3)*epsilon0))
-        espectro  = (constante*((delta_emi-lambda_be)**2)*Oscs[:,n_state])
-        tdm       = nemo.tools.calc_tdm(Oscs[:,n_state],Singlets[:,n_state],espectro)
-    elif 't' in initial.lower():
+        Singlets, Triplets, Oscs, Ss_s, Ss_t, GP   = analysis(phosph=False) 
+        Oscs = Oscs[:,n_state][:,np.newaxis]
+        socs_complete = avg_socs('singlet',n_state)
+        header7 = ['soc_t'+str(i) for i in range(1,1+socs_complete.shape[1])]
+    else:
         Singlets, Triplets, _, Ss_s, Ss_t, GP, IND_S, IND_T = analysis(phosph=True)
-        Oscs      = get_osc_phosph(alphast2,alphaopt1,Singlets, Triplets, Ss_s, Ss_t, IND_S, IND_T)
-        tipo      = 'triplet'
-        lambda_be  = (alphast2/alphast1 - alphaopt2/alphast1)*GP 
-        delta_emi = Triplets[:,n_state] - (alphast2/alphaopt1)*Ss_t[:,n_state]
+        Oscs      = get_osc_phosph(Singlets, Triplets, Ss_s, Ss_t, IND_S, IND_T)
+        Oscs = Oscs[:,n_state][:,np.newaxis]
+        socs_complete = np.hstack((avg_socs('ground',n_state),avg_socs('triplet',n_state),avg_socs('tts',n_state)))
+        indices  = [i+1 for i in range(Triplets.shape[1]) if i != n_state] #Removed Tn to Tn transfers
+        header7 = ['soc_s0']
+        header7.extend(['soc_s'+str(i) for i in range(1,1+Singlets.shape[1])])
+        header7.extend(['soc_t'+str(i) for i in indices])
+
+    header = ['e_s'+str(i) for i in range(1,1+Singlets.shape[1])]
+    header.extend(['e_t'+str(i) for i in range(1,1+Triplets.shape[1])])
+    header.extend(['d_s'+str(i) for i in range(1,1+Ss_s.shape[1])])
+    header.extend(['d_t'+str(i) for i in range(1,1+Ss_t.shape[1])])
+    header.extend(['gp'])
+    header.extend(['osc'])
+    header.extend(header7)
+    data = np.hstack((Singlets,Triplets,Ss_s,Ss_t,GP[:,np.newaxis],Oscs,socs_complete))
+    arquivo = f'Ensemble_{initial}_.lx'
+    data = pd.DataFrame(data,columns=header)
+    data.insert(0,'kbT',kbT)
+    data.insert(0,'nr',nr_i)
+    data.insert(0,'eps',eps_i)
+    if save:
+        data.to_csv(arquivo,index=False)
+    return data
+#######################################################################################
+
+###PRINTS RATES AND EMISSION SPECTRUM##################################################
+def export_results(data,emission,dielec):
+    data    = data.copy()
+    initial = data['Transition'][0].split('>')[0][:-1]
+    printa_espectro_emi(initial,dielec[0],dielec[1],emission['TDM'][0],emission['Energy'].values,emission['Diffrate'].values,emission['Error'].values)
+    pre_r, pre_dr, exp = format_rate(data['Rate(s^-1)'],data['Error(s^-1)'])
+    rate    = [f'{pre_r[i]:5.2f}e{exp[i]:+03.0f}' for i in range(len(pre_r))]
+    error   = [f'{pre_dr[i]:5.2f}e{exp[i]:+03.0f}' for i in range(len(pre_dr))]
+    headers = [i for i in data.columns.values if i != 'Rate(s^-1)' and i != 'Error(s^-1)' and i != 'Transition' ]
+    for header in headers:
+        if header == 'Prob(%)' or header == 'AvgConc(%)':
+            data[header] = data[header].map('{:.1f}'.format)
+        else:
+            data[header] = data[header].map('{:.3f}'.format)
+    data['Rate(s^-1)']  = rate
+    data['Error(s^-1)'] = error
+    arquivo = nemo.tools.naming(f'rates_{initial}_.lx')  
+    solvent = f'#Epsilon: {dielec[0]:.3f} nr: {dielec[1]:.3f}\n'
+    with open(arquivo, 'w') as f:
+        f.write(solvent+data.to_string(header=True, index=False))
+    print(f'Rates are written in the {arquivo} file')  
+#######################################################################################
+
+###CALCULATES ISC AND EMISSION RATES & SPECTRA#########################################
+def rates(initial,dielec,data=None):
+    if data is None:
+        data        = gather_data(initial,save=True) 
+        eps_i, nr_i = nemo.tools.get_nr()
+        kbT         = nemo.tools.detect_sigma()
+    else:
+        data   = pd.read_csv(data)    
+        eps_i  = data['eps'][0]
+        nr_i   = data['nr'][0]
+        kbT    = data['kbT'][0]
+    eps, nr    = dielec[0], dielec[1]
+    alphast1   = nemo.tools.get_alpha(eps_i)
+    alphast2   = nemo.tools.get_alpha(eps)  
+    alphaopt1  = nemo.tools.get_alpha(nr_i**2)
+    alphaopt2  = nemo.tools.get_alpha(nr**2)
+    n_state    = int(initial[1:]) -1
+    coms       = nemo.tools.start_counter()
+    initial    = initial.lower()       
+
+    #Emission Calculations
+    lambda_be  = (alphast2/alphast1 - alphaopt2/alphast1)*data['gp']
+    Ltotal     = np.sqrt(2*lambda_be*kbT + kbT**2)
+    delta_emi  = data['e_'+initial] - (alphast2/alphaopt1)*data['d_'+initial]
+    if 's' in initial:
+        constante = ((nr**2)*(e**2)/(2*np.pi*hbar*mass*(c**3)*epsilon0))
+    elif 't' in initial:
         constante = (1/3)*((nr**2)*(e**2)/(2*np.pi*hbar*mass*(c**3)*epsilon0))
-        espectro  = (constante*((delta_emi-lambda_be)**2)*Oscs[:,n_state])
-        tdm       = nemo.tools.calc_tdm(Oscs[:,n_state],Triplets[:,n_state],espectro)
-    Ltotal    = np.sqrt(2*lambda_be*kbT + kbT**2)
+
+    espectro  = (constante*((delta_emi-lambda_be)**2)*data['osc'])
+    tdm       = nemo.tools.calc_tdm(data['osc'],data['e_'+initial],espectro)    
     left      = max(min(delta_emi-2*Ltotal),0.01)
     right     = max(delta_emi+2*Ltotal)    
     x         = np.linspace(left,right, int((right-left)/0.01))
-    y         = espectro[:,np.newaxis]*nemo.tools.gauss(x,delta_emi[:,np.newaxis],Ltotal[:,np.newaxis])
+    y         = espectro.to_numpy()[:,np.newaxis]*nemo.tools.gauss(x,delta_emi.to_numpy()[:,np.newaxis],Ltotal.to_numpy()[:,np.newaxis])
     N         = y.shape[0]
     mean_y    = np.sum(y,axis=0)/N 
     error     = np.sqrt(np.sum((y-mean_y)**2,axis=0)/(N*(N-1))) 
@@ -566,24 +611,24 @@ def rates(initial,dielec):
     gap_emi        = np.average(delta_emi,weights=espectro)
     mean_sigma_emi = np.average(Ltotal,weights=espectro)
     mean_part_emi  = (100/N)/np.average(espectro/np.sum(espectro),weights=espectro)
-    printa_espectro_emi(initial,eps,nr,tdm,x,mean_y,error)
+    emi            = np.hstack((x[:,np.newaxis],mean_y[:,np.newaxis],error[:,np.newaxis]))
+    emi            = pd.DataFrame(emi,columns=['Energy','Diffrate','Error'])
+    emi.insert(0,'TDM',tdm)
 
-    
-    try:
-        socs_complete = avg_socs(tipo,n_state)
-    except:
-        socs_complete = np.zeros(Singlets.shape)
-        print('ISC rates are not available!')
     #Checks number of logs
-    N = min(Singlets.shape[0],Triplets.shape[0],socs_complete.shape[0])
+    N = data.shape[0]
     if N != coms:
         print(f"There are {coms} inputs and just {N} log files. Something is not right! Computing the rates anyway...")
     
     #Intersystem Crossing Rates
-    if tipo == 'singlet':
+    Singlets    =  data[[i for i in data.columns.values if 'e_s' in i]].to_numpy()
+    Triplets    =  data[[i for i in data.columns.values if 'e_t' in i]].to_numpy()
+    Ss_s        =  data[[i for i in data.columns.values if 'd_s' in i]].to_numpy()
+    Ss_t        =  data[[i for i in data.columns.values if 'd_t' in i]].to_numpy()
+    socs_complete =  data[[i for i in data.columns.values if 'soc_' in i]].to_numpy()    
+    if 's' in initial:
         delta    = Triplets + np.repeat((alphast2/alphaopt1)*Ss_s[:,n_state][:,np.newaxis] - Singlets[:,n_state][:,np.newaxis],Triplets.shape[1],axis=1) - (alphaopt2/alphaopt1)*Ss_t   #Tn (final) - Sm (initial) + lambda_b
         lambda_b = (alphast2/alphaopt1 - alphaopt2/alphaopt1)*Ss_t
-        final    = ['T'+str(i+1) for i in range(Triplets.shape[1])]
         ##FOR WHEN IC IS AVAILABLE
         #socs_complete = np.hstack((socs_complete,0.0001*np.ones((Singlets.shape[0],Singlets.shape[1]-1))))
         #delta_ss = Singlets + np.repeat((alphast2/alphaopt1)*Ss_s[:,n_state][:,np.newaxis] - Singlets[:,n_state][:,np.newaxis],Singlets.shape[1],axis=1) - (alphaopt2/alphaopt1)*Ss_s    #Sm (final) - Sn (initial) + lambda_b
@@ -591,59 +636,42 @@ def rates(initial,dielec):
         #delta    = np.hstack((delta,delta_ss[:,indices]))
         #lambda_bt= (alphast2/alphaopt1 - alphaopt2/alphaopt1)*Ss_s
         #lambda_b = np.hstack((lambda_b,lambda_bt[:,indices]))
-        #final.extend(['S'+str(i+1) for i in indices])
-    elif tipo == 'triplet': 
-        #Tn to S0 ISC
-        socs_complete = np.hstack((avg_socs('ground',n_state),socs_complete))
-        final    = ['S0']
+    elif 't' in initial: 
         #Tn to Sm ISC
         delta    = Singlets + np.repeat((alphast2/alphaopt1)*Ss_t[:,n_state][:,np.newaxis] - Triplets[:,n_state][:,np.newaxis],Singlets.shape[1],axis=1) - (alphaopt2/alphaopt1)*Ss_s    #Sm (final) - Tn (initial) + lambda_b
-        delta    = np.hstack((delta_emi[:,np.newaxis],delta))
+        delta    = np.hstack((delta_emi.to_numpy()[:,np.newaxis],delta))
         lambda_b = (alphast2/alphaopt1 - alphaopt2/alphaopt1)*Ss_s
-        lambda_b = np.hstack((lambda_be[:,np.newaxis],lambda_b))
-        final.extend(['S'+str(i+1) for i in range(Singlets.shape[1])])
+        lambda_b = np.hstack((lambda_be.to_numpy()[:,np.newaxis],lambda_b))
         #Tn to Tm ISC
-        socs_complete = np.hstack((socs_complete,avg_socs('tts',n_state)))
         delta_tt = Triplets + np.repeat((alphast2/alphaopt1)*Ss_t[:,n_state][:,np.newaxis] - Triplets[:,n_state][:,np.newaxis],Triplets.shape[1],axis=1) - (alphaopt2/alphaopt1)*Ss_t    #Tm (final) - Tn (initial) + lambda_b
         indices  = [i for i in range(Triplets.shape[1]) if i != n_state] #Removed Tn to Tn transfers
         delta    = np.hstack((delta,delta_tt[:,indices]))
         lambda_bt= (alphast2/alphaopt1 - alphaopt2/alphaopt1)*Ss_t
         lambda_b = np.hstack((lambda_b,lambda_bt[:,indices]))
-        final.extend(['T'+str(i+1) for i in indices])
-        
+
+    final = [i.upper()[4:] for i in data.columns.values if 'soc' in i]
     sigma = np.sqrt(2*lambda_b*kbT + kbT**2)
     y     = (2*np.pi/hbar)*(socs_complete**2)*nemo.tools.gauss(delta,0,sigma)
     N     = y.shape[0]
     rate  = np.sum(y,axis=0)/N
     total = emi_rate + np.sum(rate)
     #Error estimate
-    error = np.sqrt(np.sum((y-rate)**2,axis=0)/(N*(N-1)))
-    save_data(Singlets,Triplets,Ss_s,Ss_t,GP,socs_complete,Oscs[:,n_state][:,np.newaxis],espectro[:,np.newaxis],y,initial.upper())
-    arquivo = nemo.tools.naming(f'rates_{initial.upper()}_.lx')    
-    with open(arquivo, 'w') as f:
-        pre_r, pre_dr, exp = format_rate(emi_rate,emi_error)
-        f.write(f'#Epsilon: {eps:.3f} nr: {nr:.3f}\n')
-        f.write('#Transition    Rate(s^-1)    Error(s^-1)   Prob(%)    AvgDE+L(eV)  AvgSOC(meV)  AvgSigma(eV)   AvgConc(%)\n')     
-        f.write(f'{initial.upper()}->S0         {pre_r:5.2f}e{exp:+03.0f}      {pre_dr:5.2f}e{exp:+03.0f}      {100*emi_rate/total:5.1f}         {gap_emi:+5.3f}       {"-":5}         {mean_sigma_emi:5.3f}        {mean_part_emi:5.1f}%\n')
-
-        gap        = means(delta,y)
-        mean_soc   = 1000*means(socs_complete,y)
-        mean_sigma = means(sigma,y)
-        with warnings.catch_warnings():
+    error = np.sqrt(np.sum((y-rate)**2,axis=0)/(N*(N-1)))  
+    
+    results    = np.array([[emi_rate,emi_error,100*emi_rate/total,gap_emi,np.nan,mean_sigma_emi,mean_part_emi]])
+    mean_gap   = means(delta,y)[:,np.newaxis]
+    mean_soc   = 1000*means(socs_complete,y)[:,np.newaxis]
+    mean_sigma = means(sigma,y)[:,np.newaxis]
+    with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             mean_part  = np.nan_to_num(100*rate/means(y,y))
-        pre_r, pre_dr, exp = format_rate(rate,error)
-        for j in range(delta.shape[1]):
-            f.write(f'{initial.upper()}~>{final[j]}         {pre_r[j]:5.2f}e{exp[j]:+03.0f}      {pre_dr[j]:5.2f}e{exp[j]:+03.0f}      {100*rate[j]/total:5.1f}         {gap[j]:+5.3f}       {mean_soc[j]:5.3f}         {mean_sigma[j]:5.3f}        {mean_part[j]:5.1f}%\n')
-
-        #Internal conversion avg deltaE+L
-        #delta_s = np.mean(np.diff(Singlets - (alphast2/alphaopt1)*Ss_s,axis=1) + (alphast2/alphaopt1 -alphaopt2/alphaopt1)*Ss_s[:,1:],axis=0)
-        #delta_t = np.mean(np.diff(Triplets - (alphast2/alphaopt1)*Ss_t,axis=1) + (alphast2/alphaopt1 -alphaopt2/alphaopt1)*Ss_t[:,1:],axis=0)
-        #f.write('\n#Estimated Internal Conversion Driving Energies:\n')
-        #f.write('#Transition    AvgDE+L(eV)    Transition    AvgDE+L(eV)\n')
-        #for j in range(len(delta_s)):
-        #    f.write(f'S{j+1}->S{j+2}         {delta_s[j]:+5.3f}         T{j+1}->T{j+2}         {delta_t[j]:+5.3f}\n')
-
-
-    print(f'Rates are written in the {arquivo} file')        
+    rate       = rate[:,np.newaxis]
+    error      = error[:,np.newaxis]
+    labels = [f'{initial.upper()}->S0'] + [f'{initial.upper()}~>{j}' for j in final]
+    labels = np.array(labels)
+    results_isc = np.hstack((rate,error,100*rate/total,mean_gap,mean_soc,mean_sigma,mean_part[:,np.newaxis])) 
+    results = np.vstack((results,results_isc))
+    results = pd.DataFrame(results,columns=['Rate(s^-1)','Error(s^-1)','Prob(%)','AvgDE+L(eV)','AvgSOC(meV)','AvgSigma(eV)','AvgConc(%)'])
+    results.insert(0,'Transition',labels)
+    return results, emi       
 #########################################################################################    

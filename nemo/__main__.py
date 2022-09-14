@@ -133,10 +133,11 @@ def main():
             except:
                 nemo.tools.fatal_error('Dielectric constant and refractive index must be numbers. Bye!')
         state = input('What is the initial state (S1, T1, S2 ...)? Accepts comma separated values Ex: T1,T2\n')
-        from nemo.analysis import rates
+        from nemo.analysis import rates, export_results
         states = state.split(',')
         for state in states:
-            rates(state,[epsilon,nr])
+            res, emi = rates(state,[epsilon,nr])
+            export_results(res,emi,[epsilon,nr])
     elif op == '7':
         from lx.tools import ld
         ld()
