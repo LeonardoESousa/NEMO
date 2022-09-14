@@ -1,0 +1,12 @@
+$rem
+mem_total             100000
+mem_static            2000
+exchange              LRC-wPBE
+omega                 187
+basis                 6-31G(d,p)
+RPA                     false
+$end
+
+$molecule
+0 1
+$end
