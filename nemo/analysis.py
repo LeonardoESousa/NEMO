@@ -536,7 +536,7 @@ def gather_data(initial,save=True):
     header.extend(['osc'])
     header.extend(header7)
     data = np.hstack((Singlets,Triplets,Ss_s,Ss_t,GP[:,np.newaxis],Oscs,socs_complete))
-    arquivo = f'Ensemble_{initial}_.lx'
+    arquivo = f'Ensemble_{initial.upper()}_.lx'
     data = pd.DataFrame(data,columns=header)
     data.insert(0,'kbT',kbT)
     data.insert(0,'nr',nr_i)
@@ -586,7 +586,6 @@ def rates(initial,dielec,data=None):
     alphaopt1  = nemo.tools.get_alpha(nr_i**2)
     alphaopt2  = nemo.tools.get_alpha(nr**2)
     n_state    = int(initial[1:]) -1
-    coms       = nemo.tools.start_counter()
     initial    = initial.lower()       
 
     #Emission Calculations
@@ -616,9 +615,11 @@ def rates(initial,dielec,data=None):
     emi.insert(0,'TDM',tdm)
 
     #Checks number of logs
-    N = data.shape[0]
-    if N != coms:
-        print(f"There are {coms} inputs and just {N} log files. Something is not right! Computing the rates anyway...")
+    if data is None:
+        N    = data.shape[0]
+        coms = nemo.tools.start_counter()
+        if N != coms:
+            print(f"There are {coms} inputs and just {N} log files. Something is not right! Computing the rates anyway...")
     
     #Intersystem Crossing Rates
     Singlets    =  data[[i for i in data.columns.values if 'e_s' in i]].to_numpy()
