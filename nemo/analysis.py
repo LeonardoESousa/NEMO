@@ -576,7 +576,7 @@ def rates(initial,dielec,data=None):
         eps_i, nr_i = nemo.tools.get_nr()
         kbT         = nemo.tools.detect_sigma()
     else:
-        data   = pd.read_csv(data)    
+        #data   = pd.read_csv(data)    
         eps_i  = data['eps'][0]
         nr_i   = data['nr'][0]
         kbT    = data['kbT'][0]
