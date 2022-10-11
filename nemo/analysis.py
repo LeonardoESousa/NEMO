@@ -435,7 +435,7 @@ def analysis(phosph=True):
     files = check_normal(files)
     files = sorted(files, key=lambda pair: float(pair.split('-')[1]))
     n_state = read_cis(files[0])
-
+    Numbers = []
     for file in files:
         singlets, triplets, oscs, ind_s, ind_t, ss_s, ss_t, gp = pega_energias('Geometries/'+file)       
         singlets = np.array([singlets[:n_state]])
@@ -464,10 +464,12 @@ def analysis(phosph=True):
             IND_S    = ind_s
             IND_T    = ind_t
             GP       = gp
+        Numbers.append(int(file.split('-')[1]))
+    Numbers = np.array(Numbers)[:,np.newaxis]    
     if phosph:
-        return Singlets, Triplets, Oscs, Ss_s, Ss_t, GP, IND_S, IND_T
+        return Numbers, Singlets, Triplets, Oscs, Ss_s, Ss_t, GP, IND_S, IND_T
     else:    
-        return Singlets, Triplets, Oscs, Ss_s, Ss_t, GP
+        return Numbers, Singlets, Triplets, Oscs, Ss_s, Ss_t, GP
 #########################################################################################
 
 ##PRINTS EMISSION SPECTRUM###############################################################
@@ -514,12 +516,12 @@ def gather_data(initial,save=True):
     eps_i, nr_i = nemo.tools.get_nr()
     kbT         = nemo.tools.detect_sigma()
     if 's' in initial.lower():
-        Singlets, Triplets, Oscs, Ss_s, Ss_t, GP   = analysis(phosph=False) 
+        Numbers, Singlets, Triplets, Oscs, Ss_s, Ss_t, GP   = analysis(phosph=False) 
         Oscs = Oscs[:,n_state][:,np.newaxis]
         socs_complete = avg_socs('singlet',n_state)
         header7 = ['soc_t'+str(i) for i in range(1,1+socs_complete.shape[1])]
     else:
-        Singlets, Triplets, _, Ss_s, Ss_t, GP, IND_S, IND_T = analysis(phosph=True)
+        Numbers, Singlets, Triplets, _, Ss_s, Ss_t, GP, IND_S, IND_T = analysis(phosph=True)
         Oscs      = get_osc_phosph(Singlets, Triplets, Ss_s, Ss_t, IND_S, IND_T)
         Oscs = Oscs[:,n_state][:,np.newaxis]
         socs_complete = np.hstack((avg_socs('ground',n_state),avg_socs('triplet',n_state),avg_socs('tts',n_state)))
@@ -527,15 +529,15 @@ def gather_data(initial,save=True):
         header7 = ['soc_s0']
         header7.extend(['soc_s'+str(i) for i in range(1,1+Singlets.shape[1])])
         header7.extend(['soc_t'+str(i) for i in indices])
-
-    header = ['e_s'+str(i) for i in range(1,1+Singlets.shape[1])]
+    header = ['geometry']
+    header.extend(['e_s'+str(i) for i in range(1,1+Singlets.shape[1])])
     header.extend(['e_t'+str(i) for i in range(1,1+Triplets.shape[1])])
     header.extend(['d_s'+str(i) for i in range(1,1+Ss_s.shape[1])])
     header.extend(['d_t'+str(i) for i in range(1,1+Ss_t.shape[1])])
     header.extend(['gp'])
     header.extend(['osc'])
     header.extend(header7)
-    data = np.hstack((Singlets,Triplets,Ss_s,Ss_t,GP[:,np.newaxis],Oscs,socs_complete))
+    data = np.hstack((Numbers,Singlets,Triplets,Ss_s,Ss_t,GP[:,np.newaxis],Oscs,socs_complete))
     arquivo = f'Ensemble_{initial.upper()}_.lx'
     data = pd.DataFrame(data,columns=header)
     data.insert(0,'kbT',kbT)
