@@ -522,8 +522,11 @@ def gather_data(initial,save=True):
             noscs      = pega_oscs(files, IND_S,initial)
             label_oscs.extend([f'osc_s{n_state+2+i}' for i in range(noscs.shape[1])])
             Oscs       = np.hstack((Oscs,noscs))     
-        socs_complete  = avg_socs(files,'singlet',n_state)
-        header7 = ['soc_t'+str(i) for i in range(1,1+socs_complete.shape[1])]
+        try:
+            socs_complete  = avg_socs(files,'singlet',n_state)
+            header7 = ['soc_t'+str(i) for i in range(1,1+socs_complete.shape[1])]
+        except:
+            pass
     else:
         Numbers, Singlets, Triplets, _, Ss_s, Ss_t, GP, IND_S, IND_T = analysis(files)
         Oscs       = get_osc_phosph(files,Singlets, Triplets, Ss_s, Ss_t, IND_S, IND_T)
@@ -532,11 +535,14 @@ def gather_data(initial,save=True):
         noscs      = pega_oscs(files, IND_T,initial)
         Oscs       = np.hstack((Oscs,noscs)) 
         label_oscs.extend([f'osc_t{n_state+2+i}' for i in range(noscs.shape[1])])
-        socs_complete = np.hstack((avg_socs(files,'ground',n_state),avg_socs(files,'triplet',n_state),avg_socs(files,'tts',n_state)))
-        indices  = [i+1 for i in range(Triplets.shape[1]) if i != n_state] #Removed Tn to Tn transfers
-        header7  = ['soc_s0']
-        header7.extend(['soc_s'+str(i) for i in range(1,1+Singlets.shape[1])])
-        header7.extend(['soc_t'+str(i) for i in indices])   
+        try:
+            socs_complete = np.hstack((avg_socs(files,'ground',n_state),avg_socs(files,'triplet',n_state),avg_socs(files,'tts',n_state)))
+            indices  = [i+1 for i in range(Triplets.shape[1]) if i != n_state] #Removed Tn to Tn transfers
+            header7  = ['soc_s0']
+            header7.extend(['soc_s'+str(i) for i in range(1,1+Singlets.shape[1])])
+            header7.extend(['soc_t'+str(i) for i in indices])   
+        except:
+            pass
     header = ['geometry']
     header.extend(['e_s'+str(i) for i in range(1,1+Singlets.shape[1])])
     header.extend(['e_t'+str(i) for i in range(1,1+Triplets.shape[1])])
@@ -544,8 +550,11 @@ def gather_data(initial,save=True):
     header.extend(['d_t'+str(i) for i in range(1,1+Ss_t.shape[1])])
     header.extend(['gp'])
     header.extend(label_oscs)
-    header.extend(header7)
-    data = np.hstack((Numbers,Singlets,Triplets,Ss_s,Ss_t,GP[:,np.newaxis],Oscs,socs_complete))
+    try:
+        header.extend(header7)
+        data = np.hstack((Numbers,Singlets,Triplets,Ss_s,Ss_t,GP[:,np.newaxis],Oscs,socs_complete))
+    except:
+        data = np.hstack((Numbers,Singlets,Triplets,Ss_s,Ss_t,GP[:,np.newaxis],Oscs))
     arquivo = f'Ensemble_{initial.upper()}_.lx'
     data = pd.DataFrame(data,columns=header)
     data.insert(0,'ensemble',initial.upper())
