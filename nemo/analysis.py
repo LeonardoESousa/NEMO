@@ -711,7 +711,6 @@ def absorption(initial,dielec,data=None, save=False):
     alphast2   = nemo.tools.get_alpha(eps)  
     alphaopt1  = nemo.tools.get_alpha(nr_i**2)
     alphaopt2  = nemo.tools.get_alpha(nr**2)
-    n_state    = int(initial[1:]) -1
     initial    = initial.lower()
     constante  = (np.pi*(e**2)*hbar)/(2*nr*mass*c*epsilon0)*1e20
     if initial == 's0':
@@ -730,7 +729,7 @@ def absorption(initial,dielec,data=None, save=False):
         engs = [i for i in engs if int(i.split('_')[1][1:]) > num]
         ds   = [i for i in data.columns if f'd_{spin}' in i]
         ds   = [i for i in ds if int(i.split('_')[1][1:]) > num]
-        oscs = [i for i in data.columns if 'osc_s' in i]
+        oscs = [i for i in data.columns if 'osc_' in i]
         oscs = [i for i in oscs if int(i.split('_')[1][1:]) > num]
         base = data[f'e_{initial}'].values[:,np.newaxis]
         bs   = data[f'd_{initial}'].values[:,np.newaxis]
