@@ -235,42 +235,6 @@ def make_ensemble(freqlog, num_geoms, T, header, bottom):
     print("\n\nDone! Ready to run.")   
 ################################################################
 
-##COLLECTS RESULTS############################################## 
-def gather_data_abs(num_ex,spin):
-    from nemo.analysis import pega_oscs, pega_energias, check_normal
-    files =  [i for i in os.listdir('Geometries') if '.log' in i]    
-    files = check_normal(files)
-    files = sorted(files, key=lambda pair: float(pair.split('-')[1]))
-    i = 0
-    with open("Samples.lx", 'w') as f:
-        for file in files:
-            singlets, triplets, oscs, ind_s, ind_t, ss_s, ss_t, gp = pega_energias('Geometries/'+file)
-            if num_ex == 0:
-                engs = singlets
-                GP = gp
-                ss = ss_s
-            else:
-                if spin == '1':
-                    ind   = ind_s[num_ex-1]
-                    engs  = np.array(singlets[num_ex:]) - singlets[num_ex-1] 
-                    order = ind_s
-                    ss    = ss_s[num_ex:]
-                    GP    = ss_s[num_ex-1]
-                else:    
-                    ind   = ind_t[num_ex-1]
-                    engs  = np.array(triplets[num_ex:]) - triplets[num_ex-1] 
-                    order = ind_t
-                    ss    = ss_t[num_ex:]
-                    GP    = ss_t[num_ex-1]
-                oscs = pega_oscs(file,ind,spin,order)
-            f.write(f"#Geometry_{i+1:14}\t{'Vertical(eV)':12}\t{'Correction(eV)':14}\t{'Ground(eV)':10}\t{'Oscillator':12}\t{'Spin':7}\n")
-            i += 1
-            for j in range(len(oscs)):
-                f.write(f"{num_ex+j+1:14}\t{engs[j]:12.5f}\t{ss[j]:14.5f}\t{GP:10.5f}\t{oscs[j]:12.5e}\t{spin:7}\n") 
-############################################################### 
-
-
-
 ##NORMALIZED GAUSSIAN##########################################
 def gauss(x,v,s):
     y =  (1/(np.sqrt(2*np.pi)*s))*np.exp(-0.5*((x-v)/s)**2)
@@ -317,62 +281,6 @@ def ask_states(frase):
 
 def get_alpha(eps):
     return (eps-1)/(eps+1)
-
-##COMPUTES SPECTRA############################################# 
-def spectra(num_ex, dielec):
-    eps, nr   = dielec[0], dielec[1]
-    _, nr_i   = get_nr()
-    alphast2  = get_alpha(eps)  
-    alphaopt1 = get_alpha(nr_i**2)
-    alphaopt2 = get_alpha(nr**2)
-    kbT       = detect_sigma()
-    if 'S' in num_ex.upper():
-        spin  = '1'
-    else:
-        spin  = '3'
-    estado    = int(num_ex[1:])     
-    label     = num_ex.upper()
-    constante = (np.pi*(e**2)*hbar)/(2*nr*mass*c*epsilon0)*10**(20)
-    try:
-        gather_data_abs(estado,spin)
-    except:
-        fatal_error('Something went wrong. The requested state may be higher than the available energies.')    
-    data   = np.loadtxt('Samples.lx')
-    data   = data[data[:,-1] == float(spin)]
-    N      = len(data[data[:,0] == data[0,0]])    
-    V      = data[:,1]
-    S      = data[:,2]
-    G      = data[:,3]
-    O      = data[:,4]
-    coms   = start_counter()
-    if len(V) == 0 or len(O) == 0:
-        fatal_error("You need to run steps 1 and 2 first! Goodbye!")
-    elif N != coms:
-        print(f"There are {coms} inputs and just {N} log files. Something is not right! Computing the spectrum anyway...")
-    espectro =  constante*O
-    lambda_b = (alphast2/alphaopt1 - alphaopt2/alphaopt1)*S
-    if estado == 0:
-        DE = V - (alphaopt2/alphaopt1)*S
-    else:
-        DE = V + (alphast2/alphaopt1)*G - (alphaopt2/alphaopt1)*S
-    Ltotal = np.sqrt(2*lambda_b*kbT + kbT**2)
-    left   = max(min(DE-2*Ltotal),0.01)
-    right  = max(DE+2*Ltotal)    
-    x      = np.linspace(left,right, int((right-left)/0.01))
-    y      = espectro[:,np.newaxis]*gauss(x,DE[:,np.newaxis],Ltotal[:,np.newaxis])
-    mean_y = np.sum(y,axis=0)/N 
-    #Error estimate
-    sigma    = np.sqrt(np.sum((y-mean_y)**2,axis=0)/(N*(N-1))) 
-    arquivo  = naming('cross_section_'+label+'_.lx')
-    primeira = f"{'#Energy(ev)':8s} {'cross_section(A^2)':8s} {'error(A^2)':8s}\n# Absorption from State: {label}\n#Epsilon: {eps:.3f} nr: {nr:.3f}\n"
-    with open(arquivo, 'w') as f:
-        f.write(primeira)
-        for i in range(0,len(x)):
-            text = f"{x[i]:.6f} {mean_y[i]:.6e} {sigma[i]:.6e}\n"
-            f.write(text)
-    print(f'Spectrum printed in the {arquivo} file')                
-############################################################### 
- 
 
 ##LIST OF KEYWORDS THAT SHOULD NOT BE READ#####################
 def delist(elem):

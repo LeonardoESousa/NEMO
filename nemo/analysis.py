@@ -192,10 +192,7 @@ def pega_soc_TT(file,n_state):
 #########################################################################################
 
 ##DECIDES WHICH FUNCTION TO USE IN ORDER TO GET SOCS#####################################
-def avg_socs(tipo,n_state):
-    files =  [i for i in os.listdir('Geometries') if '.log' in i]    
-    files =  check_normal(files)
-    files =  sorted(files, key=lambda pair: float(pair.split('-')[1]))
+def avg_socs(files,tipo,n_state):
     if tipo == 'singlet':
         pega_soc = pega_soc_S
     elif tipo == 'triplet':
@@ -265,28 +262,34 @@ def pega_dipolos(file, ind,frase, state):
 #########################################################################################
 
 ##GETS TRANSITION DIPOLE MOMENTS#########################################################
-def pega_oscs(file, ind,spin, ind_s):
-    mapa = {'1':'Singlet','3':'Triplet'}
+def pega_oscs(files, IND,initial):
+    spin = initial[0].upper()
+    num  = int(initial[1:]) -1
+    mapa = {'S':'Singlet','T':'Triplet'}
     frase    = "Transition Moments Between "+mapa[spin]+" Excited States"
-    location = np.where(ind_s == ind)[0][0]
-    ind_s = ind_s[location+1:]
-    order_s  = np.argsort(ind_s)
-    ind = str(ind)
-    oscs = []
-    with open('Geometries/'+file, 'r') as f:
-        dip = False
-        for line in f:
-            if frase in line:
-                dip = True
-            elif dip and '--' not in line:
-                line = line.split()
-                if (line[0] == ind and int(line[1]) in ind_s) or (line[1] == ind and int(line[0]) in ind_s):
-                    oscs.append(float(line[5]))
-            elif len(oscs) > 0 and '---' in line:
-                dip = False 
-    oscs = np.array(oscs)
-    oscs = oscs[order_s]                         
-    return oscs    
+    for i in range(len(files)):
+        oscs  = []
+        ind   = IND[i,num]
+        ind_s = IND[i,:]
+        location = np.where(ind_s == ind)[0][0]
+        ind_s = ind_s[location+1:]
+        ind   = str(ind)
+        with open('Geometries/'+files[i], 'r') as f:
+            dip = False
+            for line in f:
+                if frase in line:
+                    dip = True
+                elif dip and '--' not in line:
+                    line = line.split()
+                    if (line[0] == ind and int(line[1]) in ind_s) or (line[1] == ind and int(line[0]) in ind_s):
+                        oscs.append(float(line[5]))
+                elif len(oscs) > 0 and '---' in line:
+                    dip = False
+            try:
+                Oscs = np.vstack((Oscs,np.array(oscs)[np.newaxis,:]))
+            except:
+                Oscs = np.array(oscs)[np.newaxis,:]         
+    return Oscs    
 #########################################################################################
 
 ##GETS SOCS BETWEEN S0 AND EACH TRIPLET SUBLEVEL#########################################
@@ -414,10 +417,7 @@ def phosph_osc(file,n_state,ind_s,ind_t,singlets,triplets):
     Os = (2*mass)*MMs/(3*term)
     return Os[np.newaxis,:]
 
-def get_osc_phosph(Singlets, Triplets, Ss_s, Ss_t, IND_S, IND_T):
-    files =  [i for i in os.listdir('Geometries') if '.log' in i]    
-    files = check_normal(files)
-    files = sorted(files, key=lambda pair: float(pair.split('-')[1]))
+def get_osc_phosph(files,Singlets, Triplets, Ss_s, Ss_t, IND_S, IND_T):
     n_state = read_cis(files[0])
     Es  = Singlets #- (alphast2/alphaopt1)*Ss_s
     Et  = Triplets #- (alphast2/alphaopt1)*Ss_t #removed correction from phosph_osc calculation 
@@ -430,10 +430,7 @@ def get_osc_phosph(Singlets, Triplets, Ss_s, Ss_t, IND_S, IND_T):
     return Os
 
 ##GETS ALL RELEVANT INFORMATION FROM LOG FILES###########################################
-def analysis(phosph=True):         
-    files =  [i for i in os.listdir('Geometries') if '.log' in i]    
-    files = check_normal(files)
-    files = sorted(files, key=lambda pair: float(pair.split('-')[1]))
+def analysis(files):         
     n_state = read_cis(files[0])
     Numbers = []
     for file in files:
@@ -466,10 +463,7 @@ def analysis(phosph=True):
             GP       = gp
         Numbers.append(int(file.split('-')[1]))
     Numbers = np.array(Numbers)[:,np.newaxis]    
-    if phosph:
-        return Numbers, Singlets, Triplets, Oscs, Ss_s, Ss_t, GP, IND_S, IND_T
-    else:    
-        return Numbers, Singlets, Triplets, Oscs, Ss_s, Ss_t, GP
+    return Numbers, Singlets, Triplets, Oscs, Ss_s, Ss_t, GP, IND_S, IND_T
 #########################################################################################
 
 ##PRINTS EMISSION SPECTRUM###############################################################
@@ -512,34 +506,49 @@ def format_rate(r,dr):
 
 ###SAVES ENSEMBLE DATA#################################################################
 def gather_data(initial,save=True):
+    files =  [i for i in os.listdir('Geometries') if '.log' in i]    
+    files = check_normal(files)
+    files = sorted(files, key=lambda pair: float(pair.split('-')[1]))
     n_state     = int(initial[1:]) -1
     eps_i, nr_i = nemo.tools.get_nr()
     kbT         = nemo.tools.detect_sigma()
     if 's' in initial.lower():
-        Numbers, Singlets, Triplets, Oscs, Ss_s, Ss_t, GP   = analysis(phosph=False) 
-        Oscs = Oscs[:,n_state][:,np.newaxis]
-        socs_complete = avg_socs('singlet',n_state)
+        Numbers, Singlets, Triplets, Oscs, Ss_s, Ss_t, GP, IND_S, IND_T   = analysis(files) 
+        if 's0' == initial.lower():
+            label_oscs = [f'osc_s{i+1}' for i in range(Oscs.shape[1])]
+        else:
+            Oscs       = Oscs[:,n_state][:,np.newaxis]
+            label_oscs = ['osc']
+            noscs      = pega_oscs(files, IND_S,initial)
+            label_oscs.extend([f'osc_s{n_state+2+i}' for i in range(noscs.shape[1])])
+            Oscs       = np.hstack((Oscs,noscs))     
+        socs_complete  = avg_socs(files,'singlet',n_state)
         header7 = ['soc_t'+str(i) for i in range(1,1+socs_complete.shape[1])]
     else:
-        Numbers, Singlets, Triplets, _, Ss_s, Ss_t, GP, IND_S, IND_T = analysis(phosph=True)
-        Oscs      = get_osc_phosph(Singlets, Triplets, Ss_s, Ss_t, IND_S, IND_T)
-        Oscs = Oscs[:,n_state][:,np.newaxis]
-        socs_complete = np.hstack((avg_socs('ground',n_state),avg_socs('triplet',n_state),avg_socs('tts',n_state)))
+        Numbers, Singlets, Triplets, _, Ss_s, Ss_t, GP, IND_S, IND_T = analysis(files)
+        Oscs       = get_osc_phosph(files,Singlets, Triplets, Ss_s, Ss_t, IND_S, IND_T)
+        Oscs       = Oscs[:,n_state][:,np.newaxis]
+        label_oscs = ['osc']
+        noscs      = pega_oscs(files, IND_T,initial)
+        Oscs       = np.hstack((Oscs,noscs)) 
+        label_oscs.extend([f'osc_t{n_state+2+i}' for i in range(noscs.shape[1])])
+        socs_complete = np.hstack((avg_socs(files,'ground',n_state),avg_socs(files,'triplet',n_state),avg_socs(files,'tts',n_state)))
         indices  = [i+1 for i in range(Triplets.shape[1]) if i != n_state] #Removed Tn to Tn transfers
-        header7 = ['soc_s0']
+        header7  = ['soc_s0']
         header7.extend(['soc_s'+str(i) for i in range(1,1+Singlets.shape[1])])
-        header7.extend(['soc_t'+str(i) for i in indices])
+        header7.extend(['soc_t'+str(i) for i in indices])   
     header = ['geometry']
     header.extend(['e_s'+str(i) for i in range(1,1+Singlets.shape[1])])
     header.extend(['e_t'+str(i) for i in range(1,1+Triplets.shape[1])])
     header.extend(['d_s'+str(i) for i in range(1,1+Ss_s.shape[1])])
     header.extend(['d_t'+str(i) for i in range(1,1+Ss_t.shape[1])])
     header.extend(['gp'])
-    header.extend(['osc'])
+    header.extend(label_oscs)
     header.extend(header7)
     data = np.hstack((Numbers,Singlets,Triplets,Ss_s,Ss_t,GP[:,np.newaxis],Oscs,socs_complete))
     arquivo = f'Ensemble_{initial.upper()}_.lx'
     data = pd.DataFrame(data,columns=header)
+    data.insert(0,'ensemble',initial.upper())
     data.insert(0,'kbT',kbT)
     data.insert(0,'nr',nr_i)
     data.insert(0,'eps',eps_i)
@@ -578,7 +587,6 @@ def rates(initial,dielec,data=None):
         eps_i, nr_i = nemo.tools.get_nr()
         kbT         = nemo.tools.detect_sigma()
     else:
-        #data   = pd.read_csv(data)    
         eps_i  = data['eps'][0]
         nr_i   = data['nr'][0]
         kbT    = data['kbT'][0]
@@ -678,3 +686,70 @@ def rates(initial,dielec,data=None):
     results.insert(0,'Transition',labels)
     return results, emi       
 #########################################################################################    
+
+###COMPUTES ABSORPTION SPECTRA########################################################### 
+def absorption(initial,dielec,data=None, save=False):
+    if data is None:
+        data        = gather_data(initial,save=True) 
+        eps_i, nr_i = nemo.tools.get_nr()
+        kbT         = nemo.tools.detect_sigma()
+    else:
+        eps_i  = data['eps'][0]
+        nr_i   = data['nr'][0]
+        kbT    = data['kbT'][0]
+    eps, nr    = dielec[0], dielec[1]
+    alphast1   = nemo.tools.get_alpha(eps_i)
+    alphast2   = nemo.tools.get_alpha(eps)  
+    alphaopt1  = nemo.tools.get_alpha(nr_i**2)
+    alphaopt2  = nemo.tools.get_alpha(nr**2)
+    n_state    = int(initial[1:]) -1
+    initial    = initial.lower()
+    constante  = (np.pi*(e**2)*hbar)/(2*nr*mass*c*epsilon0)*1e20
+    if initial == 's0':
+        engs = [i for i in data.columns if 'e_s' in i]
+        ds   = [i for i in data.columns if 'd_s' in i]
+        oscs = [i for i in data.columns if 'osc_s' in i]
+        oscs = data[oscs].values
+        engs = data[engs].values
+        ds   = data[ds].values
+        lambda_b = (alphast2/alphaopt1 - alphaopt2/alphaopt1)*ds
+        DE   = engs - (alphaopt2/alphaopt1)*ds
+    else:
+        spin = initial[0]
+        num  = int(initial[1:])
+        engs = [i for i in data.columns if f'e_{spin}' in i]
+        engs = [i for i in engs if int(i.split('_')[1][1:]) > num]
+        ds   = [i for i in data.columns if f'd_{spin}' in i]
+        ds   = [i for i in ds if int(i.split('_')[1][1:]) > num]
+        oscs = [i for i in data.columns if 'osc_s' in i]
+        oscs = [i for i in oscs if int(i.split('_')[1][1:]) > num]
+        base = data[f'e_{initial}'].values[:,np.newaxis]
+        bs   = data[f'd_{initial}'].values[:,np.newaxis]
+        engs = data[engs].values
+        ds   = data[ds].values
+        oscs = data[oscs].values
+        lambda_b = (alphast2/alphaopt1 - alphaopt2/alphaopt1)*ds
+        DE   = engs - (alphaopt2/alphaopt1)*ds - np.repeat(base -(alphast2/alphaopt1)*bs,engs.shape[1],axis=1)  
+    lambda_b = lambda_b.flatten()
+    DE       = DE.flatten()
+    oscs     = oscs.flatten()
+    Ltotal = np.sqrt(2*lambda_b*kbT + kbT**2)
+    left   = max(min(DE-2*Ltotal),0.01)
+    right  = max(DE+2*Ltotal)    
+    x      = np.linspace(left,right,int((right-left)/0.01))
+    y      = constante*oscs[:,np.newaxis]*nemo.tools.gauss(x,(DE+lambda_b)[:,np.newaxis],Ltotal[:,np.newaxis])
+    N      = oscs.shape[0]
+    mean_y = np.sum(y,axis=0)/N 
+    #Error estimate
+    sigma    = np.sqrt(np.sum((y-mean_y)**2,axis=0)/(N*(N-1))) 
+    if save:
+        arquivo  = nemo.tools.naming(f'cross_section_{initial.upper()}_.lx')
+        primeira = f"{'#Energy(ev)':8s} {'cross_section(A^2)':8s} {'error(A^2)':8s}\n# Absorption from State: {initial.upper()}\n#Epsilon: {eps:.3f} nr: {nr:.3f}\n"
+        with open(arquivo, 'w') as f:
+            f.write(primeira)
+            for i in range(0,len(x)):
+                text = f"{x[i]:.6f} {mean_y[i]:.6e} {sigma[i]:.6e}\n"
+                f.write(text)
+        print(f'Spectrum printed in the {arquivo} file')
+    return np.hstack((x[:,np.newaxis],mean_y[:,np.newaxis],sigma[:,np.newaxis]))                 
+#########################################################################################

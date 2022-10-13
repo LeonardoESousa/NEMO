@@ -2,7 +2,7 @@
 import sys
 import nemo.tools
 
-def main():
+def interface():
     print("#     # ####### #     # #######")
     print("##    # #       ##   ## #     #")
     print("# #   # #       # # # # #     #")
@@ -21,10 +21,10 @@ def main():
     print("\t5 - Generate the absorption spectrum")
     print("EXCITED STATE PROPERTIES (FLUORESCENCE, PHOSPHORESCENCE, ISC):")
     print("\t6 - Estimate rates and compute emission spectrum")
+    print("ENSEMBLE DATA:")
+    print("\t7 - Gather ensemble data only")
     print('EXCITON ANALYSIS:')
-    print("\t7 - Estimate Förster radius, fluorescence lifetime and exciton diffusion lengths")
-    print('OTHER FEATURES:')
-    print("\t8 - Retrieve last geometry from log file") 
+    print("\t8 - Estimate Förster radius, fluorescence lifetime and exciton diffusion lengths")
     op = input()
     if op == '1':
         freqlog = nemo.tools.fetch_file("frequency",['.out', '.log'])
@@ -116,8 +116,11 @@ def main():
                 nr      = float(nr)
             except:
                 nemo.tools.fatal_error('Dielectric constant and refractive index must be numbers. Bye!')          
-        estados = nemo.tools.ask_states("Absorption from which state (S0, S1, T1 ..)\n")
-        nemo.tools.spectra(estados, [epsilon,nr])    
+        state = input('What is the initial state (S0, S1, T1, S2 ...)? Accepts comma separated values Ex: T1,T2\n')
+        from nemo.analysis import absorption
+        states = state.split(',')
+        for state in states:
+            absorption(state,[epsilon,nr],save=True)    
     elif op == '6':
         epsilon, nr = nemo.tools.get_nr()
         print('The rates will be calculated with the following parameters:\n')
@@ -139,18 +142,25 @@ def main():
             res, emi = rates(state,[epsilon,nr])
             export_results(res,emi,[epsilon,nr])
     elif op == '7':
-        from lx.tools import ld
-        ld()
+        state = input('What is the initial state (S0, S1, T1, S2 ...)? Accepts comma separated values Ex: T1,T2\n')
+        states = state.split(',')
+        from nemo.analysis import gather_data
+        for state in states:
+            gather_data(state,save=True)
     elif op == '8':
-        freqlog = nemo.tools.fetch_file("log",['.log','.out'])
-        rem, cm, spec = nemo.tools.busca_input(freqlog)
-        G, atomos = nemo.tools.pega_geom(freqlog)
-        nemo.tools.write_input(atomos,G,f'{rem}\n$molecule\n{cm}\n','$end','geom.lx')
-        print('Geometry saved in the geom.lx file.')    
+        from lx.tools import ld
+        ld()   
     else:
         nemo.tools.fatal_error("It must be one of the options... Goodbye!")
 
-
+def main():
+    try:
+        freqlog = sys.argv[1]
+        G, atomos = nemo.tools.pega_geom(freqlog)    
+        for i in range(len(atomos)):
+            print("{:2s}  {:.8f}  {:.8f}  {:.8f}".format(atomos[i],G[i,0],G[i,1],G[i,2]))
+    except:
+        interface()
     
 if __name__ == "__main__":
     sys.exit(main())        
