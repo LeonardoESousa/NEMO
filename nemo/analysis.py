@@ -645,10 +645,11 @@ def rates(initial,dielec,data=None):
     Triplets    =  data[[i for i in data.columns.values if 'e_t' in i]].to_numpy()
     Ss_s        =  data[[i for i in data.columns.values if 'd_s' in i]].to_numpy()
     Ss_t        =  data[[i for i in data.columns.values if 'd_t' in i]].to_numpy()
-    socs_complete =  data[[i for i in data.columns.values if 'soc_' in i]].to_numpy()    
     if 's' in initial:
+        socs_complete =  data[[i for i in data.columns.values if 'soc_t' in i]].to_numpy()
         delta    = Triplets + np.repeat((alphast2/alphaopt1)*Ss_s[:,n_state][:,np.newaxis] - Singlets[:,n_state][:,np.newaxis],Triplets.shape[1],axis=1) - (alphaopt2/alphaopt1)*Ss_t   #Tn (final) - Sm (initial) + lambda_b
         lambda_b = (alphast2/alphaopt1 - alphaopt2/alphaopt1)*Ss_t
+        final    = [i.upper()[4:] for i in data.columns.values if 'soc_t' in i]
         ##FOR WHEN IC IS AVAILABLE
         #socs_complete = np.hstack((socs_complete,0.0001*np.ones((Singlets.shape[0],Singlets.shape[1]-1))))
         #delta_ss = Singlets + np.repeat((alphast2/alphaopt1)*Ss_s[:,n_state][:,np.newaxis] - Singlets[:,n_state][:,np.newaxis],Singlets.shape[1],axis=1) - (alphaopt2/alphaopt1)*Ss_s    #Sm (final) - Sn (initial) + lambda_b
@@ -658,18 +659,22 @@ def rates(initial,dielec,data=None):
         #lambda_b = np.hstack((lambda_b,lambda_bt[:,indices]))
     elif 't' in initial: 
         #Tn to Sm ISC
-        delta    = Singlets + np.repeat((alphast2/alphaopt1)*Ss_t[:,n_state][:,np.newaxis] - Triplets[:,n_state][:,np.newaxis],Singlets.shape[1],axis=1) - (alphaopt2/alphaopt1)*Ss_s    #Sm (final) - Tn (initial) + lambda_b
-        delta    = np.hstack((delta_emi.to_numpy()[:,np.newaxis],delta))
-        lambda_b = (alphast2/alphaopt1 - alphaopt2/alphaopt1)*Ss_s
-        lambda_b = np.hstack((lambda_be.to_numpy()[:,np.newaxis],lambda_b))
+        socs_complete =  data[[i for i in data.columns.values if 'soc_s' in i and 'soc_s0' not in i]].to_numpy()
+        delta         = Singlets + np.repeat((alphast2/alphaopt1)*Ss_t[:,n_state][:,np.newaxis] - Triplets[:,n_state][:,np.newaxis],Singlets.shape[1],axis=1) - (alphaopt2/alphaopt1)*Ss_s    #Sm (final) - Tn (initial) + lambda_b
+        lambda_b      = (alphast2/alphaopt1 - alphaopt2/alphaopt1)*Ss_s
+        socs_s0       = data['soc_s0'].to_numpy()[:,np.newaxis]
+        socs_complete = np.hstack((socs_s0,socs_complete))
+        delta         = np.hstack((delta_emi.to_numpy()[:,np.newaxis],delta))
+        lambda_b      = np.hstack((lambda_be.to_numpy()[:,np.newaxis],lambda_b))
+        final         = [i.upper()[4:] for i in data.columns.values if 'soc_s' in i]
         #Tn to Tm ISC
-        delta_tt = Triplets + np.repeat((alphast2/alphaopt1)*Ss_t[:,n_state][:,np.newaxis] - Triplets[:,n_state][:,np.newaxis],Triplets.shape[1],axis=1) - (alphaopt2/alphaopt1)*Ss_t    #Tm (final) - Tn (initial) + lambda_b
-        indices  = [i for i in range(Triplets.shape[1]) if i != n_state] #Removed Tn to Tn transfers
-        delta    = np.hstack((delta,delta_tt[:,indices]))
-        lambda_bt= (alphast2/alphaopt1 - alphaopt2/alphaopt1)*Ss_t
-        lambda_b = np.hstack((lambda_b,lambda_bt[:,indices]))
+        #delta_tt = Triplets + np.repeat((alphast2/alphaopt1)*Ss_t[:,n_state][:,np.newaxis] - Triplets[:,n_state][:,np.newaxis],Triplets.shape[1],axis=1) - (alphaopt2/alphaopt1)*Ss_t    #Tm (final) - Tn (initial) + lambda_b
+        #indices  = [i for i in range(Triplets.shape[1]) if i != n_state] #Removed Tn to Tn transfers
+        #delta    = np.hstack((delta,delta_tt[:,indices]))
+        #lambda_bt= (alphast2/alphaopt1 - alphaopt2/alphaopt1)*Ss_t
+        #lambda_b = np.hstack((lambda_b,lambda_bt[:,indices]))
+        #final.extend([i.upper()[4:] for i in data.columns.values if 'soc_t' in i])
 
-    final = [i.upper()[4:] for i in data.columns.values if 'soc' in i]
     sigma = np.sqrt(2*lambda_b*kbT + kbT**2)
     y     = (2*np.pi/hbar)*(socs_complete**2)*nemo.tools.gauss(delta,0,sigma)
     N     = y.shape[0]
