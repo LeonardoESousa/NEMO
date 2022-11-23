@@ -3,7 +3,7 @@
 [![made-with-python](https://img.shields.io/badge/Made%20with-Python-1f425f.svg)](https://www.python.org/)
 [![license](https://img.shields.io/github/license/LeonardoESousa/NEMO?style=plastic)]()
 [![down](https://img.shields.io/pypi/dm/nemophoto)]()
-[![maint](https://img.shields.io/maintenance/yes/2021)]()
+[![maint](https://img.shields.io/maintenance/yes/2022)]()
 [![commit](https://img.shields.io/github/last-commit/LeonardoESousa/NEMO?style=plastic)]()
 
 
@@ -57,7 +57,7 @@ Run:
 
 `pip install nemophoto`
 
-To get the latest commit run:
+To get the latest commit, run:
 
 `pip install git+https://github.com/LeonardoESousa/NEMO`
 
