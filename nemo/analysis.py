@@ -482,11 +482,17 @@ def printa_espectro_emi(initial,eps,nr,tdm,x,mean_y,error):
 #######################################################################################    
 
 ###CALCULATES WEIGHTED AVERAGES WHEN POSSIBLE##########################################
-def means(y,weight):
-    try:
-        mean = np.average(y,axis=0,weights=weight)
-    except:
-        mean = np.average(y,axis=0)
+def means(y,weight,ensemble_mean=False):
+    if ensemble_mean:
+        try:
+            mean = np.mean(y,axis=0)
+        except:
+            mean = np.mean(y)
+    else:    
+        try:
+            mean = np.average(y,axis=0,weights=weight)
+        except:
+            mean = np.average(y,axis=0)
     return mean        
 ########################################################################################
 
@@ -590,7 +596,7 @@ def export_results(data,emission,dielec):
 #######################################################################################
 
 ###CALCULATES ISC AND EMISSION RATES & SPECTRA#########################################
-def rates(initial,dielec,data=None):
+def rates(initial,dielec,data=None,ensemble_average=False):
     if data is None:
         data        = gather_data(initial,save=True) 
         eps_i, nr_i = nemo.tools.get_nr()
@@ -626,9 +632,9 @@ def rates(initial,dielec,data=None):
     mean_y    = np.sum(y,axis=0)/N 
     error     = np.sqrt(np.sum((y-mean_y)**2,axis=0)/(N*(N-1))) 
     emi_rate, emi_error = nemo.tools.calc_emi_rate(x, mean_y,error)     
-    gap_emi        = np.average(delta_emi,weights=espectro)
-    mean_sigma_emi = np.average(Ltotal,weights=espectro)
-    mean_part_emi  = (100/N)/np.average(espectro/np.sum(espectro),weights=espectro)
+    gap_emi        = means(delta_emi,espectro,ensemble_average)    
+    mean_sigma_emi = means(Ltotal,espectro,ensemble_average) 
+    mean_part_emi  = (100/N)/means(espectro/np.sum(espectro),espectro,ensemble_average) 
     emi            = np.hstack((x[:,np.newaxis],mean_y[:,np.newaxis],error[:,np.newaxis]))
     emi            = pd.DataFrame(emi,columns=['Energy','Diffrate','Error'])
     emi.insert(0,'TDM',tdm)
@@ -684,12 +690,12 @@ def rates(initial,dielec,data=None):
     error = np.sqrt(np.sum((y-rate)**2,axis=0)/(N*(N-1)))  
     
     results    = np.array([[emi_rate,emi_error,100*emi_rate/total,gap_emi,np.nan,mean_sigma_emi,mean_part_emi]])
-    mean_gap   = means(delta,y)[:,np.newaxis]
-    mean_soc   = 1000*means(socs_complete,y)[:,np.newaxis]
-    mean_sigma = means(sigma,y)[:,np.newaxis]
+    mean_gap   = means(delta,y,ensemble_average)[:,np.newaxis]
+    mean_soc   = 1000*means(socs_complete,y,ensemble_average)[:,np.newaxis]
+    mean_sigma = means(sigma,y,ensemble_average)[:,np.newaxis]
     with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            mean_part  = np.nan_to_num(100*rate/means(y,y))
+            mean_part  = np.nan_to_num(100*rate/means(y,y,ensemble_average))
     rate       = rate[:,np.newaxis]
     error      = error[:,np.newaxis]
     labels = [f'{initial.upper()}->S0'] + [f'{initial.upper()}~>{j}' for j in final]
