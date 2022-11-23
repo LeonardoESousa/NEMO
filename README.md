@@ -32,9 +32,8 @@ DOI: 10.1021/acs.jctc.1c00476
 1.  Photophysics with TD(A)-DFT:
     - Calculates fluorescence and phosphorescence rates from an excited state.
     - Calculates ISC rates from a given singlet state to several triplet states and vice-versa.
-    - Rate calculations include vibrational contributions and state-specific solvation effects.
     - Absorption, Fluorescence and Phosphorescence spectrum simulations.
-    - Calculations include vibrational contributions to the spectra and state specific solvation effects.
+    - Rate calculations and spectra include vibrational contributions and state specific solvation effects.
 2.  Exciton properties:   
     - Calculates the Förster radius for transfers between two molecules of equal or different type.
     - Estimates singlet exciton diffusion lengths.
@@ -58,6 +57,10 @@ Run:
 
 `pip install nemophoto`
 
+To get the latest commit run:
+
+`pip install git+https://github.com/LeonardoESousa/NEMO`
+
 Alternatively, clone the repository to your computer. Inside the NEMO folder, run:
 
 `pip install .`
@@ -67,7 +70,7 @@ Once installed, you should be able to run the program from any folder by just us
 ## How to use it?
 
 1. Initial steps:
-    - Create a folder for your project. Add the log file for the frequency calculation to your folder. If the frequency calculation was run with Gaussian, you must also provide a QChem input file containing some settings you wish to apply in the ensemble calculations (e.g. functional, basis set, omega value, charge and multiplicity etc). An example of such file (td.in) is provided here [here](https://github.com/LeonardoESousa/NEMO/tree/main/batch_examples).
+    - Create a folder for your project. Add the log file for the frequency calculation to your folder. If the frequency calculation was run with Gaussian, you must also provide a QChem input file containing some settings you wish to apply in the ensemble calculations (e.g. functional, basis set, omega value, charge and multiplicity etc). An example of such file (td.in) is provided [here](https://github.com/LeonardoESousa/NEMO/tree/main/batch_examples).
     - A frequency calculation in the S0 state is suitable for computing an absorption spectrum. For fluorescence spectra and/or ISC rates calculations from Sn states to triplet states, a Sn frequency calculation is expected. Finally, for phosphorescence spectra and/or rISC rates calculations from Tn states to singlet states, a Tn frequency calculation is expected.  
     - Run the `nemo` command. Choose option 1 and follow the instructions to select the parameters of the calculation. This includes the dielectric constant and refractive index of the medium. This information will be used to obtain state-specific solvent corrections to the TD(A)-DFT energies.  
     - Add a bash script file to the folder. This file depends on which batch system you use. Examples of this file for users of slurm or task spooler (ts) are presented [here](https://github.com/LeonardoESousa/NEMO/tree/main/batch_examples)).
