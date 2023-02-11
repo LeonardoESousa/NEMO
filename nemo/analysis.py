@@ -681,6 +681,9 @@ def rates(initial,dielec,data=None,ensemble_average=False):
         #lambda_b = np.hstack((lambda_b,lambda_bt[:,indices]))
         #final.extend([i.upper()[4:] for i in data.columns.values if 'soc_t' in i])
 
+    if socs_complete.shape != delta.shape:
+        socs_complete = np.zeros(delta.shape)
+        final    = [i for i in range(socs_complete.shape[1])]
     sigma = np.sqrt(2*lambda_b*kbT + kbT**2)
     y     = (2*np.pi/hbar)*(socs_complete**2)*nemo.tools.gauss(delta,0,sigma)
     N     = y.shape[0]
@@ -749,26 +752,37 @@ def absorption(initial,dielec,data=None, save=False):
         oscs = data[oscs].values
         lambda_b = (alphast2/alphaopt1 - alphaopt2/alphaopt1)*ds
         DE   = engs - (alphaopt2/alphaopt1)*ds - np.repeat(base -(alphast2/alphaopt1)*bs,engs.shape[1],axis=1)  
-    lambda_b = lambda_b.flatten()
-    DE       = DE.flatten()
-    oscs     = oscs.flatten()
     Ltotal = np.sqrt(2*lambda_b*kbT + kbT**2)
-    left   = max(min(DE-2*Ltotal),0.01)
-    right  = max(DE+2*Ltotal)    
+    left   = max(np.min(DE-2*Ltotal),0.01)
+    right  = np.max(DE+2*Ltotal)    
     x      = np.linspace(left,right,int((right-left)/0.01))
-    y      = constante*oscs[:,np.newaxis]*nemo.tools.gauss(x,(DE+lambda_b)[:,np.newaxis],Ltotal[:,np.newaxis])
+    # Add extra dimension to DE and Ltotal to match x shape
+    DE      = DE[:,:,np.newaxis]
+    Ltotal  = Ltotal[:,:,np.newaxis]
+    oscs  = oscs[:,:,np.newaxis]
+    lambda_b = lambda_b[:,:,np.newaxis]
+    y      = constante*oscs*nemo.tools.gauss(x,(DE+lambda_b),Ltotal)
     N      = oscs.shape[0]
     mean_y = np.sum(y,axis=0)/N 
     #Error estimate
     sigma    = np.sqrt(np.sum((y-mean_y)**2,axis=0)/(N*(N-1))) 
+    mean_y = mean_y.T
+    sigma  = sigma.T
+    total = np.sum(mean_y,axis=1)
+    sigma = np.sum(sigma,axis=1)
+    #append total to mean_y
+    mean_y = np.append(mean_y,total[:,np.newaxis],axis=1)
     if save:
         arquivo  = nemo.tools.naming(f'cross_section_{initial.upper()}_.lx')
-        primeira = f"{'#Energy(ev)':8s} {'cross_section(A^2)':8s} {'error(A^2)':8s}\n# Absorption from State: {initial.upper()}\n#Epsilon: {eps:.3f} nr: {nr:.3f}\n"
-        with open(arquivo, 'w') as f:
-            f.write(primeira)
-            for i in range(0,len(x)):
-                text = f"{x[i]:.6f} {mean_y[i]:.6e} {sigma[i]:.6e}\n"
-                f.write(text)
+        primeira = f"{'Energy(ev)':8s} {'cross_section(A^2)':8s} {'error(A^2)':8s}\nAbsorption from State: {initial.upper()}\nEpsilon: {eps:.3f} nr: {nr:.3f}\n"
+        labels = [initial[0].upper()+str(int(initial[1:])+i+1) for i in range(0,mean_y.shape[1]-1)]
+        labels += ['Total','Error']
+        labels = ['Energy(eV)'] + labels
+        labels = ['{:14s}'.format(i) for i in labels]
+        primeira += ' '.join(labels)
+        fmt = ['%14.6e' for i in range(0,mean_y.shape[1])]
+        fmt = ' '.join(fmt)
+        np.savetxt(arquivo, np.hstack((x[:,np.newaxis],mean_y,sigma[:,np.newaxis])), fmt='%14.6f '+ fmt +' %14.6e', header=primeira)
         print(f'Spectrum printed in the {arquivo} file')
-    return np.hstack((x[:,np.newaxis],mean_y[:,np.newaxis],sigma[:,np.newaxis]))                 
+    return x, mean_y, sigma             
 #########################################################################################
