@@ -523,30 +523,42 @@ def gather_data(initial,save=True):
         if 's0' == initial.lower():
             label_oscs = [f'osc_s{i+1}' for i in range(Oscs.shape[1])]
         else:
-            Oscs       = Oscs[:,n_state][:,np.newaxis]
-            label_oscs = ['osc']
+            #Oscs       = Oscs[:,n_state][:,np.newaxis]
+            label_oscs = [f'osce_s{n_state+1+i}' for i in range(Oscs.shape[1])]
             noscs      = pega_oscs(files, IND_S,initial)
             label_oscs.extend([f'osc_s{n_state+2+i}' for i in range(noscs.shape[1])])
             Oscs       = np.hstack((Oscs,noscs))     
         try:
-            socs_complete  = avg_socs(files,'singlet',n_state)
-            header7 = ['soc_t'+str(i) for i in range(1,1+socs_complete.shape[1])]
+            header7 = []
+            for i in range(Singlets.shape[1]):
+                socs_partial  = avg_socs(files,'singlet',i)
+                header7.extend([f'soc_s{i+1}_t{j}' for j in range(1,1+socs_partial.shape[1])])
+                try:
+                    socs_complete = np.hstack((socs_complete,socs_partial))
+                except:
+                    socs_complete = socs_partial
         except:
             pass
     else:
         Numbers, Singlets, Triplets, _, Ss_s, Ss_t, GP, IND_S, IND_T = analysis(files)
         Oscs       = get_osc_phosph(files,Singlets, Triplets, Ss_s, Ss_t, IND_S, IND_T)
-        Oscs       = Oscs[:,n_state][:,np.newaxis]
-        label_oscs = ['osc']
+        #Oscs       = Oscs[:,n_state][:,np.newaxis]
+        label_oscs = [f'osce_t{n_state+1+i}' for i in range(Oscs.shape[1])]
         noscs      = pega_oscs(files, IND_T,initial)
         Oscs       = np.hstack((Oscs,noscs)) 
         label_oscs.extend([f'osc_t{n_state+2+i}' for i in range(noscs.shape[1])])
         try:
-            socs_complete = np.hstack((avg_socs(files,'ground',n_state),avg_socs(files,'triplet',n_state),avg_socs(files,'tts',n_state)))
-            indices  = [i+1 for i in range(Triplets.shape[1]) if i != n_state] #Removed Tn to Tn transfers
-            header7  = ['soc_s0']
-            header7.extend(['soc_s'+str(i) for i in range(1,1+Singlets.shape[1])])
-            header7.extend(['soc_t'+str(i) for i in indices])   
+            header7 = []
+            for i in range(Triplets.shape[1]):
+                socs_partial = np.hstack((avg_socs(files,'ground',i),avg_socs(files,'triplet',i),avg_socs(files,'tts',i)))
+                indices  = [j+1 for j in range(Triplets.shape[1]) if j != i] #Removed Tn to Tn transfers
+                header7.extend([f'soc_t{i+1}_s0'])
+                header7.extend([f'soc_t{i+1}_s{j}' for j in range(1,1+Singlets.shape[1])])
+                header7.extend([f'soc_t{i+1}_t{j}' for j in indices]) 
+                try:
+                    socs_complete = np.hstack((socs_complete,socs_partial))
+                except:
+                    socs_complete = socs_partial    
         except:
             pass
     header = ['geometry']
@@ -595,6 +607,20 @@ def export_results(data,emission,dielec):
     print(f'Rates are written in the {arquivo} file')  
 #######################################################################################
 
+def reorder(initial_state, final_state, Ss, socs):
+    argsort = np.argsort(initial_state, axis=1)
+    initial_state = np.take_along_axis(initial_state, argsort, axis=1)
+    corredor = int(np.sqrt(socs.shape[1]))
+    socs_complete = socs.reshape((socs.shape[0], corredor,corredor))
+    for j in range(socs_complete.shape[1]):
+        socs_complete[:,j,:] = np.take_along_axis(socs_complete[:,j,:], argsort, axis=1)
+    argsort = np.argsort(final_state, axis=1)
+    final_state = np.take_along_axis(final_state, argsort, axis=1)
+    Ss = np.take_along_axis(Ss, argsort, axis=1)
+    for j in range(socs_complete.shape[1]):
+        socs_complete[:,:,j] = np.take_along_axis(socs_complete[:,:,j], argsort, axis=1)
+    return initial_state, final_state, Ss, socs_complete
+
 ###CALCULATES ISC AND EMISSION RATES & SPECTRA#########################################
 def rates(initial,dielec,data=None,ensemble_average=False):
     if data is None:
@@ -614,23 +640,29 @@ def rates(initial,dielec,data=None,ensemble_average=False):
     initial    = initial.lower()       
 
     #Emission Calculations
-    lambda_be  = (alphast2/alphast1 - alphaopt2/alphast1)*data['gp']
+    lambda_be  = (alphast2/alphast1 - alphaopt2/alphast1)*data['gp'].to_numpy()
     Ltotal     = np.sqrt(2*lambda_be*kbT + kbT**2)
-    delta_emi  = data['e_'+initial] - (alphast2/alphaopt1)*data['d_'+initial]
-    if 's' in initial:
-        constante = ((nr**2)*(e**2)/(2*np.pi*hbar*mass*(c**3)*epsilon0))
-    elif 't' in initial:
-        constante = (1/3)*((nr**2)*(e**2)/(2*np.pi*hbar*mass*(c**3)*epsilon0))
-
-    espectro  = (constante*((delta_emi-lambda_be)**2)*data['osc'])
-    tdm       = nemo.tools.calc_tdm(data['osc'],data['e_'+initial],espectro)    
-    left      = max(min(delta_emi-2*Ltotal),0.01)
-    right     = max(delta_emi+2*Ltotal)    
-    x         = np.linspace(left,right, int((right-left)/0.01))
-    y         = espectro.to_numpy()[:,np.newaxis]*nemo.tools.gauss(x,delta_emi.to_numpy()[:,np.newaxis],Ltotal.to_numpy()[:,np.newaxis])
-    N         = y.shape[0]
-    mean_y    = np.sum(y,axis=0)/N 
-    error     = np.sqrt(np.sum((y-mean_y)**2,axis=0)/(N*(N-1))) 
+    energies   = data.filter(regex=f'^e_{initial[0]}').to_numpy()
+    delta_emi  = energies - (alphast2/alphaopt1)*data.filter(regex=f'^d_{initial[0]}').to_numpy()
+    constante  = ((nr**2)*(e**2)/(2*np.pi*hbar*mass*(c**3)*epsilon0))
+    if 't' in initial:
+        constante *= (1/3)
+    oscs        = data.filter(regex='^osce_').to_numpy()
+    argsort_emi = np.argsort(delta_emi, axis=1)
+    delta_emi   = np.take_along_axis(delta_emi, argsort_emi, axis=1)
+    oscs        = np.take_along_axis(oscs, argsort_emi, axis=1)
+    delta_emi   = delta_emi[:,n_state]
+    oscs        = oscs[:,n_state]
+    energies    = np.take_along_axis(energies, argsort_emi, axis=1)
+    espectro    = (constante*((delta_emi-lambda_be)**2)*oscs)
+    tdm         = nemo.tools.calc_tdm(oscs,final[:,n_state],espectro)    
+    left        = max(min(delta_emi-2*Ltotal),0.01)
+    right       = max(delta_emi+2*Ltotal)    
+    x           = np.linspace(left,right, int((right-left)/0.01))
+    y           = espectro[:,np.newaxis]*nemo.tools.gauss(x,delta_emi[:,np.newaxis],Ltotal[:,np.newaxis])
+    N           = y.shape[0]
+    mean_y      = np.sum(y,axis=0)/N 
+    error       = np.sqrt(np.sum((y-mean_y)**2,axis=0)/(N*(N-1))) 
     emi_rate, emi_error = nemo.tools.calc_emi_rate(x, mean_y,error)     
     gap_emi        = means(delta_emi,espectro,ensemble_average)    
     mean_sigma_emi = means(Ltotal,espectro,ensemble_average) 
@@ -647,15 +679,20 @@ def rates(initial,dielec,data=None,ensemble_average=False):
             print(f"There are {coms} inputs and just {N} log files. Something is not right! Computing the rates anyway...")
     
     #Intersystem Crossing Rates
-    Singlets    =  data[[i for i in data.columns.values if 'e_s' in i]].to_numpy()
-    Triplets    =  data[[i for i in data.columns.values if 'e_t' in i]].to_numpy()
+    Singlets    =  data[[i for i in data.columns.values if 'e_s' in i and 'osc' not in i]].to_numpy()
+    Triplets    =  data[[i for i in data.columns.values if 'e_t' in i and 'osc' not in i]].to_numpy()
     Ss_s        =  data[[i for i in data.columns.values if 'd_s' in i]].to_numpy()
     Ss_t        =  data[[i for i in data.columns.values if 'd_t' in i]].to_numpy()
     if 's' in initial:
-        socs_complete =  data[[i for i in data.columns.values if 'soc_t' in i]].to_numpy()
-        delta    = Triplets + np.repeat((alphast2/alphaopt1)*Ss_s[:,n_state][:,np.newaxis] - Singlets[:,n_state][:,np.newaxis],Triplets.shape[1],axis=1) - (alphaopt2/alphaopt1)*Ss_t   #Tn (final) - Sm (initial) + lambda_b
+        initial_state = Singlets - (alphast2/alphaopt1)*Ss_s
+        final_state   = Triplets - (alphaopt2/alphaopt1)*Ss_t
+        socs_complete = data[[i for i in data.columns.values if f'soc_s' in i]].to_numpy()
+        initial_state, final_state, Ss_t, socs_complete = reorder(initial_state, final_state, Ss_t, socs_complete)
+        initial_state = initial_state[:,n_state]
+        socs_complete = socs_complete[:,n_state,:]
+        delta = final_state - initial_state
         lambda_b = (alphast2/alphaopt1 - alphaopt2/alphaopt1)*Ss_t
-        final    = [i.upper()[4:] for i in data.columns.values if 'soc_t' in i]
+        final    = [i.split('_')[2].upper() for i in data.columns.values if 'soc_s1' in i]
         ##FOR WHEN IC IS AVAILABLE
         #socs_complete = np.hstack((socs_complete,0.0001*np.ones((Singlets.shape[0],Singlets.shape[1]-1))))
         #delta_ss = Singlets + np.repeat((alphast2/alphaopt1)*Ss_s[:,n_state][:,np.newaxis] - Singlets[:,n_state][:,np.newaxis],Singlets.shape[1],axis=1) - (alphaopt2/alphaopt1)*Ss_s    #Sm (final) - Sn (initial) + lambda_b
@@ -665,14 +702,22 @@ def rates(initial,dielec,data=None,ensemble_average=False):
         #lambda_b = np.hstack((lambda_b,lambda_bt[:,indices]))
     elif 't' in initial: 
         #Tn to Sm ISC
-        socs_complete =  data[[i for i in data.columns.values if 'soc_s' in i and 'soc_s0' not in i]].to_numpy()
-        delta         = Singlets + np.repeat((alphast2/alphaopt1)*Ss_t[:,n_state][:,np.newaxis] - Triplets[:,n_state][:,np.newaxis],Singlets.shape[1],axis=1) - (alphaopt2/alphaopt1)*Ss_s    #Sm (final) - Tn (initial) + lambda_b
-        lambda_b      = (alphast2/alphaopt1 - alphaopt2/alphaopt1)*Ss_s
-        socs_s0       = data['soc_s0'].to_numpy()[:,np.newaxis]
-        socs_complete = np.hstack((socs_s0,socs_complete))
-        delta         = np.hstack((delta_emi.to_numpy()[:,np.newaxis],delta))
-        lambda_b      = np.hstack((lambda_be.to_numpy()[:,np.newaxis],lambda_b))
-        final         = [i.upper()[4:] for i in data.columns.values if 'soc_s' in i]
+        initial_state = Triplets - (alphast2/alphaopt1)*Ss_t
+        final_state = Singlets - (alphaopt2/alphaopt1)*Ss_s
+        socs_complete =  data[[i for i in data.columns.values if 'soc_t' in i and 's0' not in i and i.count('t') == 1]].to_numpy()
+        initial_state, final_state, Ss_s, socs_complete = reorder(initial_state, final_state, Ss_s, socs_complete)
+        initial_state = initial_state[:,n_state]
+        socs_complete = socs_complete[:,n_state,:]
+        delta = final_state - initial_state
+        lambda_b = (alphast2/alphaopt1 - alphaopt2/alphaopt1)*Ss_s
+        final    = [i.split('_')[2].upper() for i in data.columns.values if 'soc_t1' in i and i.count('t') == 1]
+        #Tn to S0 ISC
+        socs_s0 = data[[i for i in data.columns.values if f'soc_t' in i and 's0' in i]].to_numpy()
+        socs_s0 = np.take_along_axis(socs_s0, argsort_emi, axis=1)
+        socs_s0 = socs_s0[:,n_state]
+        socs_complete = np.hstack((socs_s0[:,np.newaxis],socs_complete))
+        delta = np.hstack((delta_emi[:,np.newaxis],delta))
+        lambda_b = np.hstack((lambda_be[:,np.newaxis],lambda_b))
         #Tn to Tm ISC
         #delta_tt = Triplets + np.repeat((alphast2/alphaopt1)*Ss_t[:,n_state][:,np.newaxis] - Triplets[:,n_state][:,np.newaxis],Triplets.shape[1],axis=1) - (alphaopt2/alphaopt1)*Ss_t    #Tm (final) - Tn (initial) + lambda_b
         #indices  = [i for i in range(Triplets.shape[1]) if i != n_state] #Removed Tn to Tn transfers
@@ -752,6 +797,11 @@ def absorption(initial,dielec,data=None, save=False):
         oscs = data[oscs].values
         lambda_b = (alphast2/alphaopt1 - alphaopt2/alphaopt1)*ds
         DE   = engs - (alphaopt2/alphaopt1)*ds - np.repeat(base -(alphast2/alphaopt1)*bs,engs.shape[1],axis=1)  
+    # Sorting states by energy
+    argsort = np.argsort(DE,axis=1)
+    DE      = np.take_along_axis(DE,argsort,axis=1)
+    oscs    = np.take_along_axis(oscs,argsort,axis=1)
+    lambda_b= np.take_along_axis(lambda_b,argsort,axis=1)
     Ltotal = np.sqrt(2*lambda_b*kbT + kbT**2)
     left   = max(np.min(DE-2*Ltotal),0.01)
     right  = np.max(DE+2*Ltotal)    
