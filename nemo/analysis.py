@@ -655,7 +655,7 @@ def rates(initial,dielec,data=None,ensemble_average=False):
     oscs        = oscs[:,n_state]
     energies    = np.take_along_axis(energies, argsort_emi, axis=1)
     espectro    = (constante*((delta_emi-lambda_be)**2)*oscs)
-    tdm         = nemo.tools.calc_tdm(oscs,final[:,n_state],espectro)    
+    tdm         = nemo.tools.calc_tdm(oscs,energies[:,n_state],espectro)    
     left        = max(min(delta_emi-2*Ltotal),0.01)
     right       = max(delta_emi+2*Ltotal)    
     x           = np.linspace(left,right, int((right-left)/0.01))
@@ -690,7 +690,7 @@ def rates(initial,dielec,data=None,ensemble_average=False):
         initial_state, final_state, Ss_t, socs_complete = reorder(initial_state, final_state, Ss_t, socs_complete)
         initial_state = initial_state[:,n_state]
         socs_complete = socs_complete[:,n_state,:]
-        delta = final_state - initial_state
+        delta = final_state - np.repeat(initial_state[:,np.newaxis],final_state.shape[1],axis=1)
         lambda_b = (alphast2/alphaopt1 - alphaopt2/alphaopt1)*Ss_t
         final    = [i.split('_')[2].upper() for i in data.columns.values if 'soc_s1' in i]
         ##FOR WHEN IC IS AVAILABLE
@@ -708,7 +708,7 @@ def rates(initial,dielec,data=None,ensemble_average=False):
         initial_state, final_state, Ss_s, socs_complete = reorder(initial_state, final_state, Ss_s, socs_complete)
         initial_state = initial_state[:,n_state]
         socs_complete = socs_complete[:,n_state,:]
-        delta = final_state - initial_state
+        delta = final_state - np.repeat(initial_state[:,np.newaxis],final_state.shape[1],axis=1)
         lambda_b = (alphast2/alphaopt1 - alphaopt2/alphaopt1)*Ss_s
         final    = [i.split('_')[2].upper() for i in data.columns.values if 'soc_t1' in i and i.count('t') == 1]
         #Tn to S0 ISC
@@ -773,7 +773,7 @@ def absorption(initial,dielec,data=None, save=False):
     initial    = initial.lower()
     constante  = (np.pi*(e**2)*hbar)/(2*nr*mass*c*epsilon0)*1e20
     if initial == 's0':
-        engs = [i for i in data.columns if 'e_s' in i]
+        engs = [i for i in data.columns if 'e_s' in i and 'osc' not in i]
         ds   = [i for i in data.columns if 'd_s' in i]
         oscs = [i for i in data.columns if 'osc_s' in i]
         oscs = data[oscs].values
@@ -784,7 +784,7 @@ def absorption(initial,dielec,data=None, save=False):
     else:
         spin = initial[0]
         num  = int(initial[1:])
-        engs = [i for i in data.columns if f'e_{spin}' in i]
+        engs = [i for i in data.columns if f'e_{spin}' in i and 'osc' not in i]
         engs = [i for i in engs if int(i.split('_')[1][1:]) > num]
         ds   = [i for i in data.columns if f'd_{spin}' in i]
         ds   = [i for i in ds if int(i.split('_')[1][1:]) > num]
