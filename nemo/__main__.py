@@ -47,17 +47,21 @@ def interface():
         print(rem)
         change = input('Are you satisfied with these parameters? y or n?\n')
         if change.lower() == 'n':     
-            rem2 = ''
+            rem2 = '$rem\n'
             for elem in rem.split('\n'):
                 if len(elem.split()) > 1:
                     if '$' not in elem:
                         base = nemo.tools.default(elem, f'{elem.split()[0]} is set to: {elem.split()[-1]}. If ok, Enter. Otherwise, type the correct value. Type del to delete line.\n')
                         if base.lower() == 'del':
-                            base = ''
+                            rem2 += ''
+                        else:
+                            if len(base.split()) > 1:
+                                rem2 += base+'\n'
+                            else:    
+                                rem2 += f'{elem.split()[0]}    {base}\n'    
                     else:    
-                        base = elem
-                    rem2 += base+'\n'
-            rem = rem2
+                        rem2 += elem+'\n'
+            rem = rem2+'$end\n'
         rem   += "\n$pcm\ntheory                  IEFPCM\nChargeSeparation        Marcus\nStateSpecific           Perturb\n$end\n"
         static = input("Solvent's static dielectric constant?\n")
         refrac = input("Solvent's refractive index?\n")
