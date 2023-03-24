@@ -607,22 +607,23 @@ def export_results(data,emission,dielec):
     print(f'Rates are written in the {arquivo} file')  
 #######################################################################################
 
-def reorder(initial_state, final_state, Ss, socs):
+def reorder(initial_state, final_state, Ss_i, Ss_f, socs):
     argsort = np.argsort(initial_state, axis=1)
     initial_state = np.take_along_axis(initial_state, argsort, axis=1)
+    Ss_i = np.take_along_axis(Ss_i, argsort, axis=1)
     corredor = int(np.sqrt(socs.shape[1]))
     socs_complete = socs.reshape((socs.shape[0], corredor,corredor))
     for j in range(socs_complete.shape[1]):
         socs_complete[:,j,:] = np.take_along_axis(socs_complete[:,j,:], argsort, axis=1)
     argsort = np.argsort(final_state, axis=1)
     final_state = np.take_along_axis(final_state, argsort, axis=1)
-    Ss = np.take_along_axis(Ss, argsort, axis=1)
+    Ss_f = np.take_along_axis(Ss_f, argsort, axis=1)
     for j in range(socs_complete.shape[1]):
         socs_complete[:,:,j] = np.take_along_axis(socs_complete[:,:,j], argsort, axis=1)
-    return initial_state, final_state, Ss, socs_complete
+    return initial_state, final_state, Ss_i, Ss_f, socs_complete
 
 ###CALCULATES ISC AND EMISSION RATES & SPECTRA#########################################
-def rates(initial,dielec,data=None,ensemble_average=False):
+def rates(initial,dielec,data=None,ensemble_average=False, detailed=False):
     if data is None:
         data        = gather_data(initial,save=True) 
         eps_i, nr_i = nemo.tools.get_nr()
@@ -653,9 +654,9 @@ def rates(initial,dielec,data=None,ensemble_average=False):
     oscs        = np.take_along_axis(oscs, argsort_emi, axis=1)
     delta_emi   = delta_emi[:,n_state]
     oscs        = oscs[:,n_state]
-    energies    = np.take_along_axis(energies, argsort_emi, axis=1)
+    energies    = np.take_along_axis(energies, argsort_emi, axis=1)[:,n_state]
     espectro    = (constante*((delta_emi-lambda_be)**2)*oscs)
-    tdm         = nemo.tools.calc_tdm(oscs,energies[:,n_state],espectro)    
+    tdm         = nemo.tools.calc_tdm(oscs,energies,espectro)    
     left        = max(min(delta_emi-2*Ltotal),0.01)
     right       = max(delta_emi+2*Ltotal)    
     x           = np.linspace(left,right, int((right-left)/0.01))
@@ -687,7 +688,7 @@ def rates(initial,dielec,data=None,ensemble_average=False):
         initial_state = Singlets - (alphast2/alphaopt1)*Ss_s
         final_state   = Triplets - (alphaopt2/alphaopt1)*Ss_t
         socs_complete = data[[i for i in data.columns.values if f'soc_s' in i]].to_numpy()
-        initial_state, final_state, Ss_t, socs_complete = reorder(initial_state, final_state, Ss_t, socs_complete)
+        initial_state, final_state, Ss_s, Ss_t, socs_complete = reorder(initial_state, final_state, Ss_s, Ss_t, socs_complete)
         initial_state = initial_state[:,n_state]
         socs_complete = socs_complete[:,n_state,:]
         delta = final_state - np.repeat(initial_state[:,np.newaxis],final_state.shape[1],axis=1)
@@ -705,7 +706,7 @@ def rates(initial,dielec,data=None,ensemble_average=False):
         initial_state = Triplets - (alphast2/alphaopt1)*Ss_t
         final_state = Singlets - (alphaopt2/alphaopt1)*Ss_s
         socs_complete =  data[[i for i in data.columns.values if 'soc_t' in i and 's0' not in i and i.count('t') == 1]].to_numpy()
-        initial_state, final_state, Ss_s, socs_complete = reorder(initial_state, final_state, Ss_s, socs_complete)
+        initial_state, final_state, Ss_t, Ss_s, socs_complete = reorder(initial_state, final_state, Ss_t, Ss_s, socs_complete)
         initial_state = initial_state[:,n_state]
         socs_complete = socs_complete[:,n_state,:]
         delta = final_state - np.repeat(initial_state[:,np.newaxis],final_state.shape[1],axis=1)
@@ -726,11 +727,16 @@ def rates(initial,dielec,data=None,ensemble_average=False):
         #lambda_b = np.hstack((lambda_b,lambda_bt[:,indices]))
         #final.extend([i.upper()[4:] for i in data.columns.values if 'soc_t' in i])
 
+
+
     if socs_complete.shape != delta.shape:
         socs_complete = np.zeros(delta.shape)
         final    = [i for i in range(socs_complete.shape[1])]
     sigma = np.sqrt(2*lambda_b*kbT + kbT**2)
     y     = (2*np.pi/hbar)*(socs_complete**2)*nemo.tools.gauss(delta,0,sigma)
+    # hstack y and espectro
+    individual = np.hstack((espectro[:,np.newaxis],y))
+    individual /= individual.shape[0]
     N     = y.shape[0]
     rate  = np.sum(y,axis=0)/N
     total = emi_rate + np.sum(rate)
@@ -747,16 +753,28 @@ def rates(initial,dielec,data=None,ensemble_average=False):
     rate       = rate[:,np.newaxis]
     error      = error[:,np.newaxis]
     labels = [f'{initial.upper()}->S0'] + [f'{initial.upper()}~>{j}' for j in final]
+
+
+    # make a dataframe with Ss_s and Ss_t
+    breakdown = pd.DataFrame(np.hstack((Ss_s/alphaopt1,Ss_t/alphaopt1)),columns=[f'chi_s{i+1}' for i in range(Ss_s.shape[1])] + [f'chi_t{i+1}' for i in range(Ss_t.shape[1])])
+    # append a columns with energies named eng
+    breakdown['eng'] = delta_emi
+    # append individual to df, use labels as columns
+    breakdown = pd.concat([breakdown,pd.DataFrame(individual,columns=labels)],axis=1)
+    
     labels = np.array(labels)
     results_isc = np.hstack((rate,error,100*rate/total,mean_gap,mean_soc,mean_sigma,mean_part[:,np.newaxis])) 
     results = np.vstack((results,results_isc))
     results = pd.DataFrame(results,columns=['Rate(s^-1)','Error(s^-1)','Prob(%)','AvgDE+L(eV)','AvgSOC(meV)','AvgSigma(eV)','AvgConc(%)'])
     results.insert(0,'Transition',labels)
-    return results, emi       
+    if detailed:
+        return results, emi, breakdown
+    else:
+        return results, emi    
 #########################################################################################    
 
 ###COMPUTES ABSORPTION SPECTRA########################################################### 
-def absorption(initial,dielec,data=None, save=False):
+def absorption(initial,dielec,data=None, save=False, detailed=False):
     if data is None:
         data        = gather_data(initial,save=True) 
         eps_i, nr_i = nemo.tools.get_nr()
@@ -772,6 +790,7 @@ def absorption(initial,dielec,data=None, save=False):
     alphaopt2  = nemo.tools.get_alpha(nr**2)
     initial    = initial.lower()
     constante  = (np.pi*(e**2)*hbar)/(2*nr*mass*c*epsilon0)*1e20
+    spin = initial[0]
     if initial == 's0':
         engs = [i for i in data.columns if 'e_s' in i and 'osc' not in i]
         ds   = [i for i in data.columns if 'd_s' in i]
@@ -782,7 +801,6 @@ def absorption(initial,dielec,data=None, save=False):
         lambda_b = (alphast2/alphaopt1 - alphaopt2/alphaopt1)*ds
         DE   = engs - (alphaopt2/alphaopt1)*ds
     else:
-        spin = initial[0]
         num  = int(initial[1:])
         engs = [i for i in data.columns if f'e_{spin}' in i and 'osc' not in i]
         engs = [i for i in engs if int(i.split('_')[1][1:]) > num]
@@ -802,6 +820,7 @@ def absorption(initial,dielec,data=None, save=False):
     DE      = np.take_along_axis(DE,argsort,axis=1)
     oscs    = np.take_along_axis(oscs,argsort,axis=1)
     lambda_b= np.take_along_axis(lambda_b,argsort,axis=1)
+    ds      = np.take_along_axis(ds,argsort,axis=1)	
     Ltotal = np.sqrt(2*lambda_b*kbT + kbT**2)
     left   = max(np.min(DE-2*Ltotal),0.01)
     right  = np.max(DE+2*Ltotal)    
@@ -822,17 +841,31 @@ def absorption(initial,dielec,data=None, save=False):
     sigma = np.sum(sigma,axis=1)
     #append total to mean_y
     mean_y = np.append(mean_y,total[:,np.newaxis],axis=1)
+
+    # make dataframe
+    labels = [initial[0].upper()+str(int(initial[1:])+i+1) for i in range(0,mean_y.shape[1]-1)]
+    labels += ['Total','Error']
+    labels = ['Energy'] + labels
+    abs_spec = pd.DataFrame(np.hstack((x[:,np.newaxis],mean_y,sigma[:,np.newaxis])),columns=labels)
+    
     if save:
         arquivo  = nemo.tools.naming(f'cross_section_{initial.upper()}_.lx')
         primeira = f"{'Energy(ev)':8s} {'cross_section(A^2)':8s} {'error(A^2)':8s}\nAbsorption from State: {initial.upper()}\nEpsilon: {eps:.3f} nr: {nr:.3f}\n"
-        labels = [initial[0].upper()+str(int(initial[1:])+i+1) for i in range(0,mean_y.shape[1]-1)]
-        labels += ['Total','Error']
-        labels = ['Energy(eV)'] + labels
         labels = ['{:14s}'.format(i) for i in labels]
         primeira += ' '.join(labels)
         fmt = ['%14.6e' for i in range(0,mean_y.shape[1])]
         fmt = ' '.join(fmt)
         np.savetxt(arquivo, np.hstack((x[:,np.newaxis],mean_y,sigma[:,np.newaxis])), fmt='%14.6f '+ fmt +' %14.6e', header=primeira)
         print(f'Spectrum printed in the {arquivo} file')
-    return x, mean_y, sigma             
+
+    # concatenate oscs[:,:,0] with DE[:,:,0] and ds
+    colunas = [f'{initial.upper()}->{spin.upper()}{i}' for i in range(int(initial[1:])+1,int(initial[1:])+oscs.shape[1]+1)]
+    colunas += [f'eng_{spin}{i}' for i in range(int(initial[1:])+1,int(initial[1:])+DE.shape[1]+1)]
+    colunas += [f'chi_{spin}{i}' for i in range(int(initial[1:])+1,int(initial[1:])+ds.shape[1]+1)]
+    # concatenate oscs[:,:,0] with DE[:,:,0] and ds
+    breakdown = pd.DataFrame(np.hstack((oscs[:,:,0],(DE+lambda_b)[:,:,0],ds/alphaopt1)),columns=colunas)
+    if detailed:
+        return abs_spec, breakdown
+    else:
+        return abs_spec          
 #########################################################################################
