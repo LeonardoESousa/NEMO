@@ -575,10 +575,16 @@ def gather_data(initial,save=True):
         data = np.hstack((Numbers,Singlets,Triplets,Ss_s,Ss_t,GP[:,np.newaxis],Oscs))
     arquivo = f'Ensemble_{initial.upper()}_.lx'
     data = pd.DataFrame(data,columns=header)
-    data.insert(0,'ensemble',initial.upper())
-    data.insert(0,'kbT',kbT)
-    data.insert(0,'nr',nr_i)
-    data.insert(0,'eps',eps_i)
+    #add 'ensemble', 'kbT', 'nr', 'eps' columns with constant values
+    # values are initial.upper(), kbT, nr_i, eps_i
+    data['ensemble'] = initial.upper()
+    data['kbT']      = kbT
+    data['nr']       = nr_i
+    data['eps']      = eps_i
+    # make these the first columns
+    cols = data.columns.tolist()
+    cols = cols[-4:] + cols[:-4]
+    data = data[cols]
     if save:
         data.to_csv(arquivo,index=False)
     return data
@@ -622,6 +628,20 @@ def reorder(initial_state, final_state, Ss_i, Ss_f, socs):
         socs_complete[:,:,j] = np.take_along_axis(socs_complete[:,:,j], argsort, axis=1)
     return initial_state, final_state, Ss_i, Ss_f, socs_complete
 
+
+def fix_absent_soc(data):
+    columns = data.columns.values
+    #check if at least one column contains soc_
+    if any('soc_' in i for i in columns):
+        return data
+    else:
+        singlets = [i.split('_')[1] for i in columns if 'e_s' in i]
+        triplets = [i.split('_')[1] for i in columns if 'e_t' in i]        
+        for ss in singlets:
+            for tt in triplets:
+                data[f'soc_{ss}_{tt}'] = 0
+    return data            
+
 ###CALCULATES ISC AND EMISSION RATES & SPECTRA#########################################
 def rates(initial,dielec,data=None,ensemble_average=False, detailed=False):
     if data is None:
@@ -639,6 +659,9 @@ def rates(initial,dielec,data=None,ensemble_average=False, detailed=False):
     alphaopt2  = nemo.tools.get_alpha(nr**2)
     n_state    = int(initial[1:]) -1
     initial    = initial.lower()       
+
+    data = fix_absent_soc(data)    
+
 
     #Emission Calculations
     lambda_be  = (alphast2/alphast1 - alphaopt2/alphast1)*data['gp'].to_numpy()
@@ -729,9 +752,6 @@ def rates(initial,dielec,data=None,ensemble_average=False, detailed=False):
 
 
 
-    if socs_complete.shape != delta.shape:
-        socs_complete = np.zeros(delta.shape)
-        final    = [i for i in range(socs_complete.shape[1])]
     sigma = np.sqrt(2*lambda_b*kbT + kbT**2)
     y     = (2*np.pi/hbar)*(socs_complete**2)*nemo.tools.gauss(delta,0,sigma)
     # hstack y and espectro
@@ -759,6 +779,7 @@ def rates(initial,dielec,data=None,ensemble_average=False, detailed=False):
     breakdown = pd.DataFrame(np.hstack((Ss_s/alphaopt1,Ss_t/alphaopt1)),columns=[f'chi_s{i+1}' for i in range(Ss_s.shape[1])] + [f'chi_t{i+1}' for i in range(Ss_t.shape[1])])
     # append a columns with energies named eng
     breakdown['eng'] = delta_emi
+    breakdown['sigma'] = Ltotal
     # append individual to df, use labels as columns
     breakdown = pd.concat([breakdown,pd.DataFrame(individual,columns=labels)],axis=1)
     
