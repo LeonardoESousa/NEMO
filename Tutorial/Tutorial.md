@@ -79,7 +79,7 @@ If an imaginary frequency is found, the molecule is unstable and the following c
 
 Once the optimization and the frequencies are computed, it is time to generate the ensemble.
 
-## Generating the Ensemble
+## Generating the ensemble
 
 We start by creating a folder and pasting the file *Hz_optfreqS0.out* in it. Let's name the folder **EnsembleS0**
 Now go to the **EnsembleS0** folder and run the `nemo` command
@@ -572,16 +572,14 @@ For the first method, there are two cases:
 2 . For photophysical rates:
     - Run the `nemo` command and choose option 6. Follow the instructions to set the parameters. Three files will be generated: an Ensemble file, with data from the ensemble of geometries; a differential_rate file, with the emission spectrum; a rates file, with all available rates (-> denote radiative transitions and ~> denote ISC transitions).
 
-For the second method, which is the one we recommend, the first step is running the `nemo` command with option 7 (Gather ensemble data only) of nemo
+For the second method, which is the one we recommend, the first step is running the `nemo` command with option 7 (Gather ensemble data only)
 
 ```
     cd EnsembleS0
     nemo
 ```
 
-choose option 7 and S0 state. 
-
-The file Ensemble_S0_.lx is generated
+choose option 7 and S0 state. As a result, the file Ensemble_S0_.lx is generated
 Do the same for the S1 and T1 states and the files Ensemble_S1_.lx and Ensemble_T1_.lx are generated.
 
 ```
