@@ -98,8 +98,7 @@ def interface():
             G, atomos = lx.tools.pega_geom(freqlog)
         else:    
             nemo.tools.make_ensemble(freqlog, num_geoms, T, header,'$end\n')  
-            G, atomos = nemo.tools.pega_geom(freqlog)  
-        nemo.tools.write_input(atomos,G,rem.replace(f'$rem',"$comment\n{spec}\n$end\n\n$rem\ncis_n_roots             {num_ex}\ncis_singlets            true\ncis_triplets            true\ncalc_soc                false\nSTS_MOM                 false\nCIS_RELAXED_DENSITY     TRUE\n$molecule\n{cm}\n"),'$end\n',"Opt_Lambda.com")    
+            G, atomos = nemo.tools.pega_geom(freqlog)      
     elif op == '2':
         nemo.tools.batch() 
     elif op == '3':
