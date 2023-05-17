@@ -3,7 +3,7 @@
 [![made-with-python](https://img.shields.io/badge/Made%20with-Python-1f425f.svg)](https://www.python.org/)
 [![license](https://img.shields.io/github/license/LeonardoESousa/NEMO?style=plastic)]()
 [![down](https://img.shields.io/pypi/dm/nemophoto)]()
-[![maint](https://img.shields.io/maintenance/yes/2022)]()
+[![maint](https://img.shields.io/maintenance/yes/2023)]()
 [![commit](https://img.shields.io/github/last-commit/LeonardoESousa/NEMO?style=plastic)]()
 
 
@@ -69,6 +69,8 @@ Once installed, you should be able to run the program from any folder by just us
 
 ## How to use it?
 
+Here is a quick guide on how to use the software. For a detailed tutorial, click [here](https://github.com/LeonardoESousa/NEMO/blob/main/Tutorial/Tutorial.md).
+
 1. Initial steps:
     - Create a folder for your project. Add the log file for the frequency calculation to your folder. If the frequency calculation was run with Gaussian, you must also provide a QChem input file containing some settings you wish to apply in the ensemble calculations (e.g. functional, basis set, omega value, charge and multiplicity etc). An example of such file (td.in) is provided [here](https://github.com/LeonardoESousa/NEMO/tree/main/batch_examples).
     - A frequency calculation in the S0 state is suitable for computing an absorption spectrum. For fluorescence spectra and/or ISC rates calculations from Sn states to triplet states, a Sn frequency calculation is expected. Finally, for phosphorescence spectra and/or rISC rates calculations from Tn states to singlet states, a Tn frequency calculation is expected.  
@@ -89,3 +91,4 @@ Once installed, you should be able to run the program from any folder by just us
     - For exciton properties, you must first calculate the fluorescence and absorption spectra of the donor and acceptor molecules of interest to you. Copy both spectra to a folder and inside this folder run the `nemo` command. Choose option 7. Follow the instructions to set the calculation parameters. A file will be generated with all the information. Importantly, diffusion length estimates are only sensible if donor and acceptor molecules are of the same kind. These estimations follow from the procedures described in: "de Sousa, L. E., Bueno, F. T., e Silva, G. M., da Silva Filho, D. A., & de Oliveira Neto, P. H. (2019). Fast predictions of exciton diffusion length in organic materials. Journal of Materials Chemistry C, 7(14), 4066-4071." 
 
 
+For better visualization of results, consider using  [Nemoview](https://github.com/LeonardoESousa/nemoview). 
