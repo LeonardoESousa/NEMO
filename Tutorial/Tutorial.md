@@ -3,42 +3,30 @@
 In the following, we will learn how to use NEMO package (Leonardo Evaristo de Sousa and Piotr de Silva, Journal of Chemical Theory and Computation 2021 17 (9), 5816-5824 DOI: 10.1021/acs.jctc.1c00476)
 
 This step by step tutorial will use the example of Heptazine (Hz)
-On a first hand, one will need to compute the frequencies of the optimized structures at the S0, S1, and T1 states using **QChem** au **gaussian**
-On a second hand, a wigner distribution will be computed using the **NEMO** package.
+Firsr, one will need to compute the frequencies of the optimized structures at the S0, S1, and T1 states using **QChem** ot **Gaussian**
+Then, an ensemble of geometries will be created using the **NEMO** package.
 
-Finally one will visualize the results using nemoview.
+Finally, one will visualize the results using nemoview.
 
 # Installation of the NEMO package
 
-First, we need to install the NEMO package on the machine where the calculations will be computed. This can be done by running the following cell.
+Run:
 
+`pip install nemophoto`
 
-```module load SciPy-bundle/2020.03-intel-2020a-Python-3.8.2
-    git clone https://github.com/LeonardoESousa/NEMO
-```
+To get the latest commit, run:
 
-Second, one needs to create the submission script, **~/nemo.sh** . This can be done by copy and paste the following cell.    
+`pip install git+https://github.com/LeonardoESousa/NEMO`
 
-```#!/bin/bash
-#SBATCH --mem=100GB
-#SBATCH --time=1-0
-#SBATCH -N 1
-#SBATCH -n 24
-#SBATCH --partition=xeon24
-module purge
-module use /home/energy/modules/modules/all
-module --ignore-cache load "binutils/2.31.1-GCCcore-8.2.0"
-module load iomkl
-module load QChem/5.2-multicore
-export $QCLOCALSCR=/scratch/lajour
-bash $1
-rm -rf /scratch/lajour/*
-rm slurm*out 
-```
+Alternatively, clone the repository to your computer. Inside the NEMO folder, run:
+
+`pip install .`
+
+Once installed, you should be able to run the program from any folder by just using the `nemo` command.
 
 # Ground-state optimization
 
-Nemo is interfaced with Gaussian and QChem only.
+**NEMO** is interfaced with QChem, but it also accepts Gaussian frequency calculations as input.
 
 Here is an example of optimization and frequencies calculation of the ground state of the molecule using qchem. The inputfile is **Hz_optfreqS0.com** and the outputfile is **Hz_optfreqS0.out**
 
@@ -87,35 +75,22 @@ MEM_STATIC      100
 $end
 ```
 
-If a negative frequency is found, the molecule is unstable and the following computations might be erronous. Hence, a strategy is to tighten the convergence criteria and re-run the calculation. Or rerun the optimization from the saddle point.
+If an imaginary frequency is found, the molecule is unstable and the following computations might be erronous. Hence, a strategy is to tighten the convergence criteria and re-run the calculation. Or rerun the optimization from the saddle point.
 
-Once the optimization and the frequencies are computed, it is time to generate the Wigner ensemble.
+Once the optimization and the frequencies are computed, it is time to generate the ensemble.
 
-## Wigner ensemble
+## Generating the Ensemble
 
-One needs to create the **EnsembleS0** directory and to paste the file *Hz_optfreqS0.out* in it.
-Attention, the extension of the file has to be **.out** and not **.log**.
-
-Then, one needs to create the **nemo.sh** file in the **EnsembleS0** directory. This can be done by running the following cell.
-
-
-        mkdir EnsembleS0/
-        cp Hz_optfreqS0.out EnsembleS0/
-        echo "sbatch ~/nemo.sh \$1" >> EnsembleS0/batch.sh
-
-The arborescence should look like the following :
-
-```    
-    EnsembleS0
-    ├── batch.sh
-    └── Hz_optfreqS0.out
-```
-
-Finally, go to the **EnsembleS0** folder then generate the Wigner ensemble with the following steps within the folder **EnsembleS0**
-To do so, one will select the first option *Generate the inputs for the nuclear ensemble calculation*
+We start by creating a folder and pasting the file *Hz_optfreqS0.out* in it. Let's name the folder **EnsembleS0**
+Now go to the **EnsembleS0** folder and run the `nemo` command
     
+```
         cd EnsembleS0
         nemo
+
+```
+
+The following menu will show up in the screen. Select the first option *Generate the inputs for the nuclear ensemble calculation* and follow the instructions.
 
 ```
 [EnsembleS0]$ nemo
@@ -183,13 +158,13 @@ Generating geometries...
 Done! Ready to run.
 ```
 
-The folder **Geometries** is generated with all the geometries required. These are generated along the vibrational modes. 
-In addition to the folder **Geometries**, the files Magnitudes_300K_.lx and Opt_Lambda.com are generated. The first one contains the magnitudes of the displacements along the vibrational modes. The second one is a reminescence of older version and are not useful anymore.
+The folder **Geometries** is generated with all the geometries required. These are generated according to the molecule's vibrational modes. 
+In addition to the folder **Geometries**, the file Magnitudes_300K_.lx is generated. It contains the magnitudes of the displacements along the vibrational modes and allows for an ensemble to me rebuilt.
 
-Check if the input file **Geometry-01-.com** looks like :
+Check if the input file **Geometry-1-.com** looks like :
 
 ```
-[EnsembleS0]$ cat Geometries/Geometry-01-.com
+[EnsembleS0]$ cat Geometries/Geometry-1-.com
 
 $comment
 ABSSPCT
@@ -245,7 +220,43 @@ $end
 
 ## Run the ensemble calculation
 
-In this step, one will run the ensemble calculation. This can be done with the second option of nemo with :
+The next step is running all the inidividual calculations in the ensemble. This can be done by whatever method. However, **NEMO** comes with a built in batch scheme. Usage will vary depending on the user's queue system. Here we present an example for use with slurm:  
+
+First, one needs to create the submission script, which we call here **~/nemo.sh** . The following is an example that loads the appropriate modules. The essential line is the ```bash $1``` line.   
+
+```#!/bin/bash
+#SBATCH --mem=100GB
+#SBATCH --time=1-0
+#SBATCH -N 1
+#SBATCH -n 24
+#SBATCH --partition=xeon24
+module purge
+module use /home/energy/modules/modules/all
+module --ignore-cache load "binutils/2.31.1-GCCcore-8.2.0"
+module load iomkl
+module load QChem/5.2-multicore
+export $QCLOCALSCR=/scratch/lajour
+bash $1
+rm -rf /scratch/lajour/*
+rm slurm*out 
+```
+
+Then, one needs to create the **batch.sh** file in the **EnsembleS0** directory. Assuming the **nemo.sh** file is in the user's home directory, this can be done as:
+
+```
+        echo "sbatch ~/nemo.sh \$1" >> EnsembleS0/batch.sh
+```
+
+The file structure should look like the following :
+
+```    
+    EnsembleS0
+    ├── batch.sh
+    └── Hz_optfreqS0.out
+    └── Geometries
+```
+
+Now, to run the ensemble calculation, run the `nemo` command and select he second option:
 
 ```
 [EnsembleS0]$ nemo
@@ -284,13 +295,50 @@ Maximum number of batches to be submitted simultaneously?
 Number of processors for each individual job
 12 # Depends on the partition uses: The multiplication with the “ jobs in each batch has to be equal to the number of processors in the partition
 Number of jobs in each batch. Here, 24 processors were available, so 2 job were run simultaneously with 12 procs each
-2 # Number of jobs in the queue at one time
+2 # Number of jobs in each batch file
 
 ```
+If everything is set correctly, all calculations in the Geometries folder will be run. You may check the progress of the calculations by running the `nemo` command from the EnsembleS0 folder and choosing option 3. It should look as follows:
 
-# Triplet and singlet state optimization
+```
+#     # ####### #     # #######
+##    # #       ##   ## #     #
+# #   # #       # # # # #     #
+#  #  # #####   #  #  # #     #
+#   # # #       #     # #     #
+#    ## #       #     # #     #
+#     # ####### #     # #######
+----------Photophysics---------
 
-Here is an example of optimization and frequencies calculation of the ground state of the molecule using qchem. The input files are **Hz_optfreqS1.com** and **Hz_optfreqT1.com** and the output files are **Hz_optfreqS1.out** **Hz_optfreqT1.out**
+Choose your option:
+
+ENSEMBLE SETUP:
+        1 - Generate the inputs for the nuclear ensemble calculation
+        2 - Run the ensemble calculations
+        3 - Check the progress of the calculations
+        4 - Abort my calculations
+ABSORPTION:
+        5 - Generate the absorption spectrum
+EXCITED STATE PROPERTIES (FLUORESCENCE, PHOSPHORESCENCE, ISC):
+        6 - Estimate rates and compute emission spectrum
+ENSEMBLE DATA:
+        7 - Gather ensemble data only
+EXCITON ANALYSIS:
+        8 - Estimate Förster radius, fluorescence lifetime and exciton diffusion lengths
+3
+
+
+There are 283 successfully completed calculations out of 500 inputs
+There are 3 failed jobs. If you used option 2, check the nohup.out file for details.
+57.2 % of the calculations have been run.
+```
+
+Failed jobs may require extra keywords increasing, for instance, the number of SCF cycles. 
+
+
+# Excited state optimization
+
+Here is an example of optimization and frequencies calculation of the first singlet and triplet excited state of the molecule using **Qchem**. The input files are **Hz_optfreqS1.com** and **Hz_optfreqT1.com** and the output files are **Hz_optfreqS1.out** **Hz_optfreqT1.out**
 
 ```
 $rem
@@ -351,7 +399,7 @@ $end
 
 ```
 
-## Wigner ensemble
+## Generating the ensemble
 
 One needs to create the **EnsembleS1** (**EnsembleT1**) directory and to paste the file *Hz_optfreqS1.out* (*Hz_optfreqT1.out*)in it.
 
@@ -364,12 +412,12 @@ Then, one needs to create the **nemo.sh** file in the **EnsembleS1** (**Ensemble
 ```
  or
 ```
-         mkdir EnsembleT1/
+        mkdir EnsembleT1/
         cp Hz_optfreqS1.out EnsembleT1/
         echo "sbatch ~/nemo.sh \$1" >> EnsembleT1/batch.sh       
 ```
 
-The arborescence should look like the following :
+The folder structure should look like the following :
 
 ```    
     EnsembleS1
@@ -381,13 +429,14 @@ or
     └── Hz_optfreqT1.out
 ```
 
-Finally, go to the **EnsembleS1** (**EnsembleT1**) folder then generate the Wigner ensemble with the following steps within the folder **EnsembleS1** (**EnsembleT1**)
-To do so, one will select the first option *Generate the inputs for the nuclear ensemble calculation*
+Finally, go to the **EnsembleS1** (**EnsembleT1**) folder and generate the ensemble with the following steps using the `nemo` command with the first option *Generate the inputs for the nuclear ensemble calculation*
     
+```    
         cd EnsembleS1
         nemo
+```
 
-At the difference from the ground-state ensemble, for the question "Prepare input for absorption or fluorescence spectrum only? (y or n)" press "n".        
+Differently from the ground-state ensemble, for the question "Prepare input for absorption or fluorescence spectrum only? (y or n)" press "n". This will enable the calculation of spin-orbit couplings necessary for ISC and phosphorescence calculations.       
 
 ```
 [EnsembleS1]$ nemo
@@ -511,43 +560,19 @@ N   -1.33974510675090  1.98137815058730  0.06565404616007
 $end
 ```
 
-# Visualization of the results
+# Obtaining results
 
-## Creation of the visualization environment on your work computer
+Once all calculations are run, there are basically two options to get results. The first is generating files with the spectra and rates. The second is using a separate  visualization tool called [Nemoview](https://github.com/LeonardoESousa/nemoview).
 
-Download **Visualization code studio** (https://code.visualstudio.com/) and install it on your machine.
+For the first method, there are two cases:
 
-Open Visual Studio Code and create a virtual environment 
+1. For absorption spectrum simulations:
+    - Run the `nemo` command and choose option 5. Follow the instructions to set the parameters and the spectrum will be generated. 
 
-```    
-    python -m venv view and activate this environment : & “.view\Scripts\activate”
-Note, to deactivate the environment, run the following command: 
-        & “.view\Scripts\deactivate”
-```
+2 . For photophysical rates:
+    - Run the `nemo` command and choose option 6. Follow the instructions to set the parameters. Three files will be generated: an Ensemble file, with data from the ensemble of geometries; a differential_rate file, with the emission spectrum; a rates file, with all available rates (-> denote radiative transitions and ~> denote ISC transitions).
 
-Import nemoview from github (i.e **Voilà** package)
-```
-    pip install git+https://github.com/LeonardoESousa/NEMO
-
-    git clone https://github.com/LeonardoESousa/nemoview
-    
-    cd .\nemoview\
-
-    pip install .
-```
-Import and install labplot
-```   
-    pip install git+https://github.com/LeonardoESousa/labplot
-```
-
-to open nemoview :
-```
-$nemoview    
-```
-
-# Generation of the results file
-
-The vizualization of the results can be done through the options 5 (Generate the absorption spectrum) and 7 (Gather ensemble data only, used for nemoview) of nemo
+For the second method, which is the one we recommend, the first step is running the `nemo` command with option 7 (Gather ensemble data only) of nemo
 
 ```
     cd EnsembleS0
@@ -590,4 +615,4 @@ What is the initial state (S0, S1, T1, S2 ...)? Accepts comma separated values E
 S0 # I visualize the results obtianed from the ground-state geometry
 ```
 
-Copy the files **Ensemble_S0_.lx**, **Ensemble_S1_.lx**, **Ensemble_T1_.lx** to your work directory on your computer. and move to the Tutorial_nemoview tutorial.
+Copy the files **Ensemble_S0_.lx**, **Ensemble_S1_.lx**, **Ensemble_T1_.lx** to your work directory on your computer and follow the tutorial on the [Nemoview](https://github.com/LeonardoESousa/nemoview) page.
