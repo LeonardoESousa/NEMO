@@ -410,6 +410,7 @@ def detect_sigma():
 ##FETCHES REFRACTIVE INDEX##################################### 
 def get_nr():
     nr = 1
+    epsilon = 1
     coms = [file for file in os.listdir("Geometries") if 'Geometr' in file and '.com' in file]
     with open('Geometries/'+coms[0],'r') as f:
         for line in f:

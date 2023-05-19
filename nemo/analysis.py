@@ -795,7 +795,7 @@ def rates(initial,dielec,data=None,ensemble_average=False, detailed=False):
 #########################################################################################    
 
 ###COMPUTES ABSORPTION SPECTRA########################################################### 
-def absorption(initial,dielec,data=None, save=False, detailed=False):
+def absorption(initial,dielec,data=None, save=False, detailed=False, nstates=-1):
     if data is None:
         data        = gather_data(initial,save=True) 
         eps_i, nr_i = nemo.tools.get_nr()
@@ -847,10 +847,11 @@ def absorption(initial,dielec,data=None, save=False, detailed=False):
     right  = np.max(DE+2*Ltotal)    
     x      = np.linspace(left,right,int((right-left)/0.01))
     # Add extra dimension to DE and Ltotal to match x shape
-    DE      = DE[:,:,np.newaxis]
-    Ltotal  = Ltotal[:,:,np.newaxis]
-    oscs  = oscs[:,:,np.newaxis]
-    lambda_b = lambda_b[:,:,np.newaxis]
+    nstates = min(nstates,DE.shape[1])
+    DE      = DE[:,:nstates,np.newaxis]
+    Ltotal  = Ltotal[:,:nstates,np.newaxis]
+    oscs  = oscs[:,:nstates,np.newaxis]
+    lambda_b = lambda_b[:,:nstates,np.newaxis]
     y      = constante*oscs*nemo.tools.gauss(x,(DE+lambda_b),Ltotal)
     N      = oscs.shape[0]
     mean_y = np.sum(y,axis=0)/N 
