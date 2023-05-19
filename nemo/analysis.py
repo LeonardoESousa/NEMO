@@ -635,8 +635,8 @@ def fix_absent_soc(data):
     if any('soc_' in i for i in columns):
         return data
     else:
-        singlets = [i.split('_')[1] for i in columns if 'e_s' in i]
-        triplets = [i.split('_')[1] for i in columns if 'e_t' in i]        
+        singlets = [i.split('_')[1] for i in columns if 'e_s' in i and 'osc' not in i]
+        triplets = [i.split('_')[1] for i in columns if 'e_t' in i and 'osc' not in i]        
         for ss in singlets:
             for tt in triplets:
                 data[f'soc_{ss}_{tt}'] = 0
