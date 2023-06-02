@@ -3,6 +3,7 @@ import numpy as np
 import os
 import sys
 from scipy.stats import norm
+import pandas as pd
 
 ##SOME CONSTANTS##############################################
 epsilon0 = 8.854187817e-12   #F/m
@@ -224,8 +225,22 @@ def make_ensemble(freqlog, num_geoms, T, header, bottom):
     counter = start_counter()   
     print("\nGenerating geometries...\n")
     numbers, atomos, A = sample_geometries(freqlog,num_geoms,T)
-    with open(f'Magnitudes_{T:.0f}K_.lx', 'a') as file:
-        np.savetxt(file, numbers, delimiter='\t', fmt='%s')
+    F, M      = pega_freq(freqlog)
+    #convert numbers to dataframe
+    numbers = pd.DataFrame(numbers,columns=[f"mode_{i+1}" for i in range(np.shape(numbers)[1])])
+    #check if file exists
+    #check if file exists
+    if os.path.isfile(f'Magnitudes_{T:.0f}K_.lx'):
+        data = pd.read_csv(f'Magnitudes_{T:.0f}K_.lx')
+        # get only columns with mode_ in the name
+        data = data.filter(regex='mode_')
+        #remove nan values
+        data = data.dropna()
+        # join data and numbers on axis 0
+        numbers = pd.concat([data,numbers],axis=0,ignore_index=True)
+    # concatenate frequencies and masses to numbers
+    numbers = pd.concat([pd.DataFrame(F,columns=['freq']),pd.DataFrame(M,columns=['mass']),numbers],axis=1)
+    numbers.to_csv(f'Magnitudes_{T:.0f}K_.lx',index=False)
     for n in range(0,np.shape(A)[1],3):
         Gfinal = A[:,n:n+3]  
         write_input(atomos,Gfinal,header,bottom,"Geometries/Geometry-"+str((n+3)//3+counter)+"-.com")

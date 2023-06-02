@@ -585,6 +585,15 @@ def gather_data(initial,save=True):
     cols = data.columns.tolist()
     cols = cols[-4:] + cols[:-4]
     data = data[cols]
+    # look for file with Magnitudes_ in the name
+    # if it exists, add the Magnitude to the dataframe
+    try:
+        mag = pd.read_csv([i for i in os.listdir() if 'Magnitudes_' in i][0])
+        # concatenate the dataframes
+        data = pd.concat([mag,data],axis=1)
+    except:
+        nemo.tools.fatal_error('No Magnitudes file found! Goodbye!')
+
     if save:
         data.to_csv(arquivo,index=False)
     return data
@@ -643,7 +652,7 @@ def fix_absent_soc(data):
     return data            
 
 ###CALCULATES ISC AND EMISSION RATES & SPECTRA#########################################
-def rates(initial,dielec,data=None,ensemble_average=False, detailed=False):
+def rates(initial,dielec,data=None,ensemble_average=False, detailed=False,importance=1,temperature=-1):
     if data is None:
         data        = gather_data(initial,save=True) 
         eps_i, nr_i = nemo.tools.get_nr()
@@ -651,7 +660,10 @@ def rates(initial,dielec,data=None,ensemble_average=False, detailed=False):
     else:
         eps_i  = data['eps'][0]
         nr_i   = data['nr'][0]
+    if temperature == -1 and data is not None:    
         kbT    = data['kbT'][0]
+    elif temperature != -1 and data is not None:
+        kbT    = nemo.tools.kb*temperature    
     eps, nr    = dielec[0], dielec[1]
     alphast1   = nemo.tools.get_alpha(eps_i)
     alphast2   = nemo.tools.get_alpha(eps)  
@@ -678,7 +690,7 @@ def rates(initial,dielec,data=None,ensemble_average=False, detailed=False):
     delta_emi   = delta_emi[:,n_state]
     oscs        = oscs[:,n_state]
     energies    = np.take_along_axis(energies, argsort_emi, axis=1)[:,n_state]
-    espectro    = (constante*((delta_emi-lambda_be)**2)*oscs)
+    espectro    = (constante*((delta_emi-lambda_be)**2)*oscs)*importance
     tdm         = nemo.tools.calc_tdm(oscs,energies,espectro)    
     left        = max(min(delta_emi-2*Ltotal),0.01)
     right       = max(delta_emi+2*Ltotal)    
@@ -753,7 +765,10 @@ def rates(initial,dielec,data=None,ensemble_average=False, detailed=False):
 
 
     sigma = np.sqrt(2*lambda_b*kbT + kbT**2)
-    y     = (2*np.pi/hbar)*(socs_complete**2)*nemo.tools.gauss(delta,0,sigma)
+    if type(importance) == int:
+        y     = (2*np.pi/hbar)*(socs_complete**2)*nemo.tools.gauss(delta,0,sigma)
+    else:
+        y     = importance[:,np.newaxis]*(2*np.pi/hbar)*(socs_complete**2)*nemo.tools.gauss(delta,0,sigma)
     # hstack y and espectro
     individual = np.hstack((espectro[:,np.newaxis],y))
     individual /= individual.shape[0]
@@ -795,7 +810,7 @@ def rates(initial,dielec,data=None,ensemble_average=False, detailed=False):
 #########################################################################################    
 
 ###COMPUTES ABSORPTION SPECTRA########################################################### 
-def absorption(initial,dielec,data=None, save=False, detailed=False, nstates=-1):
+def absorption(initial,dielec,data=None, save=False, detailed=False, nstates=-1,importance=1,temperature=-1):
     if data is None:
         data        = gather_data(initial,save=True) 
         eps_i, nr_i = nemo.tools.get_nr()
@@ -803,7 +818,10 @@ def absorption(initial,dielec,data=None, save=False, detailed=False, nstates=-1)
     else:
         eps_i  = data['eps'][0]
         nr_i   = data['nr'][0]
+    if temperature == -1 and data is not None:    
         kbT    = data['kbT'][0]
+    elif temperature != -1 and data is not None:
+        kbT    = nemo.tools.kb*temperature
     eps, nr    = dielec[0], dielec[1]
     alphast1   = nemo.tools.get_alpha(eps_i)
     alphast2   = nemo.tools.get_alpha(eps)  
@@ -852,7 +870,12 @@ def absorption(initial,dielec,data=None, save=False, detailed=False, nstates=-1)
     Ltotal  = Ltotal[:,:nstates,np.newaxis]
     oscs  = oscs[:,:nstates,np.newaxis]
     lambda_b = lambda_b[:,:nstates,np.newaxis]
-    y      = constante*oscs*nemo.tools.gauss(x,(DE+lambda_b),Ltotal)
+    if type(importance) == int:
+        y      = constante*oscs*nemo.tools.gauss(x,(DE+lambda_b),Ltotal)
+    else:
+        # make importance same shape as oscs
+        importance = np.repeat(importance[:,np.newaxis],oscs.shape[1],axis=1)
+        y      = importance[:,:,np.newaxis]*constante*oscs*nemo.tools.gauss(x,(DE+lambda_b),Ltotal)
     N      = oscs.shape[0]
     mean_y = np.sum(y,axis=0)/N 
     #Error estimate
