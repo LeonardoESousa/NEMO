@@ -42,7 +42,7 @@ def pega_energias(file):
     with open(file, 'r') as f:
         exc = False
         corr = False
-        correction = []
+        correction, correction2 = [], []
         for line in f:
             if 'TDDFT/TDA Excitation Energies' in line or 'TDDFT Excitation Energies' in line:
                 energies, spins, oscs, ind = [], [], [], []
@@ -64,6 +64,8 @@ def pega_energias(file):
                 exc = False
             elif 'SS-PCM correction' in line and corr:
                 correction.append(-1*float(line.split()[3]))
+            elif 'LR-PCM correction' in line and corr:
+                correction2.append(-2*float(line.split()[3]))    
             elif '------------------------ END OF SUMMARY -----------------------' in line and corr:
                 corr = False      
             elif 'Total energy in the final basis set' in line:
@@ -74,11 +76,11 @@ def pega_energias(file):
             sol_int = total_nopcm
             total_free = total_nopcm
         singlets   = np.array([energies[i] for i in range(len(energies)) if spins[i] == 'Singlet'])
-        ss_s       = np.array([correction[i]   for i in range(len(correction))   if spins[i] == 'Singlet'])
+        ss_s       = np.array([correction[i]+correction2[i]   for i in range(len(correction))   if spins[i] == 'Singlet'])
         ind_s      = np.array([ind[i] for i in range(len(ind)) if spins[i] == 'Singlet'])
         oscs       = np.array([oscs[i] for i in range(len(energies)) if spins[i] == 'Singlet'])
         triplets   = np.array([energies[i] for i in range(len(energies)) if spins[i] == 'Triplet'])
-        ss_t       = np.array([correction[i]   for i in range(len(correction))   if spins[i] == 'Triplet'])
+        ss_t       = np.array([correction[i]+correction2[i]   for i in range(len(correction))   if spins[i] == 'Triplet'])
         ind_t      = np.array([ind[i] for i in range(len(ind)) if spins[i] == 'Triplet'])
         
         oscs       = np.array([x for _, x in zip(singlets, oscs)])
