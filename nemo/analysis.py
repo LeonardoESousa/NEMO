@@ -730,7 +730,7 @@ def rates(initial,dielec,data=None,ensemble_average=False, detailed=False,import
         socs_complete = socs_complete[:,n_state,:]
         delta = final_state - np.repeat(initial_state[:,np.newaxis],final_state.shape[1],axis=1)
         lambda_b = (alphast2/alphaopt1 - alphaopt2/alphaopt1)*Ss_t
-        final    = [i.split('_')[2].upper() for i in data.columns.values if 'soc_s1' in i]
+        final    = [i.split('_')[2].upper() for i in data.columns.values if 'soc_'+initial.lower()+'_' in i]
         ##FOR WHEN IC IS AVAILABLE
         #socs_complete = np.hstack((socs_complete,0.0001*np.ones((Singlets.shape[0],Singlets.shape[1]-1))))
         #delta_ss = Singlets + np.repeat((alphast2/alphaopt1)*Ss_s[:,n_state][:,np.newaxis] - Singlets[:,n_state][:,np.newaxis],Singlets.shape[1],axis=1) - (alphaopt2/alphaopt1)*Ss_s    #Sm (final) - Sn (initial) + lambda_b
@@ -748,7 +748,7 @@ def rates(initial,dielec,data=None,ensemble_average=False, detailed=False,import
         socs_complete = socs_complete[:,n_state,:]
         delta = final_state - np.repeat(initial_state[:,np.newaxis],final_state.shape[1],axis=1)
         lambda_b = (alphast2/alphaopt1 - alphaopt2/alphaopt1)*Ss_s
-        final    = [i.split('_')[2].upper() for i in data.columns.values if 'soc_t1' in i and i.count('t') == 1]
+        final    = [i.split('_')[2].upper() for i in data.columns.values if 'soc_'+initial.lower()+'_' in i and i.count('t') == 1]
         #Tn to S0 ISC
         socs_s0 = data[[i for i in data.columns.values if f'soc_t' in i and 's0' in i]].to_numpy()
         socs_s0 = np.take_along_axis(socs_s0, argsort_emi, axis=1)
