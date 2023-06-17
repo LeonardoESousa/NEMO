@@ -510,3 +510,21 @@ def calc_emi_rate(xd,yd,dyd):
     return taxa, error 
 ###############################################################
 
+def convert_magnitudes(freqlog,magfile):
+    try:
+        F0, M0      = nemo.tools.pega_freq(freqlog)
+    except:
+        from lx.tools import pega_freq
+        print('I hope this is a Gaussian output file...')
+        F0, M0      = pega_freq(freqlog)
+    magsource = np.loadtxt(magfile)
+    mag = pd.DataFrame(magsource,columns=[f"mode_{i+1}" for i in range(np.shape(magsource)[1])])
+    mag = pd.concat([pd.DataFrame(F0,columns=['freq']),pd.DataFrame(M0,columns=['mass']),mag],axis=1)
+    data = pd.read_csv(ensemble)
+    data = pd.concat([mag,data],axis=1)
+    # rename magfile
+    os.rename(magfile,magfile.replace('Magnitudes','OLD'))
+    #save as csv
+    data.to_csv(magfile,index=False)
+
+

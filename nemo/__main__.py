@@ -25,6 +25,8 @@ def interface():
     print("\t7 - Gather ensemble data only")
     print('EXCITON ANALYSIS:')
     print("\t8 - Estimate Förster radius, fluorescence lifetime and exciton diffusion lengths")
+    print('UPDATING ENSEMBLES FROM PREVIOUS VERSIONS:')
+    print("\t9 - Convert magnitudes file from previous versions")
     op = input()
     if op == '1':
         freqlog = nemo.tools.fetch_file("frequency",['.out', '.log'])
@@ -153,6 +155,13 @@ def interface():
     elif op == '8':
         from lx.tools import ld
         ld()   
+    elif op == '9':
+        freqlog = nemo.tools.fetch_file("frequency",['.out', '.log'])
+        magfile = nemo.tools.fetch_file("Magnitudes",['.lx'])
+        try:
+            nemo.tools.convert_magnitudes(freqlog,magfile)
+        except:
+            nemo.tools.fatal_error("Something went wrong. Maybe your Magnitudes file is already up to date. Goodbye!")    
     else:
         nemo.tools.fatal_error("It must be one of the options... Goodbye!")
 
