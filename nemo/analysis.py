@@ -591,6 +591,11 @@ def gather_data(initial,save=True):
     # if it exists, add the Magnitude to the dataframe
     try:
         mag = pd.read_csv([i for i in os.listdir() if 'Magnitudes_' in i][0])
+        total = list(range(1,mag.shape[0]+1))
+        absent = [i for i in total if i not in mag['geometry'].values]
+        for ab in absent:
+            mag.drop(ab-1,inplace=True)
+        assert mag.shape[0] == data.shape[0]    
         # concatenate the dataframes
         data = pd.concat([mag,data],axis=1)
     except:
