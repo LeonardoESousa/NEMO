@@ -594,6 +594,7 @@ def gather_data(initial,save=True):
         total = list(range(1,mag.shape[0]+1))
         absent = [i-1 for i in total if i not in data['geometry'].values]
         if len(absent) > 0:
+            print(f'WARNING: The following geometries are defective and will be removed from the dataset: {[i+1 for i in absent]}')
             freqmass = mag[['freq','mass']]
             #drop nan values
             freqmass = freqmass.dropna()
