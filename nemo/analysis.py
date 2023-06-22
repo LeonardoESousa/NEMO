@@ -592,9 +592,18 @@ def gather_data(initial,save=True):
     try:
         mag = pd.read_csv([i for i in os.listdir() if 'Magnitudes_' in i][0])
         total = list(range(1,mag.shape[0]+1))
-        absent = [i for i in total if i not in mag['geometry'].values]
-        for ab in absent:
-            mag.drop(ab-1,inplace=True)
+        absent = [i-1 for i in total if i not in data['geometry'].values]
+        if len(absent) > 0:
+            freqmass = mag[['freq','mass']]
+            #drop nan values
+            freqmass = freqmass.dropna()
+            mag = mag.drop(['freq','mass'],axis=1)
+            # drop rows in absent
+            mag = mag.drop(absent,axis=0)
+            # concatenate freqmass and mag
+            mag.reset_index(inplace=True)
+            freqmass.reset_index(inplace=True)
+            mag = pd.concat([freqmass,mag],axis=1)    
         assert mag.shape[0] == data.shape[0]    
         # concatenate the dataframes
         data = pd.concat([mag,data],axis=1)
