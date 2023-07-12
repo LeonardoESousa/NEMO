@@ -882,17 +882,18 @@ def absorption(initial,dielec,data=None, save=False, detailed=False, nstates=-1,
     right  = np.max(DE+2*Ltotal)    
     x      = np.linspace(left,right,int((right-left)/0.01))
     # Add extra dimension to DE and Ltotal to match x shape
-    nstates = min(nstates,DE.shape[1])
+    if nstates == -1:
+        nstates = DE.shape[1]
     DE      = DE[:,:nstates,np.newaxis]
     Ltotal  = Ltotal[:,:nstates,np.newaxis]
     oscs  = oscs[:,:nstates,np.newaxis]
-    lambda_b = lambda_b[:,:nstates,np.newaxis]
+    #lambda_b = lambda_b[:,:nstates,np.newaxis]
     if type(importance) == int:
-        y      = constante*oscs*nemo.tools.gauss(x,(DE+lambda_b),Ltotal)
+        y      = constante*oscs*nemo.tools.gauss(x,DE,Ltotal)
     else:
         # make importance same shape as oscs
         importance = np.repeat(importance[:,np.newaxis],oscs.shape[1],axis=1)
-        y      = importance[:,:,np.newaxis]*constante*oscs*nemo.tools.gauss(x,(DE+lambda_b),Ltotal)
+        y      = importance[:,:,np.newaxis]*constante*oscs*nemo.tools.gauss(x,DE,Ltotal)
     N      = oscs.shape[0]
     mean_y = np.sum(y,axis=0)/N 
     #Error estimate
@@ -924,8 +925,9 @@ def absorption(initial,dielec,data=None, save=False, detailed=False, nstates=-1,
     colunas = [f'{initial.upper()}->{spin.upper()}{i}' for i in range(int(initial[1:])+1,int(initial[1:])+oscs.shape[1]+1)]
     colunas += [f'eng_{spin}{i}' for i in range(int(initial[1:])+1,int(initial[1:])+DE.shape[1]+1)]
     colunas += [f'chi_{spin}{i}' for i in range(int(initial[1:])+1,int(initial[1:])+ds.shape[1]+1)]
+    colunas += [f'sigma_{spin}{i}' for i in range(int(initial[1:])+1,int(initial[1:])+Ltotal.shape[1]+1)]
     # concatenate oscs[:,:,0] with DE[:,:,0] and ds
-    breakdown = pd.DataFrame(np.hstack((oscs[:,:,0],(DE+lambda_b)[:,:,0],ds/alphaopt1)),columns=colunas)
+    breakdown = pd.DataFrame(np.hstack((oscs[:,:,0],DE[:,:,0],ds/alphaopt1,Ltotal[:,:,0])),columns=colunas)
     if detailed:
         return abs_spec, breakdown
     else:
