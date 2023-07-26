@@ -42,7 +42,7 @@ def pega_energias(file):
     with open(file, 'r') as f:
         exc = False
         corr = False
-        correction = []
+        correction, correction2 = [], []
         for line in f:
             if 'TDDFT/TDA Excitation Energies' in line or 'TDDFT Excitation Energies' in line:
                 energies, spins, oscs, ind = [], [], [], []
@@ -64,6 +64,8 @@ def pega_energias(file):
                 exc = False
             elif 'SS-PCM correction' in line and corr:
                 correction.append(-1*float(line.split()[3]))
+            elif 'LR-PCM correction' in line and corr:
+                correction2.append(-2*float(line.split()[3]))    
             elif '------------------------ END OF SUMMARY -----------------------' in line and corr:
                 corr = False      
             elif 'Total energy in the final basis set' in line:
@@ -74,11 +76,11 @@ def pega_energias(file):
             sol_int = total_nopcm
             total_free = total_nopcm
         singlets   = np.array([energies[i] for i in range(len(energies)) if spins[i] == 'Singlet'])
-        ss_s       = np.array([correction[i]   for i in range(len(correction))   if spins[i] == 'Singlet'])
+        ss_s       = np.array([correction[i]+correction2[i]   for i in range(len(correction))   if spins[i] == 'Singlet'])
         ind_s      = np.array([ind[i] for i in range(len(ind)) if spins[i] == 'Singlet'])
         oscs       = np.array([oscs[i] for i in range(len(energies)) if spins[i] == 'Singlet'])
         triplets   = np.array([energies[i] for i in range(len(energies)) if spins[i] == 'Triplet'])
-        ss_t       = np.array([correction[i]   for i in range(len(correction))   if spins[i] == 'Triplet'])
+        ss_t       = np.array([correction[i]+correction2[i]   for i in range(len(correction))   if spins[i] == 'Triplet'])
         ind_t      = np.array([ind[i] for i in range(len(ind)) if spins[i] == 'Triplet'])
         
         oscs       = np.array([x for _, x in zip(singlets, oscs)])
@@ -716,7 +718,7 @@ def rates(initial,dielec,data=None,ensemble_average=False, detailed=False):
         socs_complete = socs_complete[:,n_state,:]
         delta = final_state - np.repeat(initial_state[:,np.newaxis],final_state.shape[1],axis=1)
         lambda_b = (alphast2/alphaopt1 - alphaopt2/alphaopt1)*Ss_t
-        final    = [i.split('_')[2].upper() for i in data.columns.values if 'soc_s1' in i]
+        final    = [i.split('_')[2].upper() for i in data.columns.values if 'soc_'+initial.lower()+'_' in i]
         ##FOR WHEN IC IS AVAILABLE
         #socs_complete = np.hstack((socs_complete,0.0001*np.ones((Singlets.shape[0],Singlets.shape[1]-1))))
         #delta_ss = Singlets + np.repeat((alphast2/alphaopt1)*Ss_s[:,n_state][:,np.newaxis] - Singlets[:,n_state][:,np.newaxis],Singlets.shape[1],axis=1) - (alphaopt2/alphaopt1)*Ss_s    #Sm (final) - Sn (initial) + lambda_b
@@ -734,7 +736,7 @@ def rates(initial,dielec,data=None,ensemble_average=False, detailed=False):
         socs_complete = socs_complete[:,n_state,:]
         delta = final_state - np.repeat(initial_state[:,np.newaxis],final_state.shape[1],axis=1)
         lambda_b = (alphast2/alphaopt1 - alphaopt2/alphaopt1)*Ss_s
-        final    = [i.split('_')[2].upper() for i in data.columns.values if 'soc_t1' in i and i.count('t') == 1]
+        final    = [i.split('_')[2].upper() for i in data.columns.values if 'soc_'+initial.lower()+'_' in i and i.count('t') == 1]
         #Tn to S0 ISC
         socs_s0 = data[[i for i in data.columns.values if f'soc_t' in i and 's0' in i]].to_numpy()
         socs_s0 = np.take_along_axis(socs_s0, argsort_emi, axis=1)
@@ -846,13 +848,14 @@ def absorption(initial,dielec,data=None, save=False, detailed=False, nstates=-1)
     left   = max(np.min(DE-2*Ltotal),0.01)
     right  = np.max(DE+2*Ltotal)    
     x      = np.linspace(left,right,int((right-left)/0.01))
-    # Add extra dimension to DE and Ltotal to match x shape
-    nstates = min(nstates,DE.shape[1])
+    if nstates == -1:
+        nstates = DE.shape[1]
+    # Add extra dimension to DE and Ltotal to match x shape    
     DE      = DE[:,:nstates,np.newaxis]
     Ltotal  = Ltotal[:,:nstates,np.newaxis]
     oscs  = oscs[:,:nstates,np.newaxis]
     lambda_b = lambda_b[:,:nstates,np.newaxis]
-    y      = constante*oscs*nemo.tools.gauss(x,(DE+lambda_b),Ltotal)
+    y      = constante*oscs*nemo.tools.gauss(x,DE,Ltotal)
     N      = oscs.shape[0]
     mean_y = np.sum(y,axis=0)/N 
     #Error estimate
@@ -884,8 +887,9 @@ def absorption(initial,dielec,data=None, save=False, detailed=False, nstates=-1)
     colunas = [f'{initial.upper()}->{spin.upper()}{i}' for i in range(int(initial[1:])+1,int(initial[1:])+oscs.shape[1]+1)]
     colunas += [f'eng_{spin}{i}' for i in range(int(initial[1:])+1,int(initial[1:])+DE.shape[1]+1)]
     colunas += [f'chi_{spin}{i}' for i in range(int(initial[1:])+1,int(initial[1:])+ds.shape[1]+1)]
+    colunas += [f'sigma_{spin}{i}' for i in range(int(initial[1:])+1,int(initial[1:])+Ltotal.shape[1]+1)]
     # concatenate oscs[:,:,0] with DE[:,:,0] and ds
-    breakdown = pd.DataFrame(np.hstack((oscs[:,:,0],(DE+lambda_b)[:,:,0],ds/alphaopt1)),columns=colunas)
+    breakdown = pd.DataFrame(np.hstack((oscs[:,:,0],DE[:,:,0],ds/alphaopt1,Ltotal[:,:,0])),columns=colunas)
     if detailed:
         return abs_spec, breakdown
     else:
