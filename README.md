@@ -8,7 +8,7 @@
 
 Fluorescence, phosphorescence and intersystem crossing (ISC) rate calculations. Absorption, fluorescence and phosphorescence spectrum simulations. Förster radius and singlet exciton diffusion length estimates. Interfaces with the QChem package. 
 
-<img src="Tutorial/logo.jpg" alt="Alt Text" width="2000">
+<img src="Tutorial/logo.png" alt="Alt Text" width="2000">
 
 
 Table of Contents
