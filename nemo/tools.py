@@ -293,6 +293,7 @@ def delist(elem):
 
 ##CHECKS THE FREQUENCY LOG'S LEVEL OF THEORY###################
 def busca_input(freqlog):
+    cm = None
     search = True
     with open(freqlog, 'r') as f:
         for line in f:

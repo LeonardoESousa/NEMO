@@ -25,6 +25,8 @@ def interface():
     print("\t7 - Gather ensemble data only")
     print('EXCITON ANALYSIS:')
     print("\t8 - Estimate Förster radius, fluorescence lifetime and exciton diffusion lengths")
+    print("EXTRA FEATURES:")
+    print("\t9 - Perform tuning of long range corrected functional (Gaussian 09/16 only)")
     op = input()
     if op == '1':
         freqlog = nemo.tools.fetch_file("frequency",['.out', '.log'])
@@ -40,7 +42,8 @@ def interface():
             template = nemo.tools.fetch_file("QChem template",['.out', '.in'])
             import lx.tools
             _, _, _, _, _, spec = lx.tools.busca_input(freqlog)
-            rem, cm, _ = nemo.tools.busca_input(template)
+            cm = lx.tools.get_cm(freqlog)
+            rem, _, _ = nemo.tools.busca_input(template)
         else:    
             rem, cm, spec = nemo.tools.busca_input(freqlog)        
         print('\nThe suggested configurations for you are:\n')
@@ -82,10 +85,10 @@ def interface():
         abs_only = input("Prepare input for absorption or fluorescence spectrum only? (y or n)\n")
         if abs_only.lower() == 'y':
             print('Ok, calculations will only be suitable for absorption or fluorescence spectrum simulations!\n')
-            header = f"$comment\n{spec}\n$end\n\n$rem\ncis_n_roots             {num_ex}\ncis_singlets            true\ncis_triplets            true\ncalc_soc                false\nSTS_MOM                 true\nCIS_RELAXED_DENSITY     TRUE\nsolvent_method          PCM"
+            header = f"$comment\n{spec}\n$end\n\n$rem\ncis_n_roots             {num_ex}\ncis_singlets            true\ncis_triplets            true\ncalc_soc                false\nSTS_MOM                 true\nCIS_RELAXED_DENSITY     TRUE\nsolvent_method          PCM\nMAX_CIS_CYCLES        200\nMAX_SCF_CYCLES        200"
         else:
             print('Ok, calculations will be suitable for all spectra and ISC rate estimates!\n')
-            header = f"$comment\n{spec}\n$end\n\n$rem\ncis_n_roots             {num_ex}\ncis_singlets            true\ncis_triplets            true\ncalc_soc                true\nSTS_MOM                 true\nCIS_RELAXED_DENSITY     TRUE\nsolvent_method          PCM"
+            header = f"$comment\n{spec}\n$end\n\n$rem\ncis_n_roots             {num_ex}\ncis_singlets            true\ncis_triplets            true\ncalc_soc                true\nSTS_MOM                 true\nCIS_RELAXED_DENSITY     TRUE\nsolvent_method          PCM\nMAX_CIS_CYCLES        200\nMAX_SCF_CYCLES        200"
         header  =  rem.replace('$rem',header)
         header += f'$molecule\n{cm}\n'
         num_geoms = int(input("How many geometries to be sampled?\n"))
@@ -153,6 +156,9 @@ def interface():
     elif op == '8':
         from lx.tools import ld
         ld()   
+    elif op == '9':
+        from lx.tools import omega_tuning
+        omega_tuning()
     else:
         nemo.tools.fatal_error("It must be one of the options... Goodbye!")
 
