@@ -3,14 +3,17 @@ import sys
 import nemo.tools
 
 def interface():
-    print("#     # ####### #     # #######")
-    print("##    # #       ##   ## #     #")
-    print("# #   # #       # # # # #     #")
-    print("#  #  # #####   #  #  # #     #")
-    print("#   # # #       #     # #     #")
-    print("#    ## #       #     # #     #")
-    print("#     # ####### #     # #######")
-    print("----------Photophysics---------\n")
+    print("""
+    ███▄▄▄▄      ▄████████    ▄▄▄▄███▄▄▄▄    ▄██████▄ 
+    ███▀▀▀██▄   ███    ███  ▄██▀▀▀███▀▀▀██▄ ███    ███
+    ███   ███   ███    █▀   ███   ███   ███ ███    ███
+    ███   ███  ▄███▄▄▄      ███   ███   ███ ███    ███
+    ███   ███ ▀▀███▀▀▀      ███   ███   ███ ███    ███
+    ███   ███   ███    █▄   ███   ███   ███ ███    ███
+    ███   ███   ███    ███  ███   ███   ███ ███    ███
+     ▀█   █▀    ██████████   ▀█   ███   █▀   ▀██████▀ 
+    ------------------Photophysics--------------------
+    \n""")  
     print("Choose your option:\n")
     print("ENSEMBLE SETUP:")
     print("\t1 - Generate the inputs for the nuclear ensemble calculation")
@@ -30,6 +33,7 @@ def interface():
     op = input()
     if op == '1':
         freqlog = nemo.tools.fetch_file("frequency",['.out', '.log'])
+        print(f'\n\nFrequency log file: {freqlog}')
         with open(freqlog, 'r') as f:
             for line in f:
                 if 'Entering Gaussian System' in line:
@@ -39,32 +43,18 @@ def interface():
                 break
         if gauss:             
             print('You are using a Gaussian log file.')
-            template = nemo.tools.fetch_file("QChem template",['.out', '.in'])
+            template = nemo.tools.fetch_file("QChem template",['.in'])
             import lx.tools
-            _, _, _, _, _, spec = lx.tools.busca_input(freqlog)
             cm = lx.tools.get_cm(freqlog)
-            rem, _, _ = nemo.tools.busca_input(template)
+            rem, _, extra = nemo.tools.busca_input(template)
         else:    
-            rem, cm, spec = nemo.tools.busca_input(freqlog)        
-        print('\nThe suggested configurations for you are:\n')
-        print(rem)
-        change = input('Are you satisfied with these parameters? y or n?\n')
-        if change.lower() == 'n':     
-            rem2 = '$rem\n'
-            for elem in rem.split('\n'):
-                if len(elem.split()) > 1:
-                    if '$' not in elem:
-                        base = nemo.tools.default(elem, f'{elem.split()[0]} is set to: {elem.split()[-1]}. If ok, Enter. Otherwise, type the correct value. Type del to delete line.\n')
-                        if base.lower() == 'del':
-                            rem2 += ''
-                        else:
-                            if len(base.split()) > 1:
-                                rem2 += base+'\n'
-                            else:    
-                                rem2 += f'{elem.split()[0]}    {base}\n'    
-                    else:    
-                        rem2 += elem+'\n'
-            rem = rem2+'$end\n'
+            template = nemo.tools.fetch_file("QChem template",['.in'])
+            rem, _, extra = nemo.tools.busca_input(template)
+            _, cm, _  = nemo.tools.busca_input(freqlog)            
+        print(f'QChem template file: {template}')
+        print('\nThe configurations to be used are:\n')
+        rem += extra+'\n'
+        print(rem)       
         rem   += "\n$pcm\ntheory                  IEFPCM\nChargeSeparation        Marcus\nStateSpecific           Perturb\n$end\n"
         static = input("Solvent's static dielectric constant?\n")
         refrac = input("Solvent's refractive index?\n")
@@ -82,13 +72,13 @@ def interface():
                 go = True
             except:
                 print("This must be a number! Try again!\n")
-        abs_only = input("Prepare input for absorption or fluorescence spectrum only? (y or n)\n")
+        abs_only = input("Are you interested in absorption spectra ONLY? (y or n)\n")
         if abs_only.lower() == 'y':
             print('Ok, calculations will only be suitable for absorption or fluorescence spectrum simulations!\n')
-            header = f"$comment\n{spec}\n$end\n\n$rem\ncis_n_roots             {num_ex}\ncis_singlets            true\ncis_triplets            true\ncalc_soc                false\nSTS_MOM                 true\nCIS_RELAXED_DENSITY     TRUE\nsolvent_method          PCM\nMAX_CIS_CYCLES        200\nMAX_SCF_CYCLES        200"
+            header = f"$rem\ncis_n_roots             {num_ex}\ncis_singlets            true\ncis_triplets            true\ncalc_soc                false\nSTS_MOM                 true\nCIS_RELAXED_DENSITY     TRUE\nsolvent_method          PCM\nMAX_CIS_CYCLES        200\nMAX_SCF_CYCLES        200"
         else:
             print('Ok, calculations will be suitable for all spectra and ISC rate estimates!\n')
-            header = f"$comment\n{spec}\n$end\n\n$rem\ncis_n_roots             {num_ex}\ncis_singlets            true\ncis_triplets            true\ncalc_soc                true\nSTS_MOM                 true\nCIS_RELAXED_DENSITY     TRUE\nsolvent_method          PCM\nMAX_CIS_CYCLES        200\nMAX_SCF_CYCLES        200"
+            header = f"$rem\ncis_n_roots             {num_ex}\ncis_singlets            true\ncis_triplets            true\ncalc_soc                true\nSTS_MOM                 true\nCIS_RELAXED_DENSITY     TRUE\nsolvent_method          PCM\nMAX_CIS_CYCLES        200\nMAX_SCF_CYCLES        200"
         header  =  rem.replace('$rem',header)
         header += f'$molecule\n{cm}\n'
         num_geoms = int(input("How many geometries to be sampled?\n"))
@@ -163,14 +153,17 @@ def interface():
         nemo.tools.fatal_error("It must be one of the options... Goodbye!")
 
 def main():
-    try:
-        freqlog = sys.argv[1]
-        G, atomos = nemo.tools.pega_geom(freqlog)    
-        for i in range(len(atomos)):
-            print("{:2s}  {:.8f}  {:.8f}  {:.8f}".format(atomos[i],G[i,0],G[i,1],G[i,2]))
-    except:
+    if len(sys.argv) > 1:
+        try:
+            freqlog = sys.argv[1]
+            G, atomos = nemo.tools.pega_geom(freqlog)    
+            for i in range(len(atomos)):
+                print("{:2s}  {:.8f}  {:.8f}  {:.8f}".format(atomos[i],G[i,0],G[i,1],G[i,2]))
+        except:
+            interface()
+    else:
         interface()
-    
+
 if __name__ == "__main__":
     sys.exit(main())        
 

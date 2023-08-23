@@ -299,20 +299,19 @@ def busca_input(freqlog):
         for line in f:
             if 'A Quantum Leap Into The Future Of Chemistry' in line:
                 search = False
-                break           
-    spec = 'ABSSPCT'
+                break
     rem  = ''
     with open(freqlog, 'r') as f:
         for line in f:
-            if 'User input:' in line and not search:    
-                search = True    
+            if 'User input:' in line and not search:
+                search = True
             elif search and delist(line):
                 rem += line
-            elif 'CIS_STATE_DERIV' in line.upper():
-                spec = 'EMISPCT'
             elif '--------------------------------------------------------------' in line and search and rem != '':
                 search = False
     rem = rem.split('$end')
+    remove = ['$molecule','$comment','$pcm','$solvent','$end']
+    extra = ''
     for r in rem:
         if '$rem' in r:
             rem = r+'$end\n'
@@ -322,8 +321,9 @@ def busca_input(freqlog):
                 m = m.split()
                 if len(m) == 2:
                     cm = ' '.join(m)
-                    break                 
-    return rem, cm, spec                
+        elif r.strip() and all(x not in r for x in remove):
+            extra += r+'$end\n'
+    return rem, cm, extra
 ###############################################################
 
 ##CHECKS PROGRESS##############################################
@@ -360,27 +360,17 @@ def fetch_file(frase,ends):
     for file in [i for i in os.listdir('.')]:
         for end in ends:
             if end in file:
-                 files.append(file)
-    if len(files) == 0:
-        fatal_error(f"No {frase} file found. Goodbye!")
-    freqlog = 'nada0022'    
-    for file in files:
-        print("\n"+file)
-        resp = input(f'Is this the {frase} file? y ou n?\n')
-        if resp.lower() == 'y':
-            freqlog = file
-            break
-    if freqlog == 'nada0022':
-        fatal_error(f"No {frase} file found. Goodbye!")
+                 return file
+    fatal_error(f"No {frase} file found. Goodbye!")
     return freqlog  
 ###############################################################  
    
 ##RUNS TASK MANAGER############################################
 def batch():
-    script = fetch_file('batch script?',['.sh'])    
-    limite = input("Maximum number of batches to be submitted simultaneously?\n")
-    nproc  = input('Number of processors for each individual job\n')
-    num    = input('Number of jobs in each batch\n')
+    script = fetch_file('batch.sh',['batch.sh'])    
+    limite = input("Maximum number of jobs to be submitted simultaneously?\n")
+    nproc  = input('Number of threads for each individual calculation?\n')
+    num    = input('Number of calculations in each job?\n')
     try:
         limite = int(limite)
         int(nproc)
