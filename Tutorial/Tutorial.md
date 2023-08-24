@@ -688,7 +688,7 @@ Spectrum printed in the cross_section_S1_.lx file
 
 If you are not satisfied with the solvent parameters, you may change them. The parameters suggested by **NEMO** correspond to those present in the ensemble calculations. 
 
-The spectrum will be printed in a file named `cross_section_s1.lx`. Note that since we set $S_1$ as the initial state, this corresponds to the absorption spectrum from the $S_1$ state. The `cross_section_s1.lx`. In this file, the first column corresponds to energies (in eV). The following columns correspond to the absorption cross-section (in $\AA^2$) of each individual state (in this example, $S_2$ to $S_5$). The `Total` column gives the total absorption cross-section including all states and the last columns provides the uncertainty to the `Total` cross-section. 
+The spectrum will be printed in a file named `cross_section_s1.lx`. Note that since we set $S_1$ as the initial state, this corresponds to the absorption spectrum from the $S_1$ state. The `cross_section_s1.lx`. In this file, the first column corresponds to energies (in eV). The following columns correspond to the absorption cross-section (in $Å^2$) of each individual state (in this example, $S_2$ to $S_5$). The `Total` column gives the total absorption cross-section including all states and the last columns provides the uncertainty to the `Total` cross-section. 
 
 ## Emission Spectra and Rates
 
@@ -776,7 +776,7 @@ In this expression, $E_{HOMO}$ is the energy of the highest occupied molecular o
 
 > Stein, Tamar, Leeor Kronik, and Roi Baer. "Reliable prediction of charge transfer excitations in molecular complexes using time-dependent density functional theory." Journal of the American Chemical Society 131.8 (2009): 2818-2820.
 
-To use thie feature, first create a new folder and move there. 
+To use this feature, first create a new folder and move there. 
 
 ```
 mkdir tuning
@@ -879,14 +879,14 @@ Functional, basis set, nproc and mem are taken from the input file provided. The
 
 Now we get prompted for the `batch.sh` file and for the version of Gaussian we want to use.
 
-``
+```
 batch.sh
 Is this the batch script file? y ou n?
 y
 g16 or g09?
 g16
 nohup: ignoring input and appending output to ‘nohup.out’
-``
+```
 
 At this point, input files will be generated and jobs submitted. A file named `omega.lx` will be created, from where you may follow the progress. Eventually, it will look something like this:
 
