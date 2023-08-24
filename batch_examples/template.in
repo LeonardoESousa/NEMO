@@ -1,0 +1,8 @@
+$rem
+mem_total             100000
+mem_static            2000
+method                LRC-wPBE
+omega                 184
+basis                 6-31G(d,p)
+RPA                   false
+$end
