@@ -63,9 +63,9 @@ def pega_energias(file):
             elif '---------------------------------------------------' in line and exc and len(energies) > 0:
                 exc = False
             elif 'SS-PCM correction' in line and corr:
-                correction.append(-1*float(line.split()[3]))
+                correction.append(-1*float(line.split()[-2]))
             elif 'LR-PCM correction' in line and corr:
-                correction2.append(-2*float(line.split()[3]))    
+                correction2.append(-2*float(line.split()[-2]))    
             elif '------------------------ END OF SUMMARY -----------------------' in line and corr:
                 corr = False      
             elif 'Total energy in the final basis set' in line:
