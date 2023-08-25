@@ -296,7 +296,7 @@ def pega_oscs(files, IND,initial):
 
 ##GETS SOCS BETWEEN S0 AND EACH TRIPLET SUBLEVEL#########################################
 def soc_s0(file,m, ind_t):
-    socs = np.zeros((1,2))
+    socs = np.zeros((1))
     with open('Geometries/'+file, 'r') as f:
         read = False
         for line in f:
@@ -309,45 +309,46 @@ def soc_s0(file,m, ind_t):
                         sign = -1
                     else:
                         sign = 1    
-                    c1   = float(line[1].replace('(','').replace(')','').replace('i',''))
-                    c2   = sign*float(line[3].replace('(','').replace(')','').replace('i',''))
-                    c    = np.array([[c1,c2]])
+                    c1   = line[1].replace('(','').replace(')','').replace('i','')
+                    c1   = float(c1.replace('--','+').replace('+-','-').replace('-+','-').replace('++','+'))
+                    c2   = line[2]+line[3].replace('(','').replace(')','').replace('i','')
+                    c2   = float(c2.replace('--','+').replace('+-','-').replace('-+','-').replace('++','+'))
+                    z    = c1 + c2*1j
+                    # Qchem gives <S0|H|Tn>. We need to conjugate to get <Tn|H|S0>
+                    z    = z.conjugate()
+                    c    = np.array([z])
                     socs = np.vstack((socs,c))
                 else:
                     read = False
     socs = socs[1:,:]
     indice = np.argsort(ind_t)
-    socs = socs[indice,:]                
+    socs = socs[indice,:]   
     return socs*0.12398/1000
 #########################################################################################                    
 
 ##GETS SOCS BETWEEN Sm AND EACH Tn SUBLEVEL##############################################
 def soc_t1(file,m,n_triplet,ind_s):
-    socs = np.zeros((1,2))
+    socs = np.zeros((1))
     with open('Geometries/'+file, 'r') as f:
         read = False
         for line in f:
             if "SOC between the S" in line and "(ms="+m in line:
                read = True 
             elif read:
-                if "T"+str(n_triplet+1)+'(' in line:
+                if "T"+str(n_triplet+1)+"(ms="+m in line:
                     line = line.split()
-                    if line[2] == '-':
-                        sign = -1
-                    else:
-                        sign = 1    
-                    c1 = line[1].replace('(','').replace(')','').replace('i','')
-                    c2 = sign*line[3].replace('(','').replace(')','').replace('i','')
-                    c1 = float(c1.replace('--',''))
-                    c2 = float(c2.replace('--',''))
-                    c = np.array([[c1,c2]])
+                    c1   = line[1].replace('(','').replace(')','').replace('i','')
+                    c1   = float(c1.replace('--','+').replace('+-','-').replace('-+','-').replace('++','+'))
+                    c2   = line[2]+line[3].replace('(','').replace(')','').replace('i','')
+                    c2   = float(c2.replace('--','+').replace('+-','-').replace('-+','-').replace('++','+'))
+                    # Qchem gives <Sn|H|Tn>. No need to conjugate.
+                    z    = c1 + c2*1j
+                    c    = np.array([z])
                     socs = np.vstack((socs,c))
-                    read = False
     socs = socs[1:,:]
     indice = np.argsort(ind_s)
-    socs = socs[indice,:]                
+    socs = socs[indice,:]     
     return socs*0.12398/1000
-######################################################################################### 
 
 ##CALCULATES TRANSITION DIPOLE MOMENTS FOR Tn TO S0 TRANSITIONS##########################
 def moment(file,ess,ets,dipss,dipts,n_triplet,ind_s,ind_t):
@@ -360,21 +361,24 @@ def moment(file,ess,ets,dipss,dipts,n_triplet,ind_s,ind_t):
     Ms = []
     for m in ['1','-1','0']:
         socst1 = soc_t1(file,m,fake_t,ind_s)
-        socss0 = soc_s0(file,m,ind_t) 
-        socst1 = np.vstack((socss0[0,:],socst1))    
-        socst1[:,1] *= -1
+        socss0 = soc_s0(file,m,ind_t)
+        socst1 = np.vstack((socss0[0,:],socst1))
+        # Conjugate to get <S0|H|T1>
+        socst1[0] = socst1[0].conjugate()
+        # Now conjugate socst1
+        socst1 = socst1.conjugate()
         ess = ess[:np.shape(socst1)[0]]
         if 0 in ets[n_triplet]-ess:
             return 0
         for i in [0,1,2]:
             Ps = []
-            for j in [0,1]:
-                p1 = (socss0[:,j]/(0-ets))*dipts[:,i]
-                p1 = np.sum(p1)
-                p2 = (socst1[:,j]/(ets[n_triplet]-ess))*dipss[:,i]
-                p2 = np.sum(p2)
-                Ps.append((p1+p2))
-            Ms.append(Ps[0]**2+Ps[1]**2)    
+            p1 = (socss0/(0-ets))*dipts[:,i]
+            p1 = np.sum(p1)
+            p2 = (socst1/(ets[n_triplet]-ess))*dipss[:,i]
+            p2 = np.sum(p2)
+            z  = p1+p2
+            # append magnitude squared
+            Ms.append((z*z.conjugate()).real)    
     
     Ms = np.array(Ms)
     Ms = np.sum(Ms)*(conversion**2)
