@@ -118,7 +118,7 @@ def interface():
             print(
                 "Ok, calculations will be suitable for all spectra and ISC rate estimates!\n"
             )
-            header +=  "calc_soc             true\n"
+            header += "calc_soc             true\n"
         header = rem.replace("$rem", header)
         header += f"$molecule\n{charge_multiplicity}\n"
         num_geoms = int(input("How many geometries to be sampled?\n"))
