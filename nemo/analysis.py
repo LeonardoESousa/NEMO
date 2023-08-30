@@ -622,7 +622,7 @@ def printa_espectro_emi(initial, eps, refractive_index, tdm, energy, mean_y, err
     arquivo = nemo.tools.naming(f"differential_rate_{initial.upper()}.lx")
     with open(arquivo, "w", encoding="utf-8") as emi_spectrum:
         emi_spectrum.write(primeira)
-        for i, eng in enumerate(len(energy)):
+        for i, eng in enumerate(energy):
             text = f"{eng:.6f} {mean_y[i]:.6e} {error[i]:.6e}\n"
             emi_spectrum.write(text)
     print(f"Spectrum printed in the {arquivo} file")
