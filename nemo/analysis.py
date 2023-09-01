@@ -847,6 +847,11 @@ def fix_absent_soc(data):
                 data[f"soc_{singlet}_{triplet}"] = 0
     return data
 
+def x_values(mean,std):
+    left = max(np.min(mean - 2 * std), 0.01)
+    right = np.max(mean + 2 * std)
+    x_axis = np.linspace(left, right, int((right - left) / 0.01))
+    return x_axis
 
 ###CALCULATES ISC AND EMISSION RATES & SPECTRA#########################################
 def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
@@ -892,9 +897,7 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
     energies = np.take_along_axis(energies, argsort_emi, axis=1)[:, n_state]
     espectro = constante * ((delta_emi - lambda_be) ** 2) * oscs
     tdm = nemo.tools.calc_tdm(oscs, energies, espectro)
-    left = max(min(delta_emi - 2 * l_total), 0.01)
-    right = max(delta_emi + 2 * l_total)
-    x_axis = np.linspace(left, right, int((right - left) / 0.01))
+    x_axis = x_values(delta_emi,l_total)
     y_axis = espectro[:, np.newaxis] * nemo.tools.gauss(
         x_axis, delta_emi[:, np.newaxis], l_total[:, np.newaxis]
     )
@@ -1080,6 +1083,47 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
 
 #########################################################################################
 
+def save_absorption_spectrum(initial,eps, refractive_index, x_axis, mean_y, sigma, labels):
+    arquivo = nemo.tools.naming(f"cross_section_{initial.upper()}_.lx")
+    primeira = (f"{'Energy(ev)':8s} {'cross_section(A^2)':8s} {'error(A^2)':8s}\n"
+                f"Absorption from State: {initial.upper()}\n"
+                f"Epsilon: {eps:.3f} nr: {refractive_index:.3f}\n")
+    labels = [f"{i:14s}" for i in labels]
+    primeira += " ".join(labels)
+    fmt = ["%14.6e" for i in range(0, mean_y.shape[1])]
+    fmt = " ".join(fmt)
+    np.savetxt(
+        arquivo,
+        np.hstack((x_axis[:, np.newaxis], mean_y, sigma[:, np.newaxis])),
+        fmt="%14.6f " + fmt + " %14.6e",
+        header=primeira,
+    )
+    print(f"Spectrum printed in the {arquivo} file")
+
+def make_breakdown(initial, spin, num, oscs, deltae_lambda, lambda_neq, alphaopt1, l_total):
+    # concatenate oscs[:,:,0] with DE[:,:,0] and ds
+    colunas = [
+        f"{initial.upper()}->{spin.upper()}{i}"
+        for i in range(num + 1, num + oscs.shape[1] + 1)
+    ]
+    colunas += [
+        f"eng_{spin}{i}"
+        for i in range(num + 1, num + deltae_lambda.shape[1] + 1)
+    ]
+    colunas += [
+        f"chi_{spin}{i}"
+        for i in range(num + 1, num + lambda_neq.shape[1] + 1)
+    ]
+    colunas += [
+        f"sigma_{spin}{i}"
+        for i in range(num + 1, num + l_total.shape[1] + 1)
+    ]
+    # concatenate oscs[:,:,0] with DE[:,:,0] and ds
+    breakdown = pd.DataFrame(
+        np.hstack((oscs[:, :, 0], deltae_lambda[:, :, 0], lambda_neq / alphaopt1,l_total[:, :, 0])),
+        columns=colunas,
+    )
+    return breakdown
 
 ###COMPUTES ABSORPTION SPECTRA###########################################################
 def absorption(initial, dielec, data=None, save=False, detailed=False, nstates=-1):
@@ -1103,34 +1147,25 @@ def absorption(initial, dielec, data=None, save=False, detailed=False, nstates=-
         * 1e20
     )
     spin = initial[0]
+    num = int(initial[1:])
+    engs = [i for i in data.columns if f"e_{spin}" in i and "osc" not in i and int(i.split("_")[1][1:]) > num]
+    lambda_neq = [i for i in data.columns if f"d_{spin}" in i and int(i.split("_")[1][1:]) > num]
+    oscs = [i for i in data.columns if "osc_" in i and int(i.split("_")[1][1:]) > num]
+    engs = data[engs].to_numpy()
+    lambda_neq = data[lambda_neq].to_numpy()
+    oscs = data[oscs].to_numpy()
+    lambda_b = (alphast2 / alphaopt1 - alphaopt2 / alphaopt1) * lambda_neq
     if initial == "s0":
-        engs = [i for i in data.columns if "e_s" in i and "osc" not in i]
-        lambda_neq = [i for i in data.columns if "d_s" in i]
-        oscs = [i for i in data.columns if "osc_s" in i]
-        oscs = data[oscs].values
-        engs = data[engs].values
-        lambda_neq = data[lambda_neq].values
-        lambda_b = (alphast2 / alphaopt1 - alphaopt2 / alphaopt1) * lambda_neq
         deltae_lambda = engs - (alphaopt2 / alphaopt1) * lambda_neq
     else:
-        num = int(initial[1:])
-        engs = [i for i in data.columns if f"e_{spin}" in i and "osc" not in i]
-        engs = [i for i in engs if int(i.split("_")[1][1:]) > num]
-        lambda_neq = [i for i in data.columns if f"d_{spin}" in i]
-        lambda_neq = [i for i in lambda_neq if int(i.split("_")[1][1:]) > num]
-        oscs = [i for i in data.columns if "osc_" in i]
-        oscs = [i for i in oscs if int(i.split("_")[1][1:]) > num]
-        base = data[f"e_{initial}"].values[:, np.newaxis]
-        lambda_neq_base = data[f"d_{initial}"].values[:, np.newaxis]
-        engs = data[engs].values
-        lambda_neq = data[lambda_neq].values
-        oscs = data[oscs].values
-        lambda_b = (alphast2 / alphaopt1 - alphaopt2 / alphaopt1) * lambda_neq
+        base = data[f"e_{initial}"].to_numpy()[:, np.newaxis]
+        lambda_neq_base = data[f"d_{initial}"].to_numpy()[:, np.newaxis]
         deltae_lambda = (
             engs
             - (alphaopt2 / alphaopt1) * lambda_neq
             - np.repeat(base - (alphast2 / alphaopt1) * lambda_neq_base, engs.shape[1], axis=1)
         )
+
     # Sorting states by energy
     argsort = np.argsort(deltae_lambda, axis=1)
     deltae_lambda = np.take_along_axis(deltae_lambda, argsort, axis=1)
@@ -1138,9 +1173,7 @@ def absorption(initial, dielec, data=None, save=False, detailed=False, nstates=-
     lambda_b = np.take_along_axis(lambda_b, argsort, axis=1)
     lambda_neq = np.take_along_axis(lambda_neq, argsort, axis=1)
     l_total = np.sqrt(2 * lambda_b * kbt + kbt**2)
-    left = max(np.min(deltae_lambda - 2 * l_total), 0.01)
-    right = np.max(deltae_lambda + 2 * l_total)
-    x_axis = np.linspace(left, right, int((right - left) / 0.01))
+    x_axis = x_values(deltae_lambda,l_total)
     if nstates == -1:
         nstates = deltae_lambda.shape[1]
     # Add extra dimension to DE and Ltotal to match x shape
@@ -1172,48 +1205,11 @@ def absorption(initial, dielec, data=None, save=False, detailed=False, nstates=-
     )
 
     if save:
-        arquivo = nemo.tools.naming(f"cross_section_{initial.upper()}_.lx")
-        primeira = (f"{'Energy(ev)':8s} {'cross_section(A^2)':8s} {'error(A^2)':8s}\n"
-                    f"Absorption from State: {initial.upper()}\n"
-                    f"Epsilon: {eps:.3f} nr: {refractive_index:.3f}\n")
-        labels = [f"{i:14s}" for i in labels]
-        primeira += " ".join(labels)
-        fmt = ["%14.6e" for i in range(0, mean_y.shape[1])]
-        fmt = " ".join(fmt)
-        np.savetxt(
-            arquivo,
-            np.hstack((x_axis[:, np.newaxis], mean_y, sigma[:, np.newaxis])),
-            fmt="%14.6f " + fmt + " %14.6e",
-            header=primeira,
-        )
-        print(f"Spectrum printed in the {arquivo} file")
-
-    # concatenate oscs[:,:,0] with DE[:,:,0] and ds
-    colunas = [
-        f"{initial.upper()}->{spin.upper()}{i}"
-        for i in range(int(initial[1:]) + 1, int(initial[1:]) + oscs.shape[1] + 1)
-    ]
-    colunas += [
-        f"eng_{spin}{i}"
-        for i in range(int(initial[1:]) + 1, int(initial[1:]) + deltae_lambda.shape[1] + 1)
-    ]
-    colunas += [
-        f"chi_{spin}{i}"
-        for i in range(int(initial[1:]) + 1, int(initial[1:]) + lambda_neq.shape[1] + 1)
-    ]
-    colunas += [
-        f"sigma_{spin}{i}"
-        for i in range(int(initial[1:]) + 1, int(initial[1:]) + l_total.shape[1] + 1)
-    ]
-    # concatenate oscs[:,:,0] with DE[:,:,0] and ds
-    breakdown = pd.DataFrame(
-        np.hstack((oscs[:, :, 0], deltae_lambda[:, :, 0], lambda_neq / alphaopt1,l_total[:, :, 0])),
-        columns=colunas,
-    )
+        save_absorption_spectrum(initial,eps, refractive_index, x_axis, mean_y, sigma, labels)
     if detailed:
+        breakdown = make_breakdown(initial, spin, num, oscs, deltae_lambda, lambda_neq, alphaopt1, l_total)
         return abs_spec, breakdown
-    else:
-        return abs_spec
+    return abs_spec
 
 
 #########################################################################################
