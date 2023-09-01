@@ -797,7 +797,13 @@ TITLE
 
 ```
 
-Now we need out `batch.sh` file. For a slurm system, it should look something like the following
+Now we need out `batch.sh` file. For a slurm system, it will read
+
+```
+sbatch g16.sh $1
+```
+
+The `g16.sh` file includes the slurm commands, loads the Gaussian 16 module and should look something like the following
 
 ```
 #!/bin/bash
@@ -824,7 +830,9 @@ At this point the folder should contain
 ```
     tuning
     ├── geom.com
+    ├── g16.sh
     └── batch.sh
+
 ```
 
 Finally, run the nemo command, choose option **9 - Perform tuning of long range corrected functional (Gaussian 09/16 only)** and follow the instructions.
