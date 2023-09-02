@@ -7,6 +7,7 @@
 import io
 import os
 import sys
+import subprocess
 from shutil import rmtree
 
 from setuptools import find_packages, setup, Command
@@ -45,7 +46,7 @@ except FileNotFoundError:
 # Load the package's __version__.py module as a dictionary.
 about = {}
 project_slug = 'nemo'
-with open(os.path.join(here, project_slug, '__version__.py')) as f:
+with open(os.path.join(here, project_slug, '__version__.py'),encoding='utf-8') as f:
     exec(f.read(), about)
 
 class UploadCommand(Command):
@@ -73,10 +74,10 @@ class UploadCommand(Command):
             pass
 
         self.status('Building Source and Wheel (universal) distribution…')
-        os.system(f'{sys.executable} setup.py sdist bdist_wheel --universal')
+        subprocess.run([sys.executable, 'setup.py', 'sdist', 'bdist_wheel', '--universal'], check=True)
 
         self.status('Uploading the package to PyPI via Twine…')
-        os.system('twine upload dist/*')
+        subprocess.run(['twine', 'upload', 'dist/*'], check=True)
 
         sys.exit()
 

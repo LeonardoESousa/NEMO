@@ -853,6 +853,30 @@ def x_values(mean,std):
     x_axis = np.linspace(left, right, int((right - left) / 0.01))
     return x_axis
 
+def sorting_parameters(argsort,*args):
+    argsort = np.argsort(args[0], axis=1)
+    args = list(args)
+    for arg in args:
+        arg = np.take_along_axis(arg, argsort, axis=1)
+    return tuple(args)
+
+def check_number_geoms(data):
+    number_geoms = data.shape[0]
+    coms = nemo.tools.start_counter()
+    if number_geoms != coms:
+        print(
+            (f"There are {coms} inputs and just {number_geoms} log files. "
+            "Something is not right! Computing the rates anyway...")
+        )
+    return number_geoms
+
+
+def fetch(data, criteria_list):
+    filtered_data = data[
+        [i for i in data.columns.values if all(c in i for c in criteria_list if not c.startswith('-')) and not any(c[1:] in i for c in criteria_list if c.startswith('-'))]
+    ].to_numpy()
+    return filtered_data
+
 ###CALCULATES ISC AND EMISSION RATES & SPECTRA#########################################
 def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
     if data is None:
@@ -889,12 +913,15 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
     if "t" in initial:
         constante *= 1 / 3
     oscs = data.filter(regex="^osce_").to_numpy()
-    argsort_emi = np.argsort(delta_emi, axis=1)
-    delta_emi = np.take_along_axis(delta_emi, argsort_emi, axis=1)
-    oscs = np.take_along_axis(oscs, argsort_emi, axis=1)
+    # socs_s0 will be used for T1>S0 ISC calculation
+    socs_s0 = data[
+            [i for i in data.columns.values if "soc_t" in i and "s0" in i]
+        ].to_numpy()
+    delta_emi, oscs, energies, *socs_s0 = sorting_parameters(delta_emi,oscs,energies,socs_s0)
     delta_emi = delta_emi[:, n_state]
     oscs = oscs[:, n_state]
-    energies = np.take_along_axis(energies, argsort_emi, axis=1)[:, n_state]
+    energies = energies[:, n_state]
+    socs_s0 = socs_s0[:, n_state]
     espectro = constante * ((delta_emi - lambda_be) ** 2) * oscs
     tdm = nemo.tools.calc_tdm(oscs, energies, espectro)
     x_axis = x_values(delta_emi,l_total)
@@ -916,14 +943,7 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
 
     # Checks number of logs
     if data is None:
-        number_geoms = data.shape[0]
-        coms = nemo.tools.start_counter()
-        if number_geoms != coms:
-            print(
-                (f"There are {coms} inputs and just {number_geoms} log files. "
-                "Something is not right! Computing the rates anyway...")
-            )
-
+        check_number_geoms(data)
     # Intersystem Crossing Rates
     singlets = data[
         [i for i in data.columns.values if "e_s" in i and "osc" not in i]
@@ -986,11 +1006,6 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
             if "soc_" + initial.lower() + "_" in i and i.count("t") == 1
         ]
         # Tn to S0 ISC
-        socs_s0 = data[
-            [i for i in data.columns.values if "soc_t" in i and "s0" in i]
-        ].to_numpy()
-        socs_s0 = np.take_along_axis(socs_s0, argsort_emi, axis=1)
-        socs_s0 = socs_s0[:, n_state]
         socs_complete = np.hstack((socs_s0[:, np.newaxis], socs_complete))
         delta = np.hstack((delta_emi[:, np.newaxis], delta))
         lambda_b = np.hstack((lambda_be[:, np.newaxis], lambda_b))
@@ -1125,6 +1140,13 @@ def make_breakdown(initial, spin, num, oscs, deltae_lambda, lambda_neq, alphaopt
     )
     return breakdown
 
+def another_dimension(nstates,*args):
+    args = list(args)
+    for arg in args:
+        arg = arg[:, :nstates, np.newaxis]
+    return tuple(args)
+
+
 ###COMPUTES ABSORPTION SPECTRA###########################################################
 def absorption(initial, dielec, data=None, save=False, detailed=False, nstates=-1):
     if data is None:
@@ -1167,20 +1189,13 @@ def absorption(initial, dielec, data=None, save=False, detailed=False, nstates=-
         )
 
     # Sorting states by energy
-    argsort = np.argsort(deltae_lambda, axis=1)
-    deltae_lambda = np.take_along_axis(deltae_lambda, argsort, axis=1)
-    oscs = np.take_along_axis(oscs, argsort, axis=1)
-    lambda_b = np.take_along_axis(lambda_b, argsort, axis=1)
-    lambda_neq = np.take_along_axis(lambda_neq, argsort, axis=1)
+    deltae_lambda, oscs, lambda_b, *lambda_neq = sorting_parameters(deltae_lambda, oscs, lambda_b, lambda_neq)
     l_total = np.sqrt(2 * lambda_b * kbt + kbt**2)
     x_axis = x_values(deltae_lambda,l_total)
     if nstates == -1:
         nstates = deltae_lambda.shape[1]
     # Add extra dimension to DE and Ltotal to match x shape
-    deltae_lambda = deltae_lambda[:, :nstates, np.newaxis]
-    l_total = l_total[:, :nstates, np.newaxis]
-    oscs = oscs[:, :nstates, np.newaxis]
-    lambda_b = lambda_b[:, :nstates, np.newaxis]
+    deltae_lambda, l_total, oscs, *lambda_b = another_dimension(nstates,deltae_lambda, l_total, oscs, lambda_b)
     y_axis = constante * oscs * nemo.tools.gauss(x_axis, deltae_lambda, l_total)
     number_geoms = oscs.shape[0]
     mean_y = np.sum(y_axis, axis=0) / number_geoms
