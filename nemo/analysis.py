@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 import os
+import re
 import warnings
 import numpy as np
 import pandas as pd
 import nemo.tools
+import nemo.parser
 
 
 LIGHT_SPEED = nemo.tools.LIGHT_SPEED
@@ -42,431 +44,6 @@ def check_normal(files):
 #########################################################################################
 
 
-##GETS ENERGIES, OSCS, AND INDICES FOR Sn AND Tn STATES##################################
-def pega_energias(file):
-    ss_mark = "Excited-state properties with   relaxed density"
-    with open(file, "r", encoding="utf-8") as log_file:
-        exc = False
-        corr = False
-        correction, correction2 = [], []
-        for line in log_file:
-            if (
-                "TDDFT/TDA Excitation Energies" in line
-                or "TDDFT Excitation Energies" in line
-            ):
-                energies, spins, oscs, ind = [], [], [], []
-                exc = True
-            elif ss_mark in line:
-                corr = True
-            elif "Solute Internal Energy" in line:
-                sol_int = float(line.split()[5])
-            elif "Total Free Energy" in line:
-                total_free = float(line.split()[9])
-            elif "Excited state" in line and exc:
-                energies.append(float(line.split()[7]))
-                ind.append(int(line.split()[2].replace(":", "")))
-            elif "Multiplicity" in line and exc:
-                spins.append(line.split()[1])
-            elif "Strength" in line and exc:
-                oscs.append(float(line.split()[2]))
-            elif (
-                "---------------------------------------------------" in line
-                and exc
-                and len(energies) > 0
-            ):
-                exc = False
-            elif "SS-PCM correction" in line and corr:
-                correction.append(-1 * float(line.split()[-2]))
-            elif "LR-PCM correction" in line and corr:
-                correction2.append(-2 * float(line.split()[-2]))
-            elif (
-                "------------------------ END OF SUMMARY -----------------------"
-                in line
-                and corr
-            ):
-                corr = False
-            elif "Total energy in the final basis set" in line:
-                line = line.split()
-                total_nopcm = float(line[8])
-        if len(correction) == 0:  # When run on logs that do not employ pcm
-            correction = np.zeros(len(energies))
-            sol_int = total_nopcm
-            total_free = total_nopcm
-        singlets = np.array(
-            [energies[i] for i in range(len(energies)) if spins[i] == "Singlet"]
-        )
-        ss_s = np.array(
-            [
-                correction[i] + correction2[i]
-                for i in range(len(correction))
-                if spins[i] == "Singlet"
-            ]
-        )
-        ind_s = np.array([ind[i] for i in range(len(ind)) if spins[i] == "Singlet"])
-        oscs = np.array(
-            [oscs[i] for i in range(len(energies)) if spins[i] == "Singlet"]
-        )
-        triplets = np.array(
-            [energies[i] for i in range(len(energies)) if spins[i] == "Triplet"]
-        )
-        ss_t = np.array(
-            [
-                correction[i] + correction2[i]
-                for i in range(len(correction))
-                if spins[i] == "Triplet"
-            ]
-        )
-        ind_t = np.array([ind[i] for i in range(len(ind)) if spins[i] == "Triplet"])
-
-        oscs = np.array([x for _, x in zip(singlets, oscs)])
-        ind_s = np.array([x for _, x in zip(singlets, ind_s)])
-        ind_t = np.array([x for _, x in zip(triplets, ind_t)])
-
-        order_s = np.argsort(singlets)
-        order_t = np.argsort(triplets)
-        singlets = np.sort(singlets)
-        triplets = np.sort(triplets)
-        oscs = oscs[order_s]
-        ind_s = ind_s[order_s]
-        ind_t = ind_t[order_t]
-
-        return (
-            singlets,
-            triplets,
-            oscs,
-            ind_s,
-            ind_t,
-            ss_s,
-            ss_t,
-            (sol_int - total_free) * 27.2114,
-        )
-
-
-#########################################################################################
-
-
-##GETS SOC BETWEEN Sn STATE AND TRIPLETS#################################################
-def pega_soc_singlet(file, n_state):
-    socs = []
-    _, _, _, ind_s, ind_t, _, _, _ = pega_energias("Geometries/" + file)
-    order_s = np.argsort(ind_s)
-    order_t = np.argsort(ind_t)
-    n_state = order_s[n_state] + 1
-    with open("Geometries/" + file, "r", encoding="utf-8") as log_file:
-        catch = False
-        for line in log_file:
-            if (
-                "Total SOC between the S"
-                + str(n_state)
-                + " state and excited triplet states:"
-                in line
-            ):
-                catch = True
-            elif catch and "T" in line and "(" not in line:
-                try:
-                    socs.append(float(line.split()[1]))
-                except (IndexError, ValueError):
-                    catch = False
-    socs = np.array(socs)
-    socs = socs[order_t]
-    return socs[np.newaxis, :] * 0.12398 / 1000
-
-
-#########################################################################################
-
-
-##GETS SOC BETWEEN Tn STATE AND SINGLETS#################################################
-def pega_soc_triplet(file, n_state):
-    socs = []
-    _, _, _, ind_s, ind_t, _, _, _ = pega_energias("Geometries/" + file)
-    order_s = np.argsort(ind_s)
-    order_t = np.argsort(ind_t)
-    n_state = order_t[n_state] + 1
-    with open("Geometries/" + file, "r", encoding="utf-8") as log_file:
-        catch = False
-        for line in log_file:
-            if (
-                "Total SOC between the S" in line
-                and "state and excited triplet states:" in line
-            ):
-                catch = True
-            elif catch and "T" + str(n_state) + " " in line and "(" not in line:
-                try:
-                    socs.append(float(line.split()[1]))
-                except (IndexError, ValueError):
-                    catch = False
-    socs = np.array(socs)
-    socs = socs[order_s]
-    return socs[np.newaxis, :] * 0.12398 / 1000
-
-
-#########################################################################################
-
-
-##GETS SOC BETWEEN Tn STATE AND S0#######################################################
-def pega_soc_ground(file, n_state):
-    socs = []
-    # _, _, _, ind_s, ind_t, _, _, _ = pega_energias('Geometries/'+file)
-    # order_s = np.argsort(ind_s)
-    # order_t = np.argsort(ind_t)
-    n_state += 1  # order_t[n_state] + 1
-    with open("Geometries/" + file, "r", encoding="utf-8") as log_file:
-        catch = False
-        for line in log_file:
-            if (
-                "Total SOC between the singlet ground state and excited triplet states:"
-                in line
-            ):
-                catch = True
-            elif catch and "T" + str(n_state) + " " in line and "(" not in line:
-                try:
-                    socs.append(float(line.split()[1]))
-                except (IndexError, ValueError):
-                    catch = False
-            elif len(line.split()) < 2:
-                catch = False
-    socs = np.array(socs)
-    # socs = socs[order_s]
-    return socs[np.newaxis, :] * 0.12398 / 1000
-
-
-#########################################################################################
-
-
-##GETS SOC BETWEEN Tn STATE AND SINGLETS#################################################
-def pega_soc_triplet_triplet(file, n_state):
-    socs = []
-    # _, _, _, ind_s, ind_t, _, _, _ = pega_energias('Geometries/'+file)
-    # order_s = np.argsort(ind_s)
-    # order_t = np.argsort(ind_t)
-    n_state += 1  # order_t[n_state] + 1
-    with open("Geometries/" + file, "r", encoding="utf-8") as log_file:
-        catch, catch2 = False, False
-        for line in log_file:
-            if (
-                "Total SOC between the T"
-                + str(n_state)
-                + " state and excited triplet states:"
-                in line
-            ):
-                catch2 = True
-            elif (
-                "Total SOC between the T" in line
-                and "state and excited triplet states:" in line
-            ):
-                catch = True
-            elif (catch and "T" + str(n_state) + " " in line and "(" not in line) or (
-                catch2 and "T" in line and "(" not in line
-            ):
-                try:
-                    socs.append(float(line.split()[1]))
-                except (IndexError, ValueError):
-                    catch, catch2 = False, False
-            elif len(line.split()) < 2:
-                catch, catch2 = False, False
-    socs = np.array(socs)
-    # socs = socs[order_s]
-    return socs[np.newaxis, :] * 0.12398 / 1000
-
-
-#########################################################################################
-
-
-##DECIDES WHICH FUNCTION TO USE IN ORDER TO GET SOCS#####################################
-def avg_socs(files, tipo, n_state):
-    col = None
-    if tipo == "singlet":
-        pega_soc = pega_soc_singlet
-    elif tipo == "triplet":
-        pega_soc = pega_soc_triplet
-    elif tipo == "ground":
-        pega_soc = pega_soc_ground
-    elif tipo == "tts":
-        pega_soc = pega_soc_triplet_triplet
-    for file in files:
-        socs = pega_soc(file, n_state)
-        try:
-            socs = socs[:, :col]
-            total_socs = np.vstack((total_socs, socs))
-        except NameError:
-            col = socs.shape[1]
-            total_socs = socs
-    return total_socs
-
-
-#########################################################################################
-
-
-##GETS TRANSITION DIPOLE MOMENTS#########################################################
-def pega_dipolos(file, ind, frase, state):
-    dipoles = np.zeros((1, 1))
-    with open("Geometries/" + file, "r", encoding="utf-8") as log_file:
-        dip = False
-        for line in log_file:
-            if frase in line:
-                dip = True
-            elif dip and "--" not in line:
-                line = line.split()
-                if line[0] == str(ind[state]):
-                    dipole_line = [float(line[i]) for i in range(1, len(line))]
-                    dipole_line = np.array([dipole_line])
-                    try:
-                        dipoles = np.vstack((dipoles, dipole_line))
-                    except NameError:
-                        dipoles = np.zeros((1, len(line) - 1))
-                        dipoles = np.vstack((dipoles, dipole_line))
-                elif line[1] == str(ind[state]) and int(line[0]) < int(line[1]):
-                    dipole_line = [float(line[0])]
-                    extra_line = [float(line[i]) for i in range(2, len(line))]
-                    dipole_line.extend(extra_line)
-                    dipole_line = np.array([dipole_line])
-                    try:
-                        dipoles = np.vstack((dipoles, dipole_line))
-                    except NameError:
-                        dipoles = np.zeros((1, len(line) - 1))
-                        dipoles = np.vstack((dipoles, dipole_line))
-            elif np.shape(dipoles)[0] > 1 and "---" in line:
-                dip = False
-    dipoles = dipoles[1:, :]
-    muf = np.zeros((1, 3))
-    ind = np.array(ind).astype(float)
-    col = np.shape(dipoles)[1]
-    if col > 4:
-        for i in ind:
-            index = np.where(dipoles[:, 0] == i)
-            try:
-                index = index[0][0]
-                stack = dipoles[index, 1:-1]
-                muf = np.vstack((muf, stack))
-            except IndexError:
-                pass
-        muf = muf[1:, :]
-    else:
-        muf = dipoles
-    return muf
-
-
-#########################################################################################
-
-
-##GETS TRANSITION DIPOLE MOMENTS#########################################################
-def pega_oscs(files, indices, initial):
-    spin = initial[0].upper()
-    num = int(initial[1:]) - 1
-    mapa = {"S": "Singlet", "T": "Triplet"}
-    frase = "Transition Moments Between " + mapa[spin] + " Excited States"
-    for i, file in enumerate(files):
-        oscs = []
-        ind = indices[i, num]
-        ind_s = indices[i, :]
-        location = np.where(ind_s == ind)[0][0]
-        ind_s = ind_s[location + 1 :]
-        ind = str(ind)
-        with open("Geometries/" + file, "r", encoding="utf-8") as log_file:
-            dip = False
-            for line in log_file:
-                if frase in line:
-                    dip = True
-                elif dip and "--" not in line:
-                    line = line.split()
-                    if (line[0] == ind and int(line[1]) in ind_s) or (
-                        line[1] == ind and int(line[0]) in ind_s
-                    ):
-                        oscs.append(float(line[5]))
-                elif len(oscs) > 0 and "---" in line:
-                    dip = False
-            try:
-                total_oscs = np.vstack((total_oscs, np.array(oscs)[np.newaxis, :]))
-            except NameError:
-                total_oscs = np.array(oscs)[np.newaxis, :]
-    return total_oscs
-
-
-#########################################################################################
-
-
-##GETS SOCS BETWEEN S0 AND EACH TRIPLET SUBLEVEL#########################################
-def soc_s0(file, mqn, ind_t):
-    socs = np.zeros((1))
-    with open("Geometries/" + file, "r", encoding="utf-8") as log_file:
-        read = False
-        for line in log_file:
-            if (
-                "SOC between the singlet ground state and excited triplet states (ms="
-                + mqn
-                in line
-            ):
-                read = True
-            elif read:
-                if "T" in line and "Total" not in line:
-                    line = line.split()
-                    real_part = line[1].replace("(", "").replace(")", "").replace("i", "")
-                    real_part = float(
-                        real_part.replace("--", "+")
-                        .replace("+-", "-")
-                        .replace("-+", "-")
-                        .replace("++", "+")
-                    )
-                    img_part = line[2] + line[3].replace("(", "").replace(")", "").replace(
-                        "i", ""
-                    )
-                    img_part = float(
-                        img_part.replace("--", "+")
-                        .replace("+-", "-")
-                        .replace("-+", "-")
-                        .replace("++", "+")
-                    )
-                    complex_soc = real_part + img_part * 1j
-                    # Qchem gives <S0|H|Tn>. We need to conjugate to get <Tn|H|S0>
-                    complex_soc = complex_soc.conjugate()
-                    socs = np.vstack((socs, np.array([complex_soc])))
-                else:
-                    read = False
-    socs = socs[1:, :]
-    indice = np.argsort(ind_t)
-    socs = socs[indice, :]
-    return socs * 0.12398 / 1000
-
-
-#########################################################################################
-
-
-##GETS SOCS BETWEEN Sm AND EACH Tn SUBLEVEL##############################################
-def soc_t1(file, mqn, n_triplet, ind_s):
-    socs = np.zeros((1))
-    with open("Geometries/" + file, "r", encoding="utf-8") as log_file:
-        read = False
-        for line in log_file:
-            if "SOC between the S" in line and "(ms=" + mqn in line:
-                read = True
-            elif read:
-                if "T" + str(n_triplet + 1) + "(ms=" + mqn in line:
-                    line = line.split()
-                    real_part = line[1].replace("(", "").replace(")", "").replace("i", "")
-                    real_part = float(
-                        real_part.replace("--", "+")
-                        .replace("+-", "-")
-                        .replace("-+", "-")
-                        .replace("++", "+")
-                    )
-                    img_part = line[2] + line[3].replace("(", "").replace(")", "").replace(
-                        "i", ""
-                    )
-                    img_part = float(
-                        img_part.replace("--", "+")
-                        .replace("+-", "-")
-                        .replace("-+", "-")
-                        .replace("++", "+")
-                    )
-                    # Qchem gives <Sn|H|Tn>. No need to conjugate.
-                    complex_soc = real_part + img_part * 1j
-                    socs = np.vstack((socs, np.array([complex_soc])))
-    socs = socs[1:, :]
-    indice = np.argsort(ind_s)
-    socs = socs[indice, :]
-    return socs * 0.12398 / 1000
-
-
 ##CALCULATES TRANSITION DIPOLE MOMENTS FOR Tn TO S0 TRANSITIONS##########################
 def moment(file, ess, ets, dipss, dipts, n_triplet, ind_s, ind_t):
     # Conversion factor between a.u. = e*bohr to SI
@@ -477,8 +54,8 @@ def moment(file, ess, ets, dipss, dipts, n_triplet, ind_s, ind_t):
     ess = np.insert(ess, 0, 0)
     moments = []
     for mqn in ["1", "-1", "0"]:
-        socst1 = soc_t1(file, mqn, fake_t, ind_s)
-        socss0 = soc_s0(file, mqn, ind_t)
+        socst1 = nemo.parser.soc_t1(file, mqn, fake_t, ind_s)
+        socss0 = nemo.parser.soc_s0(file, mqn, ind_t)
         socst1 = np.vstack((socss0[0, :], socst1))
         # Conjugate to get <S0|H|T1>
         socst1[0] = socst1[0].conjugate()
@@ -527,16 +104,16 @@ def phosph_osc(file, n_state, ind_s, ind_t, singlets, triplets):
     zero = ["0"]
     zero.extend(ind_s)
     total_moments = []
-    ground_dipoles = pega_dipolos(file, zero, "Electron Dipole Moments of Ground State", 0)
-    ground_singlet_dipoles = pega_dipolos(
+    ground_dipoles = nemo.parser.pega_dipolos(file, zero, "Electron Dipole Moments of Ground State", 0)
+    ground_singlet_dipoles = nemo.parser.pega_dipolos(
         file, zero, "Transition Moments Between Ground and Singlet Excited States", 0
     )
     ground_dipoles = np.vstack((ground_dipoles, ground_singlet_dipoles))
     for n_triplet in range(n_state):
-        triplet_dipoles = pega_dipolos(
+        triplet_dipoles = nemo.parser.pega_dipolos(
             file, ind_t, "Electron Dipole Moments of Triplet Excited State", n_triplet
         )
-        triplet_triplet_dipoles = pega_dipolos(
+        triplet_triplet_dipoles = nemo.parser.pega_dipolos(
             file, ind_t, "Transition Moments Between Triplet Excited States", n_triplet
         )
         triplet_dipoles = np.vstack((triplet_dipoles, triplet_triplet_dipoles))
@@ -574,7 +151,7 @@ def analysis(files):
     n_state = read_cis(files[0])
     numbers = []
     for file in files:
-        singlets, triplets, oscs, ind_s, ind_t, ss_s, ss_t, ground_pol = pega_energias(
+        singlets, triplets, oscs, ind_s, ind_t, ss_s, ss_t, ground_pol = nemo.parser.pega_energias(
             "Geometries/" + file
         )
         singlets = np.array([singlets[:n_state]])
@@ -683,13 +260,13 @@ def gather_data(initial, save=True):
         else:
             # Oscs       = Oscs[:,n_state][:,np.newaxis]
             label_oscs = [f"osce_s{n_state+1+i}" for i in range(oscs.shape[1])]
-            noscs = pega_oscs(files, ind_s, initial)
+            noscs = nemo.parser.pega_oscs(files, ind_s, initial)
             label_oscs.extend([f"osc_s{n_state+2+i}" for i in range(noscs.shape[1])])
             oscs = np.hstack((oscs, noscs))
         try:
             header7 = []
             for i in range(singlets.shape[1]):
-                socs_partial = avg_socs(files, "singlet", i)
+                socs_partial = nemo.parser.avg_socs(files, "singlet", i)
                 header7.extend(
                     [f"soc_s{i+1}_t{j}" for j in range(1, 1 + socs_partial.shape[1])]
                 )
@@ -704,7 +281,7 @@ def gather_data(initial, save=True):
         oscs = get_osc_phosph(files, singlets, triplets, ind_s, ind_t)
         # Oscs       = Oscs[:,n_state][:,np.newaxis]
         label_oscs = [f"osce_t{n_state+1+i}" for i in range(oscs.shape[1])]
-        noscs = pega_oscs(files, ind_t, initial)
+        noscs = nemo.parser.pega_oscs(files, ind_t, initial)
         oscs = np.hstack((oscs, noscs))
         label_oscs.extend([f"osc_t{n_state+2+i}" for i in range(noscs.shape[1])])
         try:
@@ -712,9 +289,9 @@ def gather_data(initial, save=True):
             for i in range(triplets.shape[1]):
                 socs_partial = np.hstack(
                     (
-                        avg_socs(files, "ground", i),
-                        avg_socs(files, "triplet", i),
-                        avg_socs(files, "tts", i),
+                        nemo.parser.avg_socs(files, "ground", i),
+                        nemo.parser.avg_socs(files, "triplet", i),
+                        nemo.parser.avg_socs(files, "tts", i),
                     )
                 )
                 indices = [
@@ -853,9 +430,9 @@ def x_values(mean,std):
     x_axis = np.linspace(left, right, int((right - left) / 0.01))
     return x_axis
 
-def sorting_parameters(argsort,*args):
-    argsort = np.argsort(args[0], axis=1)
+def sorting_parameters(*args):
     args = list(args)
+    argsort = np.argsort(args[0], axis=1)
     for arg in args:
         arg = np.take_along_axis(arg, argsort, axis=1)
     return tuple(args)
@@ -872,10 +449,41 @@ def check_number_geoms(data):
 
 
 def fetch(data, criteria_list):
+    regex_list = [re.compile(c) for c in criteria_list]
     filtered_data = data[
-        [i for i in data.columns.values if all(c in i for c in criteria_list if not c.startswith('-')) and not any(c[1:] in i for c in criteria_list if c.startswith('-'))]
+        [i for i in data.columns.values if all(r.search(i) for r in regex_list)]
     ].to_numpy()
     return filtered_data
+
+def total_reorganization_energy(lambda_b, kbt):
+    return np.sqrt(2 * lambda_b * kbt + kbt**2)
+
+
+def rate_and_uncertainty(y_axis):
+    number_geoms = y_axis.shape[0]
+    mean_y = np.sum(y_axis, axis=0) / number_geoms
+    error = np.sqrt(np.sum((y_axis - mean_y) ** 2, axis=0) / (number_geoms * (number_geoms - 1)))
+    return mean_y, error
+
+def select_columns(nstate,*args):
+    args = list(args)
+    for arg in args:
+        arg = arg[:,nstate]
+    return tuple(args)
+
+def breakdown_emi(ss_s,ss_t,delta_emi,l_total,individual,labels,alphaopt1):
+    # make a dataframe with Ss_s and Ss_t
+    breakdown = pd.DataFrame(
+        np.hstack((ss_s / alphaopt1, ss_t / alphaopt1)),
+        columns=[f"chi_s{i+1}" for i in range(ss_s.shape[1])]
+        + [f"chi_t{i+1}" for i in range(ss_t.shape[1])],
+    )
+    # append a columns with energies named eng
+    breakdown["eng"] = delta_emi
+    breakdown["sigma"] = l_total
+    # append individual to df, use labels as columns
+    breakdown = pd.concat([breakdown, pd.DataFrame(individual, columns=labels)], axis=1)
+    return breakdown
 
 ###CALCULATES ISC AND EMISSION RATES & SPECTRA#########################################
 def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
@@ -898,12 +506,12 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
     data = fix_absent_soc(data)
 
     # Emission Calculations
-    lambda_be = (alphast2 / alphast1 - alphaopt2 / alphast1) * data["gp"].to_numpy()
-    l_total = np.sqrt(2 * lambda_be * kbt + kbt**2)
-    energies = data.filter(regex=f"^e_{initial[0]}").to_numpy()
+    lambda_be = (alphast2 / alphast1 - alphaopt2 / alphast1) * fetch(data,['^gp']).flatten()
+    l_total = total_reorganization_energy(lambda_be, kbt)
+    energies = fetch(data,[f"^e_{initial[0]}"])
     delta_emi = (
         energies
-        - (alphast2 / alphaopt1) * data.filter(regex=f"^d_{initial[0]}").to_numpy()
+        - (alphast2 / alphaopt1) * fetch(data,[f"^d_{initial[0]}"])
     )
     constante = (
         (refractive_index**2)
@@ -912,16 +520,11 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
     )
     if "t" in initial:
         constante *= 1 / 3
-    oscs = data.filter(regex="^osce_").to_numpy()
-    # socs_s0 will be used for T1>S0 ISC calculation
-    socs_s0 = data[
-            [i for i in data.columns.values if "soc_t" in i and "s0" in i]
-        ].to_numpy()
+    oscs = fetch(data,['^osce_'])
+    # socs_s0 will be used for T1~>S0 ISC calculation
+    socs_s0 = fetch(data,['^soc_t.*s0'])
     delta_emi, oscs, energies, *socs_s0 = sorting_parameters(delta_emi,oscs,energies,socs_s0)
-    delta_emi = delta_emi[:, n_state]
-    oscs = oscs[:, n_state]
-    energies = energies[:, n_state]
-    socs_s0 = socs_s0[:, n_state]
+    delta_emi, oscs, energies, *socs_s0 = select_columns(n_state,delta_emi,oscs,energies,socs_s0)
     espectro = constante * ((delta_emi - lambda_be) ** 2) * oscs
     tdm = nemo.tools.calc_tdm(oscs, energies, espectro)
     x_axis = x_values(delta_emi,l_total)
@@ -929,8 +532,7 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
         x_axis, delta_emi[:, np.newaxis], l_total[:, np.newaxis]
     )
     number_geoms = y_axis.shape[0]
-    mean_y = np.sum(y_axis, axis=0) / number_geoms
-    error = np.sqrt(np.sum((y_axis - mean_y) ** 2, axis=0) / (number_geoms * (number_geoms - 1)))
+    mean_y, error = rate_and_uncertainty(y_axis)
     emi_rate, emi_error = nemo.tools.calc_emi_rate(x_axis, mean_y, error)
     gap_emi = means(delta_emi, espectro, ensemble_average)
     mean_sigma_emi = means(l_total, espectro, ensemble_average)
@@ -945,20 +547,14 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
     if data is None:
         check_number_geoms(data)
     # Intersystem Crossing Rates
-    singlets = data[
-        [i for i in data.columns.values if "e_s" in i and "osc" not in i]
-    ].to_numpy()
-    triplets = data[
-        [i for i in data.columns.values if "e_t" in i and "osc" not in i]
-    ].to_numpy()
-    ss_s = data[[i for i in data.columns.values if "d_s" in i]].to_numpy()
-    ss_t = data[[i for i in data.columns.values if "d_t" in i]].to_numpy()
+    singlets = fetch(data,['^e_s'])
+    triplets = fetch(data,['^e_t'])
+    ss_s = fetch(data,['^d_s'])
+    ss_t = fetch(data,['^d_t'])
     if "s" in initial:
         initial_state = singlets - (alphast2 / alphaopt1) * ss_s
         final_state = triplets - (alphaopt2 / alphaopt1) * ss_t
-        socs_complete = data[
-            [i for i in data.columns.values if "soc_s" in i]
-        ].to_numpy()
+        socs_complete = fetch(data,['^soc_s'])
         initial_state, final_state, ss_s, ss_t, socs_complete = reorder(
             initial_state, final_state, ss_s, ss_t, socs_complete
         )
@@ -984,13 +580,7 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
         # Tn to Sm ISC
         initial_state = triplets - (alphast2 / alphaopt1) * ss_t
         final_state = singlets - (alphaopt2 / alphaopt1) * ss_s
-        socs_complete = data[
-            [
-                i
-                for i in data.columns.values
-                if "soc_t" in i and "s0" not in i and i.count("t") == 1
-            ]
-        ].to_numpy()
+        socs_complete = fetch(data,['^soc_t.*s[1-9]'])
         initial_state, final_state, ss_t, ss_s, socs_complete = reorder(
             initial_state, final_state, ss_t, ss_s, socs_complete
         )
@@ -1018,17 +608,14 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
         # lambda_b = np.hstack((lambda_b,lambda_bt[:,indices]))
         # final.extend([i.upper()[4:] for i in data.columns.values if 'soc_t' in i])
 
-    sigma = np.sqrt(2 * lambda_b * kbt + kbt**2)
+    sigma = total_reorganization_energy(lambda_b, kbt)
     y_axis = (2 * np.pi / HBAR_EV) * (socs_complete**2) * nemo.tools.gauss(delta, 0, sigma)
     # hstack y and espectro
     individual = np.hstack((espectro[:, np.newaxis], y_axis))
     individual /= individual.shape[0]
     number_geoms = y_axis.shape[0]
-    rate = np.sum(y_axis, axis=0) / number_geoms
+    rate, error = rate_and_uncertainty(y_axis)
     total = emi_rate + np.sum(rate)
-    # Error estimate
-    error = np.sqrt(np.sum((y_axis - rate) ** 2, axis=0) / (number_geoms * (number_geoms - 1)))
-
     results = np.array(
         [
             [
@@ -1051,19 +638,6 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
     rate = rate[:, np.newaxis]
     error = error[:, np.newaxis]
     labels = [f"{initial.upper()}->S0"] + [f"{initial.upper()}~>{j}" for j in final]
-
-    # make a dataframe with Ss_s and Ss_t
-    breakdown = pd.DataFrame(
-        np.hstack((ss_s / alphaopt1, ss_t / alphaopt1)),
-        columns=[f"chi_s{i+1}" for i in range(ss_s.shape[1])]
-        + [f"chi_t{i+1}" for i in range(ss_t.shape[1])],
-    )
-    # append a columns with energies named eng
-    breakdown["eng"] = delta_emi
-    breakdown["sigma"] = l_total
-    # append individual to df, use labels as columns
-    breakdown = pd.concat([breakdown, pd.DataFrame(individual, columns=labels)], axis=1)
-
     labels = np.array(labels)
     results_isc = np.hstack(
         (
@@ -1091,6 +665,7 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
     )
     results.insert(0, "Transition", labels)
     if detailed:
+        breakdown = breakdown_emi(ss_s,ss_t,delta_emi,l_total,individual,labels,alphaopt1)
         return results, emi, breakdown
     else:
         return results, emi
@@ -1170,18 +745,18 @@ def absorption(initial, dielec, data=None, save=False, detailed=False, nstates=-
     )
     spin = initial[0]
     num = int(initial[1:])
-    engs = [i for i in data.columns if f"e_{spin}" in i and "osc" not in i and int(i.split("_")[1][1:]) > num]
-    lambda_neq = [i for i in data.columns if f"d_{spin}" in i and int(i.split("_")[1][1:]) > num]
-    oscs = [i for i in data.columns if "osc_" in i and int(i.split("_")[1][1:]) > num]
-    engs = data[engs].to_numpy()
-    lambda_neq = data[lambda_neq].to_numpy()
-    oscs = data[oscs].to_numpy()
+    engs = fetch(data,[f"^e_{spin}"])
+    lambda_neq = fetch(data,[f"^d_{spin}"])
+    oscs = fetch(data,['^osc_'])
+    engs = engs[:, num:]
+    lambda_neq = lambda_neq[:, num:]
+    oscs = oscs[:, num:]
     lambda_b = (alphast2 / alphaopt1 - alphaopt2 / alphaopt1) * lambda_neq
     if initial == "s0":
         deltae_lambda = engs - (alphaopt2 / alphaopt1) * lambda_neq
     else:
-        base = data[f"e_{initial}"].to_numpy()[:, np.newaxis]
-        lambda_neq_base = data[f"d_{initial}"].to_numpy()[:, np.newaxis]
+        base = fetch(data,f"^e_{initial}")
+        lambda_neq_base = fetch(data,f"^d_{initial}")
         deltae_lambda = (
             engs
             - (alphaopt2 / alphaopt1) * lambda_neq
@@ -1190,17 +765,14 @@ def absorption(initial, dielec, data=None, save=False, detailed=False, nstates=-
 
     # Sorting states by energy
     deltae_lambda, oscs, lambda_b, *lambda_neq = sorting_parameters(deltae_lambda, oscs, lambda_b, lambda_neq)
-    l_total = np.sqrt(2 * lambda_b * kbt + kbt**2)
+    l_total = total_reorganization_energy(lambda_b, kbt)
     x_axis = x_values(deltae_lambda,l_total)
     if nstates == -1:
         nstates = deltae_lambda.shape[1]
     # Add extra dimension to DE and Ltotal to match x shape
     deltae_lambda, l_total, oscs, *lambda_b = another_dimension(nstates,deltae_lambda, l_total, oscs, lambda_b)
     y_axis = constante * oscs * nemo.tools.gauss(x_axis, deltae_lambda, l_total)
-    number_geoms = oscs.shape[0]
-    mean_y = np.sum(y_axis, axis=0) / number_geoms
-    # Error estimate
-    sigma = np.sqrt(np.sum((y_axis - mean_y) ** 2, axis=0) / (number_geoms * (number_geoms - 1)))
+    mean_y, sigma = rate_and_uncertainty(y_axis)
     mean_y = mean_y.T
     sigma = sigma.T
     total = np.sum(mean_y, axis=1)

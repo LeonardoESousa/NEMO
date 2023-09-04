@@ -6,6 +6,8 @@ which is a tool for simulating photophysical processes in organic materials.
 import sys
 import lx.tools
 import nemo.tools
+import nemo.parser
+from nemo import __version__ as nemo_version
 from nemo.analysis import rates, export_results, gather_data, absorption
 
 def interface():
@@ -28,6 +30,7 @@ def interface():
     ------------------Photophysics--------------------
     \n"""
     )
+    print(f"Version: {nemo_version.__version__}\n")
     print("Choose your option:\n")
     print("ENSEMBLE SETUP:")
     print("\t1 - Generate the inputs for the nuclear ensemble calculation")
@@ -83,7 +86,7 @@ def interface():
             static = float(static)
             refrac = float(refrac)
         except ValueError:
-            nemo.tools.fatal_error(
+            nemo.parser.fatal_error(
                 "Dielectric constant and refractive index must be numbers!"
             )
         rem += (f"\n$solvent\n"
@@ -124,7 +127,7 @@ def interface():
         num_geoms = int(input("How many geometries to be sampled?\n"))
         temperature = float(input("Temperature in Kelvin?\n"))
         if temperature <= 0:
-            nemo.tools.fatal_error("Have you heard about absolute zero? Goodbye!")
+            nemo.parser.fatal_error("Have you heard about absolute zero? Goodbye!")
         if gauss:
             lx.tools.make_ensemble(freqlog, num_geoms, temperature, header, "$end\n")
         else:
@@ -156,7 +159,7 @@ def interface():
                 epsilon = float(epsilon)
                 refractive_index = float(refractive_index)
             except ValueError:
-                nemo.tools.fatal_error(
+                nemo.parser.fatal_error(
                     "Dielectric constant and refractive index must be numbers. Bye!"
                 )
         state = input(
@@ -187,7 +190,7 @@ def interface():
                 epsilon = float(epsilon)
                 refractive_index = float(refractive_index)
             except ValueError:
-                nemo.tools.fatal_error(
+                nemo.parser.fatal_error(
                     "Dielectric constant and refractive index must be numbers. Bye!"
                 )
         state = input(
@@ -196,7 +199,7 @@ def interface():
 
         states = state.split(",")
         for state in states:
-            res, emi = rates(state, [epsilon, refractive_index])
+            res, *emi = rates(state, [epsilon, refractive_index])
             export_results(res, emi, [epsilon, refractive_index])
     elif operation == "7":
         state = input(
@@ -211,7 +214,7 @@ def interface():
     elif operation == "9":
         lx.tools.omega_tuning()
     else:
-        nemo.tools.fatal_error("It must be one of the options... Goodbye!")
+        nemo.parser.fatal_error("It must be one of the options... Goodbye!")
 
 
 def main():
@@ -222,7 +225,7 @@ def main():
     if len(sys.argv) > 1:
         try:
             freqlog = sys.argv[1]
-            geometry, atomos = nemo.tools.pega_geom(freqlog)
+            geometry, atomos = nemo.parser.pega_geom(freqlog)
             for i, atomo in enumerate(atomos):
                 print(
                     f"{atomo:2s}  {geometry[i, 0]:.8f}  {geometry[i, 1]:.8f}  {geometry[i, 2]:.8f}"

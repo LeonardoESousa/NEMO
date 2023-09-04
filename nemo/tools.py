@@ -1,138 +1,19 @@
 #!/usr/bin/env python3
 import os
-import sys
 from subprocess import Popen
 import numpy as np
 from scipy.stats import norm
+import nemo.parser
 
-##SOME CONSTANTS##############################################
-EPSILON_0 = 8.854187817e-12  # F/m
-HBAR_EV = 6.582119514e-16  # eV s
-HBAR_J = 1.054571800e-34  # J s
-MASS_E = 9.10938356e-31  # kg
-LIGHT_SPEED = 299792458  # m/s
-E_CHARGE = 1.60217662e-19  # C
-BOLTZ_EV = 8.6173303e-5  # eV/K
-AMU = 1.660539040e-27  # kg
-###############################################################
-
-
-##ERROR FUNCTION###############################################
-def fatal_error(msg):
-    print(msg)
-    sys.exit()
+LIGHT_SPEED = nemo.parser.LIGHT_SPEED
+HBAR_EV = nemo.parser.HBAR_EV
+HBAR_J = nemo.parser.HBAR_J
+BOLTZ_EV = nemo.parser.BOLTZ_EV
+E_CHARGE = nemo.parser.E_CHARGE
+MASS_E = nemo.parser.MASS_E
+EPSILON_0 = nemo.parser.EPSILON_0
 
 ###############################################################
-
-
-##GETS FREQUENCIES AND REDUCED MASSES##########################
-def pega_freq(freqlog):
-    freqs, masses = [], []
-    with open(freqlog, "r",encoding="utf-8") as freq_file:
-        for line in freq_file:
-            if "Frequency:" in line:
-                line = line.split()
-                for j in range(1, len(line)):
-                    if float(line[j]) in freqs:
-                        pass
-                    freqs.append(float(line[j]))
-            elif "Red. Mass:" in line:
-                line = line.split()
-                for j in range(2, len(line)):
-                    masses.append(float(line[j]))
-    # conversion in angular frequency
-    freqs = np.array(freqs) * (LIGHT_SPEED * 100 * 2 * np.pi)
-    if len(freqs) == 0:
-        fatal_error("No frequencies in the log file! Goodbye!")
-    # conversion from amu to kg
-    masses = np.asarray(masses) * AMU
-    return freqs, masses
-
-
-###############################################################
-
-
-##GETS ATOMS AND LAST GEOMETRY IN FILE#########################
-def pega_geom(freqlog):
-    if ".out" in freqlog:
-        busca = "Nuclear Orientation"
-        n_value = -1
-        with open(freqlog, "r",encoding="utf-8") as freq_file:
-            for line in freq_file:
-                if busca in line and "Dipole" not in line:
-                    n_value = 0
-                    geometry = np.zeros((1, 3))
-                    atomos = []
-                elif n_value >= 0 and n_value < 1:
-                    n_value += 1
-                elif (
-                    n_value >= 1
-                    and "----------------------------------------------------------------"
-                    not in line
-                ):
-                    line = line.split()
-                    new_geometry = []
-                    for j in range(2, len(line)):
-                        new_geometry.append(float(line[j]))
-                    atomos.append(line[1])
-                    geometry = np.vstack((geometry, new_geometry))
-                    n_value += 1
-                elif (
-                    "----------------------------------------------------------------"
-                    in line and n_value > 1):
-                    n_value = -1
-    else:
-        geometry = np.zeros((1, 3))
-        atomos = []
-        with open(freqlog, "r",encoding="utf-8") as freq_file:
-            for line in freq_file:
-                line = line.split()
-                try:
-                    vetor = np.array([float(line[1]), float(line[2]), float(line[3])])
-                    atomos.append(line[0])
-                    geometry = np.vstack((geometry, vetor))
-                except ValueError:
-                    pass
-    try:
-        geometry = geometry[1:, :]
-    except IndexError:
-        fatal_error("No geometry in the log file! Goodbye!")
-    return geometry, atomos
-
-
-###############################################################
-
-
-def pega_modos(file):
-    with open(file, 'r', encoding='utf-8') as freq_file:
-        start = False
-        coords = []
-        count = 0
-        for line in freq_file:
-            if 'X      Y      Z' in line:
-                start = True
-                continue
-            if start:
-                if 'TransDip' in line:
-                    start = False
-                    line = line.split()
-                    count += int((len(line) - 1)/3)
-                    try:
-                        arranged_coords = np.hstack((arranged_coords,np.array(coords)))
-                    except NameError:
-                        arranged_coords = np.array(coords)
-                    coords = []
-                else:
-                    line = line.split()
-                    buffer = []
-                    for i in range(1,len(line)):
-                        buffer.append(float(line[i]))
-                    coords.append(buffer)
-    final_coords = np.zeros((arranged_coords.shape[0]*3,arranged_coords.shape[1]//3))
-    for i in range(0,arranged_coords.shape[1]//3):
-        final_coords[:,i] = arranged_coords[:,3*i:3*i+3].flatten()
-    return final_coords
-
 
 ##WRITES ATOMS AND XYZ COORDS TO FILE##########################
 def write_input(atomos, geometry, header, bottom, file):
@@ -162,10 +43,10 @@ def start_counter():
 
 ##SAMPLES GEOMETRIES###########################################
 def sample_geometries(freqlog, num_geoms, temperature, limit=np.inf):
-    geometry, atomos = pega_geom(freqlog)
-    freqs, masses = pega_freq(freqlog)
+    geometry, atomos = nemo.parser.pega_geom(freqlog)
+    freqs, masses = nemo.parser.pega_freq(freqlog)
     freqs[freqs < 0] *= -1
-    normal_coordinates = pega_modos(freqlog)
+    normal_coordinates = nemo.parser.pega_modos(freqlog)
     mask = freqs < limit * (LIGHT_SPEED * 100 * 2 * np.pi)
     freqs = freqs[mask]
     normal_coordinates = normal_coordinates[:, mask]
@@ -271,9 +152,9 @@ def ask_states(frase):
     try:
         int(estados[1:])
     except ValueError:
-        fatal_error("It must be S or T and an integer! Goodbye!")
+        nemo.parser.fatal_error("It must be S or T and an integer! Goodbye!")
     if estados[0].upper() != "S" and estados[0].upper() != "T":
-        fatal_error("It must be S or T and an integer! Goodbye!")
+        nemo.parser.fatal_error("It must be S or T and an integer! Goodbye!")
     return estados.upper()
 
 
@@ -406,7 +287,7 @@ def fetch_file(frase, ends):
         for end in ends:
             if end in file:
                 return file
-    fatal_error(f"No {frase} file found. Goodbye!")
+    nemo.parser.fatal_error(f"No {frase} file found. Goodbye!")
 ###############################################################
 
 
@@ -421,7 +302,7 @@ def batch():
         int(nproc)
         int(num)
     except ValueError:
-        fatal_error("It must be an integer. Goodbye!")
+        nemo.parser.fatal_error("It must be an integer. Goodbye!")
 
     folder = os.path.dirname(os.path.realpath(__file__))
     with open("limit.lx", "w",encoding="utf-8") as limit_file:
