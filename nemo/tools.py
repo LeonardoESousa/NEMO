@@ -245,10 +245,6 @@ def andamento():
             if "Geometr" in file and ".log" in file
         ]
         factor = 1
-        with open("Geometries/" + coms[0], "r", encoding="utf-8") as com_file:
-            for line in com_file:
-                if "Link1" in line:
-                    factor = 2
         count = 0
         error = 0
         for file in logs:
@@ -266,10 +262,7 @@ def andamento():
             "inputs",
         )
         if error > 0:
-            print(
-                (f"There are {error} failed jobs. "
-                 "If you used option 2, check the nohup.out file for details.")
-            )
+            print(f"There are {error} failed jobs.")
         print(
             np.round(100 * (count + error) / (factor * len(coms)), 1),
             "% of the calculations have been run.",

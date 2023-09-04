@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 import nemo.tools
 import nemo.parser
-
+# pylint: disable=unbalanced-tuple-unpacking
 
 LIGHT_SPEED = nemo.tools.LIGHT_SPEED
 HBAR_EV = nemo.tools.HBAR_EV
@@ -435,7 +435,7 @@ def sorting_parameters(*args):
     argsort = np.argsort(args[0], axis=1)
     for arg in args:
         arg = np.take_along_axis(arg, argsort, axis=1)
-    return tuple(args)
+    return args
 
 def check_number_geoms(data):
     number_geoms = data.shape[0]
@@ -467,9 +467,11 @@ def rate_and_uncertainty(y_axis):
 
 def select_columns(nstate,*args):
     args = list(args)
+    modified = []
     for arg in args:
         arg = arg[:,nstate]
-    return tuple(args)
+        modified.append(arg)
+    return modified
 
 def breakdown_emi(ss_s,ss_t,delta_emi,l_total,individual,labels,alphaopt1):
     # make a dataframe with Ss_s and Ss_t
@@ -509,7 +511,7 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
     lambda_be = (alphast2 / alphast1 - alphaopt2 / alphast1) * fetch(data,['^gp']).flatten()
     l_total = total_reorganization_energy(lambda_be, kbt)
     energies = fetch(data,[f"^e_{initial[0]}"])
-    delta_emi = (
+    delta_emi_unsorted = (
         energies
         - (alphast2 / alphaopt1) * fetch(data,[f"^d_{initial[0]}"])
     )
@@ -521,10 +523,8 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
     if "t" in initial:
         constante *= 1 / 3
     oscs = fetch(data,['^osce_'])
-    # socs_s0 will be used for T1~>S0 ISC calculation
-    socs_s0 = fetch(data,['^soc_t.*s0'])
-    delta_emi, oscs, energies, *socs_s0 = sorting_parameters(delta_emi,oscs,energies,socs_s0)
-    delta_emi, oscs, energies, *socs_s0 = select_columns(n_state,delta_emi,oscs,energies,socs_s0)
+    delta_emi, oscs, energies = sorting_parameters(delta_emi_unsorted,oscs,energies)
+    delta_emi, oscs, energies = select_columns(n_state,delta_emi,oscs,energies)
     espectro = constante * ((delta_emi - lambda_be) ** 2) * oscs
     tdm = nemo.tools.calc_tdm(oscs, energies, espectro)
     x_axis = x_values(delta_emi,l_total)
@@ -596,6 +596,9 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
             if "soc_" + initial.lower() + "_" in i and i.count("t") == 1
         ]
         # Tn to S0 ISC
+        socs_s0 = fetch(data,['^soc_t.*s0'])
+        delta_emi, socs_s0 = sorting_parameters(delta_emi_unsorted, socs_s0)
+        socs_s0 = socs_s0[:,n_state]
         socs_complete = np.hstack((socs_s0[:, np.newaxis], socs_complete))
         delta = np.hstack((delta_emi[:, np.newaxis], delta))
         lambda_b = np.hstack((lambda_be[:, np.newaxis], lambda_b))
@@ -764,13 +767,13 @@ def absorption(initial, dielec, data=None, save=False, detailed=False, nstates=-
         )
 
     # Sorting states by energy
-    deltae_lambda, oscs, lambda_b, *lambda_neq = sorting_parameters(deltae_lambda, oscs, lambda_b, lambda_neq)
+    deltae_lambda, oscs, lambda_b, lambda_neq = sorting_parameters(deltae_lambda, oscs, lambda_b, lambda_neq)
     l_total = total_reorganization_energy(lambda_b, kbt)
     x_axis = x_values(deltae_lambda,l_total)
     if nstates == -1:
         nstates = deltae_lambda.shape[1]
     # Add extra dimension to DE and Ltotal to match x shape
-    deltae_lambda, l_total, oscs, *lambda_b = another_dimension(nstates,deltae_lambda, l_total, oscs, lambda_b)
+    deltae_lambda, l_total, oscs, lambda_b = another_dimension(nstates,deltae_lambda, l_total, oscs, lambda_b)
     y_axis = constante * oscs * nemo.tools.gauss(x_axis, deltae_lambda, l_total)
     mean_y, sigma = rate_and_uncertainty(y_axis)
     mean_y = mean_y.T

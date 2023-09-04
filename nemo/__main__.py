@@ -9,6 +9,7 @@ import nemo.tools
 import nemo.parser
 from nemo import __version__ as nemo_version
 from nemo.analysis import rates, export_results, gather_data, absorption
+# pylint: disable=unbalanced-tuple-unpacking
 
 def interface():
     """
@@ -199,7 +200,7 @@ def interface():
 
         states = state.split(",")
         for state in states:
-            res, *emi = rates(state, [epsilon, refractive_index])
+            res, emi = rates(state, [epsilon, refractive_index])
             export_results(res, emi, [epsilon, refractive_index])
     elif operation == "7":
         state = input(
