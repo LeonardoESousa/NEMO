@@ -46,12 +46,10 @@ def delist(elem):
 ##CHECKS THE FREQUENCY LOG'S LEVEL OF THEORY###################
 def busca_input(freqlog):
     charge_mult = None
-    search = True
-    with open(freqlog, "r", encoding="utf-8") as freq_file:
-        for line in freq_file:
-            if "A Quantum Leap Into The Future Of Chemistry" in line:
-                search = False
-                break
+    if ".out" in freqlog or ".log" in freqlog:
+        search = False
+    else:
+        search = True
     rem = ""
     with open(freqlog, "r", encoding="utf-8") as freq_file:
         for line in freq_file:
