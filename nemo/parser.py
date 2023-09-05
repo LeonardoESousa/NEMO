@@ -12,15 +12,83 @@ BOLTZ_EV = 8.6173303e-5  # eV/K
 AMU = 1.660539040e-27  # kg
 ###############################################################
 
+
 ##ERROR FUNCTION###############################################
 def fatal_error(msg):
     print(msg)
     sys.exit()
 
+
+##LIST OF KEYWORDS THAT SHOULD NOT BE READ#####################
+def delist(elem):
+    words = [
+        "jobtype",
+        "-----",
+        "cis_n",
+        "cis_s",
+        "cis_t",
+        "gui",
+        "nto_",
+        "soc",
+        "sts_",
+        "CIS_RELAXED_DENSITY",
+        "solvent_method",
+    ]
+    for word in words:
+        if word in elem.lower():
+            return False
+    return True
+
+
+###############################################################
+
+
+##CHECKS THE FREQUENCY LOG'S LEVEL OF THEORY###################
+def busca_input(freqlog):
+    charge_mult = None
+    search = True
+    with open(freqlog, "r", encoding="utf-8") as freq_file:
+        for line in freq_file:
+            if "A Quantum Leap Into The Future Of Chemistry" in line:
+                search = False
+                break
+    rem = ""
+    with open(freqlog, "r", encoding="utf-8") as freq_file:
+        for line in freq_file:
+            if "User input:" in line and not search:
+                search = True
+            elif search and delist(line):
+                rem += line
+            elif (
+                "--------------------------------------------------------------" in line
+                and search
+                and rem != ""
+            ):
+                search = False
+    rem = rem.split("$end")
+    remove = ["$molecule", "$comment", "$pcm", "$solvent", "$end"]
+    extra = ""
+    for element in rem:
+        if "$rem" in element:
+            rem_section = element + "$end\n"
+        elif "$molecule" in element:
+            mol_section = element.split("\n")
+            for mol in mol_section:
+                mol = mol.split()
+                if len(mol) == 2:
+                    charge_mult = " ".join(mol)
+        elif element.strip() and all(x not in element for x in remove):
+            extra += element + "$end\n"
+    return rem_section, charge_mult, extra
+
+
+###############################################################
+
+
 ##GETS FREQUENCIES AND REDUCED MASSES##########################
 def pega_freq(freqlog):
     freqs, masses = [], []
-    with open(freqlog, "r",encoding="utf-8") as freq_file:
+    with open(freqlog, "r", encoding="utf-8") as freq_file:
         for line in freq_file:
             if "Frequency:" in line:
                 line = line.split()
@@ -46,44 +114,40 @@ def pega_freq(freqlog):
 
 ##GETS ATOMS AND LAST GEOMETRY IN FILE#########################
 def pega_geom(freqlog):
-    if ".out" in freqlog:
-        busca = "Nuclear Orientation"
-        n_value = -1
-        with open(freqlog, "r",encoding="utf-8") as freq_file:
+    if ".out" in freqlog or ".log" in freqlog:
+        start = False
+        n_value = 0
+        with open(freqlog, "r", encoding="utf-8") as freq_file:
             for line in freq_file:
-                if busca in line and "Dipole" not in line:
-                    n_value = 0
+                if "I     Atom           X                Y                Z" in line:
                     geometry = np.zeros((1, 3))
                     atomos = []
-                elif n_value >= 0 and n_value < 1:
-                    n_value += 1
-                elif (
-                    n_value >= 1
-                    and "----------------------------------------------------------------"
-                    not in line
-                ):
+                    start = True
+                elif start:
                     line = line.split()
-                    new_geometry = []
-                    for j in range(2, len(line)):
-                        new_geometry.append(float(line[j]))
-                    atomos.append(line[1])
-                    geometry = np.vstack((geometry, new_geometry))
-                    n_value += 1
-                elif (
-                    "----------------------------------------------------------------"
-                    in line and n_value > 1):
-                    n_value = -1
+                    try:
+                        new_row = []
+                        for j in range(2, len(line)):
+                            new_row.append(float(line[j]))
+                        atomos.append(line[1])
+                        geometry = np.vstack((geometry, new_row))
+                    except (ValueError, IndexError):
+                        n_value += 1
+                if n_value == 2:
+                    start = False
+                    n_value = 0
+
     else:
         geometry = np.zeros((1, 3))
         atomos = []
-        with open(freqlog, "r",encoding="utf-8") as freq_file:
+        with open(freqlog, "r", encoding="utf-8") as freq_file:
             for line in freq_file:
                 line = line.split()
                 try:
                     vetor = np.array([float(line[1]), float(line[2]), float(line[3])])
                     atomos.append(line[0])
                     geometry = np.vstack((geometry, vetor))
-                except ValueError:
+                except (ValueError, IndexError):
                     pass
     try:
         geometry = geometry[1:, :]
@@ -96,34 +160,37 @@ def pega_geom(freqlog):
 
 
 def pega_modos(file):
-    with open(file, 'r', encoding='utf-8') as freq_file:
+    with open(file, "r", encoding="utf-8") as freq_file:
         start = False
         coords = []
         count = 0
         for line in freq_file:
-            if 'X      Y      Z' in line:
+            if "X      Y      Z" in line:
                 start = True
                 continue
             if start:
-                if 'TransDip' in line:
+                if "TransDip" in line:
                     start = False
                     line = line.split()
-                    count += int((len(line) - 1)/3)
+                    count += int((len(line) - 1) / 3)
                     try:
-                        arranged_coords = np.hstack((arranged_coords,np.array(coords)))
+                        arranged_coords = np.hstack((arranged_coords, np.array(coords)))
                     except NameError:
                         arranged_coords = np.array(coords)
                     coords = []
                 else:
                     line = line.split()
                     buffer = []
-                    for i in range(1,len(line)):
+                    for i in range(1, len(line)):
                         buffer.append(float(line[i]))
                     coords.append(buffer)
-    final_coords = np.zeros((arranged_coords.shape[0]*3,arranged_coords.shape[1]//3))
-    for i in range(0,arranged_coords.shape[1]//3):
-        final_coords[:,i] = arranged_coords[:,3*i:3*i+3].flatten()
+    final_coords = np.zeros(
+        (arranged_coords.shape[0] * 3, arranged_coords.shape[1] // 3)
+    )
+    for i in range(0, arranged_coords.shape[1] // 3):
+        final_coords[:, i] = arranged_coords[:, 3 * i : 3 * i + 3].flatten()
     return final_coords
+
 
 ##GETS ENERGIES, OSCS, AND INDICES FOR Sn AND Tn STATES##################################
 def pega_energias(file):
@@ -483,16 +550,18 @@ def soc_s0(file, mqn, ind_t):
             elif read:
                 if "T" in line and "Total" not in line:
                     line = line.split()
-                    real_part = line[1].replace("(", "").replace(")", "").replace("i", "")
+                    real_part = (
+                        line[1].replace("(", "").replace(")", "").replace("i", "")
+                    )
                     real_part = float(
                         real_part.replace("--", "+")
                         .replace("+-", "-")
                         .replace("-+", "-")
                         .replace("++", "+")
                     )
-                    img_part = line[2] + line[3].replace("(", "").replace(")", "").replace(
-                        "i", ""
-                    )
+                    img_part = line[2] + line[3].replace("(", "").replace(
+                        ")", ""
+                    ).replace("i", "")
                     img_part = float(
                         img_part.replace("--", "+")
                         .replace("+-", "-")
@@ -525,16 +594,18 @@ def soc_t1(file, mqn, n_triplet, ind_s):
             elif read:
                 if "T" + str(n_triplet + 1) + "(ms=" + mqn in line:
                     line = line.split()
-                    real_part = line[1].replace("(", "").replace(")", "").replace("i", "")
+                    real_part = (
+                        line[1].replace("(", "").replace(")", "").replace("i", "")
+                    )
                     real_part = float(
                         real_part.replace("--", "+")
                         .replace("+-", "-")
                         .replace("-+", "-")
                         .replace("++", "+")
                     )
-                    img_part = line[2] + line[3].replace("(", "").replace(")", "").replace(
-                        "i", ""
-                    )
+                    img_part = line[2] + line[3].replace("(", "").replace(
+                        ")", ""
+                    ).replace("i", "")
                     img_part = float(
                         img_part.replace("--", "+")
                         .replace("+-", "-")

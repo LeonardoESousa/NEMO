@@ -67,11 +67,11 @@ def interface():
             print("You are using a Gaussian log file.")
             template = nemo.tools.fetch_file("QChem template", [".in"])
             charge_multiplicity = lx.tools.get_cm(freqlog)
-            rem, _, extra = nemo.tools.busca_input(template)
+            rem, _, extra = nemo.parser.busca_input(template)
         else:
             template = nemo.tools.fetch_file("QChem template", [".in"])
-            rem, _, extra = nemo.tools.busca_input(template)
-            _, charge_multiplicity, _ = nemo.tools.busca_input(freqlog)
+            rem, _, extra = nemo.parser.busca_input(template)
+            _, charge_multiplicity, _ = nemo.parser.busca_input(freqlog)
         print(f"QChem template file: {template}")
         print("\nThe configurations to be used are:\n")
         rem += extra + "\n"
