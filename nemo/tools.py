@@ -402,9 +402,7 @@ def watcher(files, counter, first):
                 for line in log_file:
                     if "Have a nice day" in line:
                         term += 1
-                    elif (
-                        "fatal error" in line or "failed standard"
-                    ) in line and not first:
+                    elif "fatal error" in line or "failed standard" in line and not first:
                         error = True
                         print(f"The following job returned an error: {input_file}")
                         print("Please check the file for any syntax errors.")

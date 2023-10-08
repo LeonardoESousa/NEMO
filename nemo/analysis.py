@@ -674,7 +674,6 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
     )
     # hstack y and espectro
     individual = np.hstack((espectro[:, np.newaxis], y_axis))
-    individual /= individual.shape[0]
     number_geoms = y_axis.shape[0]
     rate, error = rate_and_uncertainty(y_axis)
     total = emi_rate + np.sum(rate)
@@ -790,9 +789,10 @@ def make_breakdown(
 
 def another_dimension(nstates, *args):
     args = list(args)
+    new_args = []
     for arg in args:
-        arg = arg[:, :nstates, np.newaxis]
-    return tuple(args)
+        arg = new_args.append(arg[:, :nstates, np.newaxis])
+    return new_args
 
 
 ###COMPUTES ABSORPTION SPECTRA###########################################################
@@ -876,7 +876,7 @@ def absorption(initial, dielec, data=None, save=False, detailed=False, nstates=-
         )
     if detailed:
         breakdown = make_breakdown(
-            initial, spin, num, oscs, deltae_lambda, lambda_neq, alphaopt1, l_total
+            initial, spin, num, constante*oscs, deltae_lambda, lambda_neq, alphaopt1, l_total
         )
         return abs_spec, breakdown
     return abs_spec
