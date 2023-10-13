@@ -368,15 +368,15 @@ class Watcher:
                 with open(self.folder + "/" + input_file[:-3] + "log", "r",encoding="utf-8") as log_file:
                     for line in log_file:
                         if "Have a nice day" in line:
-                            self.done.append(input_file)
+                            self.done.append(input_file[:-3] + "log")
                             del self.files[self.files.index(input_file)]
                             break
                         elif "fatal error" in line:
-                            self.error.append(input_file)
+                            self.error.append(input_file[:-3] + "log")
                             del self.files[self.files.index(input_file)]
                             break
                         elif "failed standard" in line:
-                            self.license_error.append(input_file)
+                            self.license_error.append(input_file[:-3] + "log")
                             del self.files[self.files.index(input_file)]
                             break
             except FileNotFoundError:
@@ -397,7 +397,7 @@ class Watcher:
     def limit(self):
         try:
             return np.loadtxt("../limit.lx",encoding='utf-8')
-        except FileNotFoundError:
+        except (OSError,FileNotFoundError):
             sys.exit()
 
     def keep_going(self,num):
