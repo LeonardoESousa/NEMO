@@ -407,8 +407,8 @@ class Watcher:
     def run(self, batch_file, nproc, num):
         total_threads = int(nproc) * int(num)
         self.check()
+        inputs = self.files.copy()
         while len(self.files) > 0:
-            inputs = self.files.copy()
             next_inputs = inputs[:int(num)]
             num_proc = int(total_threads / len(next_inputs))
             command = ''
