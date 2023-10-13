@@ -271,12 +271,8 @@ def batch():
     except ValueError:
         nemo.parser.fatal_error("It must be an integer. Goodbye!")
 
-    #folder = os.path.dirname(os.path.realpath(__file__))
     with open("limit.lx", "w",encoding="utf-8") as limit_file:
         limit_file.write(str(limite))
-    #Popen(
-    #    ["nohup", "python3", folder + "/batch_lx.py", script, nproc, num, "&"]
-    #)
     Popen(
         ["nohup", "nemo_batch_run", script, nproc, num, "&"]
     )
@@ -404,11 +400,15 @@ class Watcher:
         except FileNotFoundError:
             sys.exit()
 
+    def keep_going(self,num):
+        if len(self.running) / num <= self.limit():
+            return False
+
     def run(self, batch_file, nproc, num):
         total_threads = int(nproc) * int(num)
         self.check()
         while len(self.files) > 0:
-            inputs = self.files.copy() + self.license_error
+            inputs = self.files.copy()
             next_inputs = inputs[:int(num)]
             num_proc = int(total_threads / len(next_inputs))
             command = ''
@@ -421,7 +421,7 @@ class Watcher:
                 cmd.write(command)
             sub = subprocess.call(["bash", batch_file, f"cmd_{self.running_batches}_.sh"])
             self.running_batches += 1
-            while len(self.running) / num >= self.limit():
+            while self.keep_going(num):
                 time.sleep(20)
                 self.check()
                 concluded = self.done + self.error + self.license_error
