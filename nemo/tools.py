@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
 import os
+import subprocess
+import sys
+import time
 from subprocess import Popen
 import numpy as np
 from scipy.stats import norm
@@ -268,13 +271,15 @@ def batch():
     except ValueError:
         nemo.parser.fatal_error("It must be an integer. Goodbye!")
 
-    folder = os.path.dirname(os.path.realpath(__file__))
+    #folder = os.path.dirname(os.path.realpath(__file__))
     with open("limit.lx", "w",encoding="utf-8") as limit_file:
         limit_file.write(str(limite))
+    #Popen(
+    #    ["nohup", "python3", folder + "/batch_lx.py", script, nproc, num, "&"]
+    #)
     Popen(
-        ["nohup", "python3", folder + "/batch_lx.py", script, nproc, num, "&"]
+        ["nohup", "nemo_batch_run", script, nproc, num, "&"]
     )
-
 
 ###############################################################
 
@@ -346,9 +351,7 @@ def abort_batch():
 
 
 ###############################################################
-import subprocess
-import sys
-import time
+
 
 class Watcher:
     def __init__(self, folder):
@@ -411,7 +414,7 @@ class Watcher:
             command = ''
             for input_file in next_inputs:
                 command += f"qchem -nt {num_proc} {input_file} {input_file[:-3]}log &\n"
-                self.running.append(input_file)
+                self.running.append(f'{input_file[:-3]}log')
                 inputs.remove(input_file)
             command += "wait"
             with open(f"cmd_{self.running_batches}_.sh", "w",encoding='utf-8') as cmd:
@@ -422,9 +425,7 @@ class Watcher:
                 time.sleep(20)
                 self.check()
                 concluded = self.done + self.error + self.license_error
-                for elem in concluded:
-                    del self.running[self.running.index(elem)]
-
+                self.running = [elem for elem in self.running if elem not in concluded]
 
 ##CHECKS PROGRESS##############################################
 def andamento():
