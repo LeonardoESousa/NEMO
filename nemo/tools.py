@@ -244,48 +244,6 @@ def ask_states(frase):
 def get_alpha(eps):
     return (eps - 1) / (eps + 1)
 
-##CHECKS PROGRESS##############################################
-def andamento():
-    try:
-        coms = [
-            file
-            for file in os.listdir("Geometries")
-            if "Geometr" in file and ".com" in file and ".com_" not in file
-        ]
-        logs = [
-            file
-            for file in os.listdir("Geometries")
-            if "Geometr" in file and ".log" in file
-        ]
-        factor = 1
-        count = 0
-        error = 0
-        for file in logs:
-            with open("Geometries/" + file, "r", encoding="utf-8") as log_file:
-                for line in log_file:
-                    if "Have a nice day" in line:
-                        count += 1
-                    elif "fatal error" in line:
-                        error += 1
-        print(
-            "\n\nThere are",
-            int(count / factor),
-            "successfully completed calculations out of",
-            len(coms),
-            "inputs",
-        )
-        if error > 0:
-            print(f"There are {error} failed jobs.")
-        print(
-            np.round(100 * (count + error) / (factor * len(coms)), 1),
-            "% of the calculations have been run.",
-        )
-    except IndexError:
-        print("No files found! Check the folder!")
-
-
-###############################################################
-
 
 ##FETCHES  FILES###############################################
 def fetch_file(frase, ends):
@@ -388,7 +346,92 @@ def abort_batch():
 
 
 ###############################################################
+import subprocess
+import sys
+import time
 
+class Watcher:
+    def __init__(self, folder):
+        self.folder = folder
+        self.files  = [i for i in os.listdir(folder) if ".com" in i and "Geometr" in i]
+        self.files  = sorted(self.files, key=lambda pair: float(pair.split("-")[1]))
+        self.number_inputs = len(self.files)
+        self.done   = []
+        self.license_error  = []
+        self.error = []
+        self.running = []
+        self.running_batches = 0
+
+    def check(self):
+        list_to_check = self.files.copy()
+        for input_file in list_to_check:
+            try:
+                with open(self.folder + "/" + input_file[:-3] + "log", "r",encoding="utf-8") as log_file:
+                    for line in log_file:
+                        if "Have a nice day" in line:
+                            self.done.append(input_file)
+                            del self.files[self.files.index(input_file)]
+                            break
+                        elif "fatal error" in line:
+                            self.error.append(input_file)
+                            del self.files[self.files.index(input_file)]
+                            break
+                        elif "failed standard" in line:
+                            self.license_error.append(input_file)
+                            del self.files[self.files.index(input_file)]
+                            break
+            except FileNotFoundError:
+                pass
+    
+    def report(self):
+        self.check()
+        print('\n\n')
+        print(f'There are {len(self.done)} successfully completed calculations out of {self.number_inputs} inputs.')
+        print(f'{100 * len(self.done) / self.number_inputs:.1f}% of the calculations have been run.')
+        if len(self.error) > 0:
+            print(f"There are {len(self.error)} failed jobs.")
+            print('These are: ', self.error)
+        if len(self.license_error) > 0:
+            print(f"There are {len(self.license_error)} failed jobs due to license error.")
+            print('These are: ', self.license_error)
+
+    def limit(self):
+        try:
+            return np.loadtxt("../limit.lx",encoding='utf-8')
+        except FileNotFoundError:
+            sys.exit()
+
+    def run(self, batch_file, nproc, num):
+        total_threads = int(nproc) * int(num)
+        self.check()
+        while len(self.files) > 0:
+            inputs = self.files.copy() + self.license_error
+            next_inputs = inputs[:int(num)]
+            num_proc = int(total_threads / len(next_inputs))
+            command = ''
+            for input_file in next_inputs:
+                command += f"qchem -nt {num_proc} {input_file} {input_file[:-3]}log &\n"
+                self.running.append(input_file)
+                inputs.remove(input_file)
+            command += "wait"
+            with open(f"cmd_{self.running_batches}_.sh", "w",encoding='utf-8') as cmd:
+                cmd.write(command)
+            sub = subprocess.call(["bash", batch_file, f"cmd_{self.running_batches}_.sh"])
+            self.running_batches += 1
+            while len(self.running) / num >= self.limit():
+                time.sleep(20)
+                self.check()
+                concluded = self.done + self.error + self.license_error
+                for elem in concluded:
+                    del self.running[self.running.index(elem)]
+
+
+##CHECKS PROGRESS##############################################
+def andamento():
+    the_watcher = Watcher('Geometries')
+    the_watcher.report()
+
+###############################################################
 
 ##CHECKS WHETHER JOBS ARE DONE#################################
 def watcher(files, counter, first):
