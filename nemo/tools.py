@@ -401,14 +401,16 @@ class Watcher:
             sys.exit()
 
     def keep_going(self,num):
-        if len(self.running) / num <= self.limit():
+        if len(self.running) / num < self.limit():
             return False
+        else:
+            return True
 
     def run(self, batch_file, nproc, num):
         total_threads = int(nproc) * int(num)
         self.check()
         inputs = self.files.copy()
-        while len(self.files) > 0:
+        while len(inputs) > 0:
             next_inputs = inputs[:int(num)]
             num_proc = int(total_threads / len(next_inputs))
             command = ''
@@ -421,12 +423,14 @@ class Watcher:
                 cmd.write(command)
             sub = subprocess.call(["bash", batch_file, f"cmd_{self.running_batches}_.sh"])
             self.running_batches += 1
-            while self.keep_going(num):
+            keep = self.keep_going(num)
+            while keep:
                 time.sleep(20)
                 self.check()
                 concluded = self.done + self.error + self.license_error
                 self.running = [elem for elem in self.running if elem not in concluded]
-
+                keep = self.keep_going(num)
+            
 ##CHECKS PROGRESS##############################################
 def andamento():
     the_watcher = Watcher('Geometries')
