@@ -352,7 +352,7 @@ def abort_batch():
 class Watcher:
     def __init__(self, folder):
         self.folder = folder
-        self.files = [i for i in os.listdir(folder) if ".com" in i and "Geometr" in i]
+        self.files = [i for i in os.listdir(folder) if i.endswith('.com') in i and "Geometr" in i]
         self.files = sorted(self.files, key=lambda pair: float(pair.split("-")[1]))
         self.number_inputs = len(self.files)
         self.done = []
