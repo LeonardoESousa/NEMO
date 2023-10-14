@@ -352,11 +352,11 @@ def abort_batch():
 class Watcher:
     def __init__(self, folder):
         self.folder = folder
-        self.files  = [i for i in os.listdir(folder) if ".com" in i and "Geometr" in i]
-        self.files  = sorted(self.files, key=lambda pair: float(pair.split("-")[1]))
+        self.files = [i for i in os.listdir(folder) if ".com" in i and "Geometr" in i]
+        self.files = sorted(self.files, key=lambda pair: float(pair.split("-")[1]))
         self.number_inputs = len(self.files)
-        self.done   = []
-        self.license_error  = []
+        self.done = []
+        self.license_error = []
         self.error = []
         self.running = []
         self.running_batches = 0
@@ -381,7 +381,7 @@ class Watcher:
                             break
             except FileNotFoundError:
                 pass
-    
+
     def report(self):
         self.check()
         print('\n\n')
@@ -403,8 +403,7 @@ class Watcher:
     def keep_going(self,num):
         if len(self.running) / num < self.limit():
             return False
-        else:
-            return True
+        return True
 
     def run(self, batch_file, nproc, num):
         total_threads = int(nproc) * int(num)
@@ -430,40 +429,11 @@ class Watcher:
                 concluded = self.done + self.error + self.license_error
                 self.running = [elem for elem in self.running if elem not in concluded]
                 keep = self.keep_going(num)
-            
+
 ##CHECKS PROGRESS##############################################
 def andamento():
     the_watcher = Watcher('Geometries')
     the_watcher.report()
-
-###############################################################
-
-##CHECKS WHETHER JOBS ARE DONE#################################
-def watcher(files, counter, first):
-    rodando = files.copy()
-    done = []
-    for input_file in rodando:
-        term = 0
-        error = False
-        try:
-            with open(input_file[:-3] + "log", "r",encoding="utf-8") as log_file:
-                for line in log_file:
-                    if "Have a nice day" in line:
-                        term += 1
-                    elif "fatal error" in line or "failed standard" in line and not first:
-                        error = True
-                        print(f"The following job returned an error: {input_file}")
-                        print("Please check the file for any syntax errors.")
-                    elif ("fatal error" in line or "failed standard") in line and first:
-                        os.remove(input_file[:-3] + "log")
-            if term == counter or error:
-                done.append(input_file)
-        except FileNotFoundError:
-            pass
-    for elem in done:
-        del rodando[rodando.index(elem)]
-    return rodando
-
 
 ###############################################################
 
