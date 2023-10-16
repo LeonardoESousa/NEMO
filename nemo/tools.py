@@ -352,7 +352,7 @@ def abort_batch():
 class Watcher:
     def __init__(self, folder):
         self.folder = folder
-        self.files = [i for i in os.listdir(folder) if i.endswith('.com') and "Geometr" in i]
+        self.files = [i[:-4] for i in os.listdir(folder) if i.endswith('.com') and "Geometr" in i]
         self.files = sorted(self.files, key=lambda pair: float(pair.split("-")[1]))
         self.number_inputs = len(self.files)
         self.done = []
@@ -365,18 +365,18 @@ class Watcher:
         list_to_check = self.files.copy()
         for input_file in list_to_check:
             try:
-                with open(self.folder + "/" + input_file[:-3] + "log", "r",encoding="utf-8") as log_file:
+                with open(self.folder + "/" + input_file + ".log", "r",encoding="utf-8") as log_file:
                     for line in log_file:
                         if "Have a nice day" in line:
-                            self.done.append(input_file[:-3] + "log")
+                            self.done.append(input_file)
                             del self.files[self.files.index(input_file)]
                             break
                         elif "fatal error" in line:
-                            self.error.append(input_file[:-3] + "log")
+                            self.error.append(input_file)
                             del self.files[self.files.index(input_file)]
                             break
                         elif "failed standard" in line:
-                            self.license_error.append(input_file[:-3] + "log")
+                            self.license_error.append(input_file)
                             del self.files[self.files.index(input_file)]
                             break
             except FileNotFoundError:
@@ -405,17 +405,25 @@ class Watcher:
             return False
         return True
 
+    def clean_failed(self):
+        for failed in self.error + self.license_error:
+            os.remove(self.folder + "/" + failed)
+        self.files += self.error + self.license_error
+        self.error = []
+        self.license_error = []
+
     def run(self, batch_file, nproc, num):
         total_threads = int(nproc) * int(num)
         self.check()
+        self.clean_failed()
         inputs = self.files.copy()
         while len(inputs) > 0:
             next_inputs = inputs[:int(num)]
             num_proc = int(total_threads / len(next_inputs))
             command = ''
             for input_file in next_inputs:
-                command += f"qchem -nt {num_proc} {input_file} {input_file[:-3]}log &\n"
-                self.running.append(f'{input_file[:-3]}log')
+                command += f"qchem -nt {num_proc} {input_file}.com {input_file}.log &\n"
+                self.running.append(input_file)
                 inputs.remove(input_file)
             command += "wait"
             with open(f"cmd_{self.running_batches}_.sh", "w",encoding='utf-8') as cmd:
