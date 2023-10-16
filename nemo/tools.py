@@ -407,7 +407,7 @@ class Watcher:
 
     def clean_failed(self):
         for failed in self.error + self.license_error:
-            os.remove(self.folder + "/" + failed)
+            os.remove(self.folder + "/" + failed + ".log")
         self.files += self.error + self.license_error
         self.error = []
         self.license_error = []
