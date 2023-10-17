@@ -791,7 +791,7 @@ def another_dimension(nstates, *args):
     args = list(args)
     new_args = []
     for arg in args:
-        arg = new_args.append(arg[:, :nstates, np.newaxis])
+        new_args.append(arg[:, :nstates, np.newaxis])
     return new_args
 
 

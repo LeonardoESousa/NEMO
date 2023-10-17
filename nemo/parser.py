@@ -460,7 +460,7 @@ def pega_dipolos(file, ind, frase, state):
                     dipole_line = np.array([dipole_line])
                     try:
                         dipoles = np.vstack((dipoles, dipole_line))
-                    except NameError:
+                    except (NameError,ValueError):
                         dipoles = np.zeros((1, len(line) - 1))
                         dipoles = np.vstack((dipoles, dipole_line))
                 elif line[1] == str(ind[state]) and int(line[0]) < int(line[1]):
@@ -470,7 +470,7 @@ def pega_dipolos(file, ind, frase, state):
                     dipole_line = np.array([dipole_line])
                     try:
                         dipoles = np.vstack((dipoles, dipole_line))
-                    except NameError:
+                    except (NameError,ValueError):
                         dipoles = np.zeros((1, len(line) - 1))
                         dipoles = np.vstack((dipoles, dipole_line))
             elif np.shape(dipoles)[0] > 1 and "---" in line:
