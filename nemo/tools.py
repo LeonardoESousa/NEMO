@@ -423,6 +423,7 @@ class Watcher:
             command = ''
             for input_file in next_inputs:
                 command += f"qchem -nt {num_proc} {input_file}.com {input_file}.log &\n"
+                command += 'sleep 5\n'
                 self.running.append(input_file)
                 inputs.remove(input_file)
             command += "wait"
