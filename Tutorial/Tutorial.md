@@ -22,7 +22,9 @@ To overcome this limitation, **NEMO** resorts to the nuclear ensemble method. Ta
 The theoretical aspects behind **NEMO** can be found in the following papers:
 
 
-> Leonardo Evaristo de Sousa and Piotr de Silva, Journal of Chemical Theory and Computation 2021 17 (9), 5816-5824 DOI: 10.1021/acs.jctc.1c00476
+> 1- [de Sousa, Leonardo Evaristo, and Piotr de Silva. "Unified framework for photophysical rate calculations in tadf molecules." Journal of Chemical Theory and Computation 17.9 (2021): 5816-5824](https://pubs.acs.org/doi/full/10.1021/acs.jctc.1c00476)
+
+>  2 - [de Sousa, Leonardo Evaristo, and Piotr de Silva. "Photophysics of Solvated Molecules: Computational Protocol Combining Nuclear Ensemble and Nonequilibrium State-Specific Solvation Methods." The Journal of Physical Chemistry A (2023)](https://pubs.acs.org/doi/full/10.1021/acs.jpca.3c03533).
 
 
 
@@ -594,7 +596,7 @@ Once all calculations are run, there are three ways to get results:
 
 ## A Note on Solvent Selection
 
-Regardless of the method used to compile results, you will be prompted to select the solvent parameters (dielectric constant and refractive index) for your rates and/or spectra. These solvent parameters may be different than the ones used in the ensemble generation step. In this case, **NEMO** will employ an extrapolation procedure to obtain solvent corrections for the new dielectric constant and refractive index. Details on how this is performed can be found in ADD PAPER.
+Regardless of the method used to compile results, you will be prompted to select the solvent parameters (dielectric constant and refractive index) for your rates and/or spectra. These solvent parameters may be different than the ones used in the ensemble generation step. In this case, **NEMO** will employ an extrapolation procedure to obtain solvent corrections for the new dielectric constant and refractive index. Details on how this is performed can be found in [this paper](https://pubs.acs.org/doi/full/10.1021/acs.jpca.3c03533).
 
 ## Using **NEMOview**
 

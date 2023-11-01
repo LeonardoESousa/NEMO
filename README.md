@@ -5,7 +5,7 @@
 [![down](https://img.shields.io/pypi/dm/nemophoto)]()
 [![maint](https://img.shields.io/maintenance/yes/2023)]()
 [![commit](https://img.shields.io/github/last-commit/LeonardoESousa/NEMO?style=plastic)]()
-[![CodeFactor](https://www.codefactor.io/repository/github/leonardoesousa/nemo/badge/factor?style=plastic)](https://www.codefactor.io/repository/github/leonardoesousa/nemo/overview/factor)
+[![CodeFactor](https://www.codefactor.io/repository/github/leonardoesousa/nemo/badge)](https://www.codefactor.io/repository/github/leonardoesousa/nemo)
 
 Fluorescence, phosphorescence and intersystem crossing (ISC) rate calculations. Absorption, fluorescence and phosphorescence spectrum simulations. Förster radius and singlet exciton diffusion length estimates. Interfaces with the QChem package. 
 
@@ -25,10 +25,9 @@ Table of Contents
 
 ## Cite as:
 
-> Leonardo Evaristo de Sousa and Piotr de Silva
-Journal of Chemical Theory and Computation 2021 17 (9), 5816-5824
-DOI: 10.1021/acs.jctc.1c00476
+> 1- [de Sousa, Leonardo Evaristo, and Piotr de Silva. "Unified framework for photophysical rate calculations in tadf molecules." Journal of Chemical Theory and Computation 17.9 (2021): 5816-5824](https://pubs.acs.org/doi/full/10.1021/acs.jctc.1c00476)
 
+>  2 - [de Sousa, Leonardo Evaristo, and Piotr de Silva. "Photophysics of Solvated Molecules: Computational Protocol Combining Nuclear Ensemble and Nonequilibrium State-Specific Solvation Methods." The Journal of Physical Chemistry A (2023)](https://pubs.acs.org/doi/full/10.1021/acs.jpca.3c03533).
 
 ## What does this program do?
 
@@ -88,10 +87,10 @@ Here is a quick guide on how to use the software. For a detailed tutorial, click
     - Once all calculations from step 1 are done, run the `nemo` command and choose option 6. Follow the instructions to set the parameters. Three files will be generated: an Ensemble file, with data from the ensemble of geometries; a differential_rate file, with the emission spectrum; a rates file, with all available rates (-> denote radiative transitions and ~> denote ISC transitions). 
 
 4. IMPORTANT:
-    - You may choose to calculate spectra and rates with different solvent dielectric constant and refractive index than the ones selected as input in Option 1. To do so, **NEMO** will resort to the extrapolation procedure described in ADD PAPER to adjust the results to the new solvent. 
+    - You may choose to calculate spectra and rates with different solvent dielectric constant and refractive index than the ones selected as input in Option 1. To do so, **NEMO** will resort to the extrapolation procedure described in [this paper](https://pubs.acs.org/doi/full/10.1021/acs.jpca.3c03533) to adjust the results to the new solvent. 
 
 5. For exciton properties:
-    - For exciton properties, you must first calculate the fluorescence and absorption spectra of the donor and acceptor molecules of interest to you. Copy both spectra to a folder and inside this folder run the `nemo` command. Choose option 7. Follow the instructions to set the calculation parameters. A file will be generated with all the information. Importantly, diffusion length estimates are only sensible if donor and acceptor molecules are of the same kind. These estimations follow from the procedures described in: "de Sousa, L. E., Bueno, F. T., e Silva, G. M., da Silva Filho, D. A., & de Oliveira Neto, P. H. (2019). Fast predictions of exciton diffusion length in organic materials. Journal of Materials Chemistry C, 7(14), 4066-4071." 
+    - For exciton properties, you must first calculate the fluorescence and absorption spectra of the donor and acceptor molecules of interest to you. Copy both spectra to a folder and inside this folder run the `nemo` command. Choose option 7. Follow the instructions to set the calculation parameters. A file will be generated with all the information. Importantly, diffusion length estimates are only sensible if donor and acceptor molecules are of the same kind. These estimations follow from the procedures described in: [de Sousa, L. E., Bueno, F. T., e Silva, G. M., da Silva Filho, D. A., & de Oliveira Neto, P. H. (2019). Fast predictions of exciton diffusion length in organic materials. Journal of Materials Chemistry C, 7(14), 4066-4071.](https://pubs.rsc.org/en/content/articlehtml/2019/tc/c9tc00153k) 
 
 
 For better visualization of results, consider using  [**NEMOview**](https://github.com/LeonardoESousa/nemoview). 
