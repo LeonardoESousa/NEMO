@@ -146,6 +146,8 @@ def setup_ensemble():
         nemo.parser.fatal_error(
             "Dielectric constant and refractive index must be numbers!"
         )
+    if static <= 1 or refrac**2 > static:
+        nemo.parser.fatal_error("Dielectric constants must be higher than 1 and the refractive index squared must be lower than the static dielectric constant! Goodbye!")
     rem += (f"\n$solvent\n"
             f"Dielectric              {static}\n"
             f"OpticalDielectric       {refrac**2}\n"
