@@ -246,12 +246,12 @@ def means(variable, weight, ensemble_mean=False):
     if ensemble_mean:
         try:
             mean = np.mean(variable, axis=0)
-        except IndexError:
+        except (IndexError,ZeroDivisionError):
             mean = np.mean(variable)
     else:
         try:
             mean = np.average(variable, axis=0, weights=weight)
-        except IndexError:
+        except (IndexError,ZeroDivisionError):
             mean = np.average(variable, axis=0)
     return mean
 
