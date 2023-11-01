@@ -5,6 +5,7 @@
 [![down](https://img.shields.io/pypi/dm/nemophoto)]()
 [![maint](https://img.shields.io/maintenance/yes/2023)]()
 [![commit](https://img.shields.io/github/last-commit/LeonardoESousa/NEMO?style=plastic)]()
+[![CodeFactor](https://www.codefactor.io/repository/github/leonardoesousa/nemo/badge/factor?style=plastic)](https://www.codefactor.io/repository/github/leonardoesousa/nemo/overview/factor)
 
 Fluorescence, phosphorescence and intersystem crossing (ISC) rate calculations. Absorption, fluorescence and phosphorescence spectrum simulations. Förster radius and singlet exciton diffusion length estimates. Interfaces with the QChem package. 
 

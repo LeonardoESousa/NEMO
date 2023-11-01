@@ -7,6 +7,7 @@
 import io
 import os
 import sys
+import subprocess
 from shutil import rmtree
 
 from setuptools import find_packages, setup, Command
@@ -20,7 +21,7 @@ AUTHOR = 'Leonardo Evaristo de Sousa'
 REQUIRES_PYTHON = '>=3.6.0'
 
 # What packages are required for this module to be executed?
-REQUIRED = ['numpy', 'scipy', 'pandas', 'LeoX>=0.6.1','wheel']
+REQUIRED = ['numpy', 'scipy', 'pandas', 'LeoX>=0.7.0','wheel']
 
 # What packages are optional?
 EXTRAS = {
@@ -45,7 +46,7 @@ except FileNotFoundError:
 # Load the package's __version__.py module as a dictionary.
 about = {}
 project_slug = 'nemo'
-with open(os.path.join(here, project_slug, '__version__.py')) as f:
+with open(os.path.join(here, project_slug, '__version__.py'),encoding='utf-8') as f:
     exec(f.read(), about)
 
 class UploadCommand(Command):
@@ -57,7 +58,7 @@ class UploadCommand(Command):
     @staticmethod
     def status(s):
         """Prints things in bold."""
-        print('\033[1m{0}\033[0m'.format(s))
+        print(f'\033[1m{s}\033[0m')
 
     def initialize_options(self):
         pass
@@ -73,14 +74,10 @@ class UploadCommand(Command):
             pass
 
         self.status('Building Source and Wheel (universal) distribution…')
-        os.system('{0} setup.py sdist bdist_wheel --universal'.format(sys.executable))
+        subprocess.run([sys.executable, 'setup.py', 'sdist', 'bdist_wheel', '--universal'], check=True)
 
         self.status('Uploading the package to PyPI via Twine…')
-        os.system('twine upload dist/*')
-
-        self.status('Pushing git tags…')
-        os.system('git tag v{0}'.format(about['__version__']))
-        os.system('git push --tags')
+        subprocess.run(['twine', 'upload', 'dist/*'], check=True)
 
         sys.exit()
 
@@ -99,7 +96,7 @@ setup(
     packages=find_packages(exclude=["tests", "*.tests", "*.tests.*", "tests.*"]),
     # If your package is a single module, use this instead of 'packages':
     #py_modules=['mypackage'],
-    entry_points={'console_scripts': ["nemo = nemo.__main__:main"]},
+    entry_points={'console_scripts': ["nemo = nemo.__main__:main", "nemo_batch_run = nemo.batch:run_batch"]},
     install_requires=REQUIRED,
     extras_require=EXTRAS,
     include_package_data=True,
