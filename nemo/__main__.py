@@ -116,6 +116,7 @@ def interface():
                 nemo.parser.fatal_error(
                     "Dielectric constant and refractive index must be numbers. Bye!"
                 )
+        nemo.tools.check_dielectric(epsilon,refractive_index)        
         state = input(
             "What is the initial state (S1, T1, S2 ...)? Accepts comma separated values Ex: T1,T2\n"
         )
