@@ -655,6 +655,7 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
         # Tn to S0 ISC
         socs_s0 = fetch(data, ["^soc_t.*s0"])
         delta_emi, socs_s0 = sorting_parameters(delta_emi_unsorted, socs_s0)
+        delta_emi = delta_emi[:, n_state]
         socs_s0 = socs_s0[:, n_state]
         socs_complete = np.hstack((socs_s0[:, np.newaxis], socs_complete))
         delta = np.hstack((delta_emi[:, np.newaxis], delta))
@@ -823,13 +824,12 @@ def absorption(initial, dielec, data=None, save=False, detailed=False, nstates=-
     oscs = fetch(data, ["^osc_"])
     engs = engs[:, num:]
     lambda_neq = lambda_neq[:, num:]
-    oscs = oscs[:, num:]
     lambda_b = (alphast2 / alphaopt1 - alphaopt2 / alphaopt1) * lambda_neq
     if initial == "s0":
         deltae_lambda = engs - (alphaopt2 / alphaopt1) * lambda_neq
     else:
-        base = fetch(data, f"^e_{initial}")
-        lambda_neq_base = fetch(data, f"^d_{initial}")
+        base = fetch(data, [rf"\be_{initial}\b"])
+        lambda_neq_base = fetch(data, [rf"^d_{initial}"])
         deltae_lambda = (
             engs
             - (alphaopt2 / alphaopt1) * lambda_neq
