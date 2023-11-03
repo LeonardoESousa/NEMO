@@ -20,7 +20,7 @@ EPSILON_0 = nemo.parser.EPSILON_0
 
 ##RETURNS LIST OF LOG FILES WITH NORMAL TERMINATION######################################
 def check_normal(files):
-    normal = []
+    normal, abnormal = [], []
     add = False
     for file in files:
         with open("Geometries/" + file, "r", encoding="utf-8") as log_file:
@@ -34,11 +34,17 @@ def check_normal(files):
                     eng = float(line.split()[7])
                     if eng < 0:
                         add = False
+                        abnormal.append(file)
                     else:
                         add = True
                     exc = False
                 elif "Have a nice day" in line and add:
                     normal.append(file)
+    if len(abnormal) > 0:
+        print(f"Warning! Negative transition energies detected in {len(abnormal)} files:")
+        for file in abnormal:
+            print(file)
+        print("They will not be considered in the analysis")
     return normal
 
 
