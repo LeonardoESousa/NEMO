@@ -284,6 +284,7 @@ def format_rate(rate, delta_rate):
 
 ###SAVES ENSEMBLE DATA#################################################################
 def gather_data(initial, save=True):
+    formats = {}
     files = [i for i in os.listdir("Geometries") if ".log" in i]
     files = check_normal(files)
     files = sorted(files, key=lambda pair: float(pair.split("-")[1]))
@@ -304,11 +305,14 @@ def gather_data(initial, save=True):
         ) = analysis(files)
         if "s0" == initial.lower():
             label_oscs = [f"osc_s{i+1}" for i in range(oscs.shape[1])]
+            any({formats.update({f"osc_s{i+1}": "{:.5e}"}) for i in range(oscs.shape[1])})
         else:
             # Oscs       = Oscs[:,n_state][:,np.newaxis]
             label_oscs = [f"osce_s{n_state+1+i}" for i in range(oscs.shape[1])]
+            any({formats.update({f"osce_s{n_state+1+i}": "{:.5e}"}) for i in range(oscs.shape[1])})
             noscs = nemo.parser.pega_oscs(files, ind_s, initial)
             label_oscs.extend([f"osc_s{n_state+2+i}" for i in range(noscs.shape[1])])
+            any({formats.update({f"osc_s{n_state+2+i}": "{:.5e}"}) for i in range(noscs.shape[1])})
             oscs = np.hstack((oscs, noscs))
         try:
             header7 = []
@@ -317,6 +321,7 @@ def gather_data(initial, save=True):
                 header7.extend(
                     [f"soc_s{i+1}_t{j}" for j in range(1, 1 + socs_partial.shape[1])]
                 )
+                any({formats.update({f"soc_s{i+1}_t{j}": "{:.5e}"}) for j in range(1, 1 + socs_partial.shape[1])})
                 try:
                     socs_complete = np.hstack((socs_complete, socs_partial))
                 except NameError:
@@ -330,9 +335,11 @@ def gather_data(initial, save=True):
         oscs = get_osc_phosph(files, singlets, triplets, ind_s, ind_t)
         # Oscs       = Oscs[:,n_state][:,np.newaxis]
         label_oscs = [f"osce_t{n_state+1+i}" for i in range(oscs.shape[1])]
+        any({formats.update({f"osce_t{n_state+1+i}": "{:.5e}"}) for i in range(oscs.shape[1])})
         noscs = nemo.parser.pega_oscs(files, ind_t, initial)
         oscs = np.hstack((oscs, noscs))
         label_oscs.extend([f"osc_t{n_state+2+i}" for i in range(noscs.shape[1])])
+        any({formats.update({f"osc_t{n_state+2+i}": "{:.5e}"}) for i in range(noscs.shape[1])})
         try:
             header7 = []
             for i in range(triplets.shape[1]):
@@ -347,10 +354,13 @@ def gather_data(initial, save=True):
                     j + 1 for j in range(triplets.shape[1]) if j != i
                 ]  # Removed Tn to Tn transfers
                 header7.extend([f"soc_t{i+1}_s0"])
+                formats[f"soc_t{i+1}_s0"] = "{:.5e}"
                 header7.extend(
                     [f"soc_t{i+1}_s{j}" for j in range(1, 1 + singlets.shape[1])]
                 )
+                any({formats.update({f"soc_t{i+1}_s{j}": "{:.5e}"}) for j in range(1, 1 + singlets.shape[1])})
                 header7.extend([f"soc_t{i+1}_t{j}" for j in indices])
+                any({formats.update({f"soc_t{i+1}_t{j}": "{:.5e}"}) for j in indices})
                 try:
                     socs_complete = np.hstack((socs_complete, socs_partial))
                 except NameError:
@@ -358,11 +368,17 @@ def gather_data(initial, save=True):
         except IndexError:
             pass
     header = ["geometry"]
-    header.extend(["e_s" + str(i) for i in range(1, 1 + singlets.shape[1])])
-    header.extend(["e_t" + str(i) for i in range(1, 1 + triplets.shape[1])])
-    header.extend(["d_s" + str(i) for i in range(1, 1 + ss_s.shape[1])])
-    header.extend(["d_t" + str(i) for i in range(1, 1 + ss_t.shape[1])])
+    formats["geometry"] = "{:.0f}"
+    header.extend([f"e_s{i}" for i in range(1, 1 + singlets.shape[1])])
+    any({formats.update({f"e_s{i}": "{:.4f}"}) for i in range(1, 1 + singlets.shape[1])})
+    header.extend([f"e_t{i}" for i in range(1, 1 + triplets.shape[1])])
+    any({formats.update({f"e_t{i}": "{:.4f}"}) for i in range(1, 1 + triplets.shape[1])})
+    header.extend([f"d_s{i}" for i in range(1, 1 + ss_s.shape[1])])
+    any({formats.update({f"d_s{i}": "{:.4f}"}) for i in range(1, 1 + ss_s.shape[1])})
+    header.extend([f"d_t{i}" for i in range(1, 1 + ss_t.shape[1])])
+    any({formats.update({f"d_t{i}": "{:.4f}"}) for i in range(1, 1 + ss_t.shape[1])})
     header.extend(["gp"])
+    formats["gp"] = "{:.4f}"
     header.extend(label_oscs)
     try:
         header.extend(header7)
@@ -387,13 +403,20 @@ def gather_data(initial, save=True):
     # add 'ensemble', 'kbT', 'nr', 'eps' columns with constant values
     # values are initial.upper(), kbT, nr_i, eps_i
     data["ensemble"] = initial.upper()
+    formats["ensemble"] = "{:s}"
     data["kbT"] = kbt
+    formats["kbT"] = "{:.4f}"
     data["nr"] = nr_i
+    formats["nr"] = "{:.3f}"
     data["eps"] = eps_i
+    formats["eps"] = "{:.3f}"
     # make these the first columns
     cols = data.columns.tolist()
     cols = cols[-4:] + cols[:-4]
     data = data[cols]
+    #Apply formats
+    for column, fmt in formats.items():
+        data[column] = data[column].map(fmt.format)
     if save:
         data.to_csv(arquivo, index=False)
     return data
