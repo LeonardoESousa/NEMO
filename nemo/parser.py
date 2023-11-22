@@ -190,39 +190,16 @@ def pega_modos(file):
     return final_coords
 
 
-##GETS ENERGIES, OSCS, AND INDICES FOR Sn AND Tn STATES##################################
-def pega_energias(file):
+def pega_correction(file):
     ss_mark = "Excited-state properties with   relaxed density"
-    with open(file, "r", encoding="utf-8") as log_file:
-        exc = False
+    folder = file.split('/')[0]
+    file = file.split('/')[-1]
+    with open(folder +'/TDDFT/' + file, "r", encoding="utf-8") as log_file:
         corr = False
         correction, correction2 = [], []
         for line in log_file:
-            if (
-                "TDDFT/TDA Excitation Energies" in line
-                or "TDDFT Excitation Energies" in line
-            ):
-                energies, spins, oscs, ind = [], [], [], []
-                exc = True
-            elif ss_mark in line:
+            if ss_mark in line:
                 corr = True
-            elif "Solute Internal Energy" in line:
-                sol_int = float(line.split()[5])
-            elif "Total Free Energy" in line:
-                total_free = float(line.split()[9])
-            elif "Excited state" in line and exc:
-                energies.append(float(line.split()[7]))
-                ind.append(int(line.split()[2].replace(":", "")))
-            elif "Multiplicity" in line and exc:
-                spins.append(line.split()[1])
-            elif "Strength" in line and exc:
-                oscs.append(float(line.split()[2]))
-            elif (
-                "---------------------------------------------------" in line
-                and exc
-                and len(energies) > 0
-            ):
-                exc = False
             elif "SS-PCM correction" in line and corr:
                 correction.append(-1 * float(line.split()[-2]))
             elif "LR-PCM correction" in line and corr:
@@ -233,13 +210,36 @@ def pega_energias(file):
                 and corr
             ):
                 corr = False
+    return correction, correction2 
+
+##GETS ENERGIES, OSCS, AND INDICES FOR Sn AND Tn STATES##################################
+def pega_energias(file):
+    with open(file, "r", encoding="utf-8") as log_file:
+        fetch_osc = False
+        correction, correction2 = [], []
+        energies, spins, oscs, ind = [], [], [], []
+        num = 1
+        spin = 'Singlet'
+        for line in log_file:
+            if "Solving for EOMEE-CCSD A triplet states." in line:
+                spin = 'Triplet'
+            elif "State A: ccsd: 0/A" in line:
+                fetch_osc = True
+            elif "Solute Internal Energy" in line:
+                sol_int = float(line.split()[5])
+            elif "Total Free Energy" in line:
+                total_free = float(line.split()[9])
+            elif "Excitation energy" in line:
+                energies.append(float(line.split()[8]))
+                ind.append(num)
+                num += 1
+                spins.append(spin)
+            elif "Oscillator strength (a.u.):" in line and fetch_osc:
+                oscs.append(float(line.split()[3]))
+                fetch_osc = False
             elif "Total energy in the final basis set" in line:
                 line = line.split()
-                total_nopcm = float(line[8])
-        if len(correction) == 0:  # When run on logs that do not employ pcm
-            correction = np.zeros(len(energies))
-            sol_int = total_nopcm
-            total_free = total_nopcm
+        correction, correction2 = pega_correction(file)
         singlets = np.array(
             [energies[i] for i in range(len(energies)) if spins[i] == "Singlet"]
         )
@@ -301,20 +301,17 @@ def pega_soc_singlet(file, n_state):
     order_t = np.argsort(ind_t)
     n_state = order_s[n_state] + 1
     with open("Geometries/" + file, "r", encoding="utf-8") as log_file:
-        catch = False
+        catch_A, catch_B, catch_C = False, False, False
         for line in log_file:
-            if (
-                "Total SOC between the S"
-                + str(n_state)
-                + " state and excited triplet states:"
-                in line
-            ):
-                catch = True
-            elif catch and "T" in line and "(" not in line:
-                try:
-                    socs.append(float(line.split()[1]))
-                except (IndexError, ValueError):
-                    catch = False
+            if "State A: eomee_ccsd/rhfref/singlets:" in line and f'{n_state}/A' in line:
+                catch_A = True
+            elif "State B: eomee_ccsd/rhfref/triplets:" in line:                    
+                catch_B = True
+            elif catch_A and catch_B and "Arithmetically averaged transition SO matrices" in line:
+                catch_C = True
+            elif catch_A and catch_B and catch_C and "SOCC = " in line:
+                socs.append(float(line.split()[2]))
+                catch_A, catch_B, catch_C = False, False, False
     socs = np.array(socs)
     socs = socs[order_t]
     return socs[np.newaxis, :] * 0.12398 / 1000
@@ -329,22 +326,22 @@ def pega_soc_triplet(file, n_state):
     _, _, _, ind_s, ind_t, _, _, _ = pega_energias("Geometries/" + file)
     order_s = np.argsort(ind_s)
     order_t = np.argsort(ind_t)
-    n_state = order_t[n_state] + 1
+    n_state = order_s[n_state] + 1
     with open("Geometries/" + file, "r", encoding="utf-8") as log_file:
-        catch = False
+        catch_A, catch_B, catch_C = False, False, False
         for line in log_file:
-            if (
-                "Total SOC between the S" in line
-                and "state and excited triplet states:" in line
-            ):
-                catch = True
-            elif catch and "T" + str(n_state) + " " in line and "(" not in line:
-                try:
-                    socs.append(float(line.split()[1]))
-                except (IndexError, ValueError):
-                    catch = False
+            if "State B: eomee_ccsd/rhfref/triplets:" in line and f'{n_state}/A' in line:
+                catch_A = True
+            elif "State A: eomee_ccsd/rhfref/singlets:" in line:                    
+                catch_B = True
+                catch_A = False
+            elif catch_A and catch_B and "Arithmetically averaged transition SO matrices" in line:
+                catch_C = True
+            elif catch_A and catch_B and catch_C and "SOCC = " in line:
+                socs.append(float(line.split()[2]))
+                catch_A, catch_B, catch_C = False, False, False
     socs = np.array(socs)
-    socs = socs[order_s]
+    socs = socs[order_t]
     return socs[np.newaxis, :] * 0.12398 / 1000
 
 
@@ -354,27 +351,29 @@ def pega_soc_triplet(file, n_state):
 ##GETS SOC BETWEEN Tn STATE AND S0#######################################################
 def pega_soc_ground(file, n_state):
     socs = []
-    # _, _, _, ind_s, ind_t, _, _, _ = pega_energias('Geometries/'+file)
-    # order_s = np.argsort(ind_s)
-    # order_t = np.argsort(ind_t)
-    n_state += 1  # order_t[n_state] + 1
+    #_, _, _, ind_s, ind_t, _, _, _ = pega_energias("Geometries/" + file)
+    #order_s = np.argsort(ind_s)
+    #order_t = np.argsort(ind_t)
+    #n_state = order_s[n_state] + 1
+    n_state += 1
     with open("Geometries/" + file, "r", encoding="utf-8") as log_file:
-        catch = False
+        catch_A, catch_B, catch_C = False, False, False
         for line in log_file:
-            if (
-                "Total SOC between the singlet ground state and excited triplet states:"
-                in line
-            ):
-                catch = True
-            elif catch and "T" + str(n_state) + " " in line and "(" not in line:
-                try:
-                    socs.append(float(line.split()[1]))
-                except (IndexError, ValueError):
-                    catch = False
-            elif len(line.split()) < 2:
-                catch = False
+            if "State A: ccsd: 0/A" in line:
+                catch_A = True
+                catch_B = False
+            elif catch_A and "State B: eomee_ccsd/rhfref/triplets:" in line and f'{n_state}/A' in line:                    
+                catch_B = True
+            elif catch_A and "State B: eomee_ccsd/rhfref/triplets:" in line and f'{n_state}/A' not in line:                    
+                catch_A = False
+            elif catch_A and catch_B and "Arithmetically averaged transition SO matrices" in line:
+                catch_C = True
+            elif catch_A and catch_B and catch_C and "SOCC = " in line:
+                print(line)
+                socs.append(float(line.split()[2]))
+                catch_A, catch_B, catch_C = False, False, False
     socs = np.array(socs)
-    # socs = socs[order_s]
+    #socs = socs[order_t]
     return socs[np.newaxis, :] * 0.12398 / 1000
 
 
