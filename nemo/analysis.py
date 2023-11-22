@@ -25,20 +25,20 @@ def check_normal(files):
     for file in files:
         with open("Geometries/" + file, "r", encoding="utf-8") as log_file:
             for line in log_file:
-                if (
-                    "TDDFT/TDA Excitation Energies" in line
-                    or "TDDFT Excitation Energies" in line
-                ):
-                    exc = True
-                elif "Excited state" in line and exc:
-                    eng = float(line.split()[7])
-                    if eng < 0:
-                        add = False
-                        abnormal.append(file)
-                    else:
-                        add = True
-                    exc = False
-                elif "Have a nice day" in line and add:
+                #if (
+                #    "TDDFT/TDA Excitation Energies" in line
+                #    or "TDDFT Excitation Energies" in line
+                #):
+                #    exc = True
+                #elif "Excited state" in line and exc:
+                #    eng = float(line.split()[7])
+                #    if eng < 0:
+                #        add = False
+                #        abnormal.append(file)
+                #    else:
+                #        add = True
+                #    exc = False
+                if "Have a nice day" in line:# and add:
                     normal.append(file)
     if len(abnormal) > 0:
         print(f"Warning! Negative transition energies detected in {len(abnormal)} files:")
@@ -93,7 +93,7 @@ def read_cis(file):
     file = file[:-3] + "com"
     with open("Geometries/" + file, "r", encoding="utf-8") as com_file:
         for line in com_file:
-            if "cis_n_roots" in line.lower():
+            if "ee_singlets" in line.lower():
                 line = line.split()
                 for elem in line:
                     try:
