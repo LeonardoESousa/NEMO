@@ -111,20 +111,24 @@ def phosph_osc(file, n_state, ind_s, ind_t, singlets, triplets):
     zero = ["0"]
     zero.extend(ind_s)
     total_moments = []
-    ground_dipoles = nemo.parser.pega_dipolos(
-        file, zero, "Electron Dipole Moments of Ground State", 0
-    )
-    ground_singlet_dipoles = nemo.parser.pega_dipolos(
-        file, zero, "Transition Moments Between Ground and Singlet Excited States", 0
-    )
+    ground_dipoles = nemo.parser.pega_dipole_ground(file)
+    #ground_dipoles = nemo.parser.pega_dipolos(
+    #    file, zero, "Electron Dipole Moments of Ground State", 0
+    #)
+    #ground_singlet_dipoles = nemo.parser.pega_dipolos(
+    #    file, zero, "Transition Moments Between Ground and Singlet Excited States", 0
+    #)
+    ground_singlet_dipoles = nemo.parser.pega_dipole_ground_singlet(file)  
     ground_dipoles = np.vstack((ground_dipoles, ground_singlet_dipoles))
     for n_triplet in range(n_state):
-        triplet_dipoles = nemo.parser.pega_dipolos(
-            file, ind_t, "Electron Dipole Moments of Triplet Excited State", n_triplet
-        )
-        triplet_triplet_dipoles = nemo.parser.pega_dipolos(
-            file, ind_t, "Transition Moments Between Triplet Excited States", n_triplet
-        )
+        #triplet_dipoles = nemo.parser.pega_dipolos(
+        #    file, ind_t, "Electron Dipole Moments of Triplet Excited State", n_triplet
+        #)
+        triplet_dipoles = nemo.parser.pega_dipole_triplets(file,ind_t,n_triplet)
+        #triplet_triplet_dipoles = nemo.parser.pega_dipolos(
+        #    file, ind_t, "Transition Moments Between Triplet Excited States", n_triplet
+        #)
+        triplet_triplet_dipoles = nemo.parser.pega_dipole_triplet_triplet(file,ind_t,n_triplet)
         triplet_dipoles = np.vstack((triplet_dipoles, triplet_triplet_dipoles))
         # Fixing the order
         order = np.arange(1, n_state)
@@ -143,6 +147,7 @@ def phosph_osc(file, n_state, ind_s, ind_t, singlets, triplets):
         total_moments.append(moments)
     total_moments = np.array(total_moments)
     term = E_CHARGE * (HBAR_J**2) / triplets
+    #print(total_moments.shape,term.shape)
     osc_strength = (2 * MASS_E) * total_moments / (3 * term)
     return osc_strength[np.newaxis, :]
 

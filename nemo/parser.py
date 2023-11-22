@@ -218,7 +218,6 @@ def pega_energias(file):
         fetch_osc = False
         correction, correction2 = [], []
         energies, spins, oscs, ind = [], [], [], []
-        num = 1
         spin = 'Singlet'
         for line in log_file:
             if "Solving for EOMEE-CCSD A triplet states." in line:
@@ -231,8 +230,11 @@ def pega_energias(file):
                 total_free = float(line.split()[9])
             elif "Excitation energy" in line:
                 energies.append(float(line.split()[8]))
+                if spin == 'Singlet':
+                    num = spins.count('Singlet')
+                else:
+                    num = spins.count('Triplet')   
                 ind.append(num)
-                num += 1
                 spins.append(spin)
             elif "Oscillator strength (a.u.):" in line and fetch_osc:
                 oscs.append(float(line.split()[3]))
@@ -369,13 +371,11 @@ def pega_soc_ground(file, n_state):
             elif catch_A and catch_B and "Arithmetically averaged transition SO matrices" in line:
                 catch_C = True
             elif catch_A and catch_B and catch_C and "SOCC = " in line:
-                print(line)
                 socs.append(float(line.split()[2]))
                 catch_A, catch_B, catch_C = False, False, False
     socs = np.array(socs)
     #socs = socs[order_t]
     return socs[np.newaxis, :] * 0.12398 / 1000
-
 
 #########################################################################################
 
@@ -387,7 +387,7 @@ def pega_soc_triplet_triplet(file, n_state):
     # order_s = np.argsort(ind_s)
     # order_t = np.argsort(ind_t)
     n_state += 1  # order_t[n_state] + 1
-    with open("Geometries/" + file, "r", encoding="utf-8") as log_file:
+    with open("Geometries/TDDFT/" + file, "r", encoding="utf-8") as log_file:
         catch, catch2 = False, False
         for line in log_file:
             if (
@@ -444,6 +444,84 @@ def avg_socs(files, tipo, n_state):
 #########################################################################################
 
 
+def pega_dipole_ground(file):
+    with open("Geometries/" + file, "r", encoding="utf-8") as log_file:
+        catch = False
+        for line in log_file:
+            if 'Dipole Moment (Debye)' in line:
+                catch = True
+            elif catch:
+                line = line.split()
+                dipole = [float(line[1]),float(line[3]),float(line[5])]
+                catch = False
+                break    
+    return np.array(dipole)[np.newaxis, :] 
+
+def pega_dipole_ground_singlet(file):
+    dipole = np.zeros((1, 3))
+    with open("Geometries/" + file, "r", encoding="utf-8") as log_file:
+        catch_A, catch_B = False, False
+        for line in log_file:
+            if 'State A: ccsd: 0/A' in line:
+                catch_A = True
+            elif catch_A and "State B: eomee_ccsd/rhfref/singlets:" in line:   
+                catch_B = True
+            elif '-----------------------------------------------------' in line:
+                catch_A, catch_B = False, False    
+            elif catch_A and catch_B and 'A->B:' in line:
+                line = line.split()
+                dipole = np.vstack((dipole,[float(line[3].replace(',','')),float(line[5].replace(',','')),float(line[7].replace(')',''))]))
+                catch_A, catch_B = False, False
+    dipole = dipole[1:, :]
+    return dipole
+
+def pega_dipole_triplets(file, ind, state):
+    dipole = np.zeros((1, 3))
+    with open("Geometries/" + file, "r", encoding="utf-8") as log_file:
+        catch_A = False
+        for line in log_file:
+            if 'Solving for EOMEE-CCSD A triplet states.' in line:
+                catch_A = True
+            elif catch_A and "Dipole moment (a.u.)" in line:   
+                line = line.split()
+                dipole = np.vstack((dipole,[float(line[5].replace(',','')),float(line[7].replace(',','')),float(line[9].replace(')',''))]))
+                
+    dipole = dipole[1:, :]
+    dipole = dipole[ind[state], :]
+    return np.array(dipole)[np.newaxis, :] 
+
+def pega_dipole_triplet_triplet(file,ind,state):
+    dipole = np.zeros((1, 4))
+    with open("Geometries/" + file, "r", encoding="utf-8") as log_file:
+        catch = False
+        states = []
+        for line in log_file:
+            if '----------------------------------------' in line:
+                states = []
+                catch = False
+            if 'State A: eomee_ccsd/rhfref/triplets:' in line and len(states) == 0:
+                line = line.split()
+                state_num = int(line[-1].replace('/A',''))
+                states.append(state_num)
+            elif 'State B: eomee_ccsd/rhfref/triplets:' in line and len(states) == 1:
+                line = line.split()
+                state_num = int(line[-1].replace('/A',''))
+                states.append(state_num)
+                if ind[state]+1 in states:
+                    catch = True    
+            elif catch and "A->B:" in line:
+                if states[0] == ind[state]+1:
+                    x = states[1]
+                else:
+                    x = states[0]       
+                line = line.split()
+                dipole = np.vstack((dipole,[x,float(line[3].replace(',','')),float(line[5].replace(',','')),float(line[7].replace(')',''))]))
+                catch = False
+                states = []
+    dipole = dipole[1:, :]
+    #sort by first column
+    dipole = dipole[dipole[:,0].argsort()]
+    return dipole[:,1:]
 ##GETS TRANSITION DIPOLE MOMENTS#########################################################
 def pega_dipolos(file, ind, frase, state):
     dipoles = np.zeros((1, 1))
@@ -509,7 +587,7 @@ def pega_oscs(files, indices, initial):
         location = np.where(ind_s == ind)[0][0]
         ind_s = ind_s[location + 1 :]
         ind = str(ind)
-        with open("Geometries/" + file, "r", encoding="utf-8") as log_file:
+        with open("Geometries/TDDFT/" + file, "r", encoding="utf-8") as log_file:
             dip = False
             for line in log_file:
                 if frase in line:
@@ -534,43 +612,35 @@ def pega_oscs(files, indices, initial):
 
 ##GETS SOCS BETWEEN S0 AND EACH TRIPLET SUBLEVEL#########################################
 def soc_s0(file, mqn, ind_t):
+    if mqn == '-1':
+        mqn = '(L-)'
+    elif mqn == '0':
+        mqn = '(L0)'
+    else:
+        mqn = '(L+)'        
     socs = np.zeros((1))
+    #n_state += 1  # order_t[n_state] + 1
     with open("Geometries/" + file, "r", encoding="utf-8") as log_file:
-        read = False
+        catch_A, catch_B = False, False
         for line in log_file:
-            if (
-                "SOC between the singlet ground state and excited triplet states (ms="
-                + mqn
-                in line
-            ):
-                read = True
-            elif read:
-                if "T" in line and "Total" not in line:
-                    line = line.split()
-                    real_part = (
-                        line[1].replace("(", "").replace(")", "").replace("i", "")
-                    )
-                    real_part = float(
-                        real_part.replace("--", "+")
-                        .replace("+-", "-")
-                        .replace("-+", "-")
-                        .replace("++", "+")
-                    )
-                    img_part = line[2] + line[3].replace("(", "").replace(
-                        ")", ""
-                    ).replace("i", "")
-                    img_part = float(
-                        img_part.replace("--", "+")
-                        .replace("+-", "-")
-                        .replace("-+", "-")
-                        .replace("++", "+")
-                    )
-                    complex_soc = real_part + img_part * 1j
-                    # Qchem gives <S0|H|Tn>. We need to conjugate to get <Tn|H|S0>
-                    complex_soc = complex_soc.conjugate()
-                    socs = np.vstack((socs, np.array([complex_soc])))
-                else:
-                    read = False
+            if "State A: ccsd: 0/A" in line:
+                catch_A = True
+                catch_B = False
+            elif catch_A and "State B: eomee_ccsd/rhfref/triplets:" in line:# and f'{n_state}/A' in line:                    
+                catch_B = True
+            elif "--------------------------------------" in line:
+                catch_A, catch_B = False, False
+            #elif catch_A and "State B: eomee_ccsd/rhfref/triplets:" in line and f'{n_state}/A' not in line:                    
+            #    catch_A = False
+            elif catch_A and catch_B and 'Hso'+mqn in line:
+                line = line.split()
+                number = line[-1].replace('(','').replace(')','')
+                real_part = float(number.split(',')[0])
+                img_part = float(number.split(',')[1])
+                complex_soc = real_part + img_part * 1j
+                complex_soc = complex_soc.conjugate()
+                socs = np.vstack((socs, np.array([complex_soc])))
+                catch_A, catch_B = False, False
     socs = socs[1:, :]
     indice = np.argsort(ind_t)
     socs = socs[indice, :]
@@ -581,38 +651,37 @@ def soc_s0(file, mqn, ind_t):
 
 
 ##GETS SOCS BETWEEN Sm AND EACH Tn SUBLEVEL##############################################
-def soc_t1(file, mqn, n_triplet, ind_s):
+def soc_t1(file, mqn, n_state, ind_s):
+    if mqn == '-1':
+        mqn = '(L-)'
+    elif mqn == '0':
+        mqn = '(L0)'
+    else:
+        mqn = '(L+)' 
     socs = np.zeros((1))
+    _, _, _, ind_s, ind_t, _, _, _ = pega_energias("Geometries/" + file)
+    order_s = np.argsort(ind_s)
+    order_t = np.argsort(ind_t)
+    n_state = order_s[n_state] + 1
     with open("Geometries/" + file, "r", encoding="utf-8") as log_file:
-        read = False
+        catch_A, catch_B = False, False
         for line in log_file:
-            if "SOC between the S" in line and "(ms=" + mqn in line:
-                read = True
-            elif read:
-                if "T" + str(n_triplet + 1) + "(ms=" + mqn in line:
-                    line = line.split()
-                    real_part = (
-                        line[1].replace("(", "").replace(")", "").replace("i", "")
-                    )
-                    real_part = float(
-                        real_part.replace("--", "+")
-                        .replace("+-", "-")
-                        .replace("-+", "-")
-                        .replace("++", "+")
-                    )
-                    img_part = line[2] + line[3].replace("(", "").replace(
-                        ")", ""
-                    ).replace("i", "")
-                    img_part = float(
-                        img_part.replace("--", "+")
-                        .replace("+-", "-")
-                        .replace("-+", "-")
-                        .replace("++", "+")
-                    )
-                    # Qchem gives <Sn|H|Tn>. No need to conjugate.
-                    complex_soc = real_part + img_part * 1j
-                    socs = np.vstack((socs, np.array([complex_soc])))
+            if "State B: eomee_ccsd/rhfref/triplets:" in line and f'{n_state}/A' in line:
+                catch_A = True
+            elif "State A: eomee_ccsd/rhfref/singlets:" in line:                    
+                catch_B = True
+                catch_A = False
+            elif "--------------------------------------" in line:
+                catch_A, catch_B = False, False    
+            elif catch_A and catch_B and 'Hso'+mqn in line:
+                line = line.split()
+                number = line[-1].replace('(','').replace(')','')
+                real_part = float(number.split(',')[0])
+                img_part = float(number.split(',')[1])
+                complex_soc = real_part + img_part * 1j
+                complex_soc = complex_soc.conjugate()
+                socs = np.vstack((socs, np.array([complex_soc])))
+                catch_A, catch_B = False, False
     socs = socs[1:, :]
-    indice = np.argsort(ind_s)
-    socs = socs[indice, :]
+    socs = socs[order_t]
     return socs * 0.12398 / 1000
