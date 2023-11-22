@@ -578,33 +578,43 @@ def pega_dipolos(file, ind, frase, state):
 def pega_oscs(files, indices, initial):
     spin = initial[0].upper()
     num = int(initial[1:]) - 1
-    mapa = {"S": "Singlet", "T": "Triplet"}
-    frase = "Transition Moments Between " + mapa[spin] + " Excited States"
+    mapa = {"S": "singlets", "T": "triplets"}
+    total_oscs = np.zeros((1, 2))
+    states = []
     for i, file in enumerate(files):
-        oscs = []
         ind = indices[i, num]
         ind_s = indices[i, :]
         location = np.where(ind_s == ind)[0][0]
         ind_s = ind_s[location + 1 :]
         ind = str(ind)
-        with open("Geometries/TDDFT/" + file, "r", encoding="utf-8") as log_file:
-            dip = False
+        with open("Geometries/" + file, "r", encoding="utf-8") as log_file:
+            #check_A, check_B = False, False
             for line in log_file:
-                if frase in line:
-                    dip = True
-                elif dip and "--" not in line:
+                if f'State A: eomee_ccsd/rhfref/{mapa[spin]}:' in line:
                     line = line.split()
-                    if (line[0] == ind and int(line[1]) in ind_s) or (
-                        line[1] == ind and int(line[0]) in ind_s
-                    ):
-                        oscs.append(float(line[5]))
-                elif len(oscs) > 0 and "---" in line:
-                    dip = False
-            try:
-                total_oscs = np.vstack((total_oscs, np.array(oscs)[np.newaxis, :]))
-            except NameError:
-                total_oscs = np.array(oscs)[np.newaxis, :]
-    return total_oscs
+                    state_num = int(line[-1].replace('/A',''))
+                    states.append(state_num)
+                elif f'State B: eomee_ccsd/rhfref/{mapa[spin]}:' in line:
+                    #check_B = True
+                    line = line.split()
+                    state_num = int(line[-1].replace('/A',''))
+                    states.append(state_num)  
+                elif '-----------------------' in line:
+                    states = []
+                elif len(states) == 2 and "Oscillator strength (a.u.):" in line:
+                    #print('aaa',num,states)
+                    if num+1 in states:
+                        if states[0] == num+1:
+                            x = states[1]
+                        else:
+                            x = states[0]    
+                        total_oscs = np.vstack((total_oscs, [x,float(line.split()[3])]))
+                    #check_A, check_B = False, False      
+                    states = []
+    # sort by first column
+    total_oscs = total_oscs[total_oscs[:, 0].argsort()]                
+    
+    return total_oscs[1:, 1:].T
 
 
 #########################################################################################
