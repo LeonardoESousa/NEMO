@@ -178,6 +178,7 @@ def analysis(files):
     n_state = read_cis(files[0])
     numbers = []
     for file in files:
+        print(file)
         (
             singlets,
             triplets,
