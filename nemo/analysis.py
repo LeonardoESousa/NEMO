@@ -178,7 +178,6 @@ def analysis(files):
     n_state = read_cis(files[0])
     numbers = []
     for file in files:
-        print(file)
         (
             singlets,
             triplets,
@@ -189,6 +188,7 @@ def analysis(files):
             ss_t,
             ground_pol,
         ) = nemo.parser.pega_energias("Geometries/" + file)
+        print(file,triplets.shape)
         singlets = np.array([singlets[:n_state]])
         triplets = np.array([triplets[:n_state]])
         oscs = np.array([oscs[:n_state]])

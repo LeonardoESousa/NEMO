@@ -579,14 +579,14 @@ def pega_oscs(files, indices, initial):
     spin = initial[0].upper()
     num = int(initial[1:]) - 1
     mapa = {"S": "singlets", "T": "triplets"}
-    total_oscs = np.zeros((1, 2))
     states = []
     for i, file in enumerate(files):
-        ind = indices[i, num]
-        ind_s = indices[i, :]
-        location = np.where(ind_s == ind)[0][0]
-        ind_s = ind_s[location + 1 :]
-        ind = str(ind)
+        oscs = []
+        #ind = indices[i, num]
+        #ind_s = indices[i, :]
+        #location = np.where(ind_s == ind)[0][0]
+        #ind_s = ind_s[location + 1 :]
+        #ind = str(ind)
         with open("Geometries/" + file, "r", encoding="utf-8") as log_file:
             #check_A, check_B = False, False
             for line in log_file:
@@ -607,14 +607,19 @@ def pega_oscs(files, indices, initial):
                         if states[0] == num+1:
                             x = states[1]
                         else:
-                            x = states[0]    
-                        total_oscs = np.vstack((total_oscs, [x,float(line.split()[3])]))
+                            x = states[0] 
+                        oscs.append(float(line.split()[3]))       
+                        #total_oscs = np.vstack((total_oscs, [x,float(line.split()[3])]))
                     #check_A, check_B = False, False      
                     states = []
+        try:        
+            total_oscs = np.vstack((total_oscs, oscs))
+        except NameError:
+            total_oscs = np.array(oscs)[np.newaxis,:]            
     # sort by first column
-    total_oscs = total_oscs[total_oscs[:, 0].argsort()]                
+    #total_oscs = total_oscs[total_oscs[:, 0].argsort()]                
     
-    return total_oscs[1:, 1:].T
+    return total_oscs
 
 
 #########################################################################################
