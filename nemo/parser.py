@@ -242,6 +242,9 @@ def pega_energias(file):
             elif "Total energy in the final basis set" in line:
                 line = line.split()
         correction, correction2 = pega_correction(file)
+        if len(correction) > len(energies):
+            correction = correction[:len(energies)]
+            correction2 = correction2[:len(energies)]
         singlets = np.array(
             [energies[i] for i in range(len(energies)) if spins[i] == "Singlet"]
         )
