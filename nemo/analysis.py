@@ -90,18 +90,18 @@ def moment(file, ess, ets, dipss, dipts, n_triplet, ind_s, ind_t):
 
 ##READS NUMBER OF EXCITED STATES FROM INPUT FILE#########################################
 def read_cis(file):
-    #file = file[:-3] + "com"
-    #with open("Geometries/" + file, "r", encoding="utf-8") as com_file:
-    #    for line in com_file:
-    #        if "ee_singlets" in line.lower():
-    #            line = line.split()
-    #            for elem in line:
-    #                try:
-    #                    n_state = int(elem)
-    #                    break
-    #                except ValueError:
-    #                    pass
-    return 5#n_state
+    file = file[:-3] + "com"
+    with open("Geometries/" + file, "r", encoding="utf-8") as com_file:
+        for line in com_file:
+            if "ee_singlets" in line.lower():
+                line = line.split()
+                for elem in line:
+                    try:
+                        n_state = int(elem)
+                        return n_state
+                    except ValueError:
+                        pass
+    return n_state
 
 
 #########################################################################################
