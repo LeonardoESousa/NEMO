@@ -7,6 +7,7 @@ from subprocess import Popen
 import numpy as np
 from scipy.stats import norm
 import lx.tools
+import lx.parser
 import nemo.parser
 
 LIGHT_SPEED = nemo.parser.LIGHT_SPEED
@@ -126,7 +127,7 @@ def setup_ensemble():
     if gaussian:
         print("You are using a Gaussian log file.")
         template = fetch_file("QChem template", [".in"])
-        charge_multiplicity = lx.tools.get_cm(freqlog)
+        charge_multiplicity = lx.parser.get_cm(freqlog)
         rem, _, extra = nemo.parser.busca_input(template)
     else:
         template = fetch_file("QChem template", [".in"])
