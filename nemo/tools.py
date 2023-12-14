@@ -47,36 +47,45 @@ def start_counter():
 
 
 ##SAMPLES GEOMETRIES###########################################
-def sample_geometries(freqlog, num_geoms, temperature, limit=np.inf):
-    geometry, atomos = nemo.parser.pega_geom(freqlog)
+##SAMPLES GEOMETRIES###########################################
+def sample_geometries(freqlog, num_geoms, temp, limit=np.inf, warning=True, show_progress=False):
+    geom, atomos = nemo.parser.pega_geom(freqlog)
+    old = lx.tools.adjacency(geom, atomos)
     freqs, masses = nemo.parser.pega_freq(freqlog)
-    freqs[freqs < 0] *= -1
-    normal_coordinates = nemo.parser.pega_modos(freqlog)
-    mask = freqs < limit * (LIGHT_SPEED * 100 * 2 * np.pi)
-    freqs = freqs[mask]
-    normal_coordinates = normal_coordinates[:, mask]
-    num_atom = np.shape(geometry)[0]
-    structure = np.zeros((3 * num_atom, num_geoms))
-    for i, freq in enumerate(freqs):
-        scale = np.sqrt(HBAR_J / (2 * masses[i] * freq *
-                             np.tanh(HBAR_EV * freq / (2 * BOLTZ_EV * temperature))))
-        normal = norm(scale=scale, loc=0)
-        # Displacements in  Å
-        displacement = normal.rvs(size=num_geoms) * 1e10
+    normal_coord = nemo.parser.pega_modos(geom, freqlog)
+    rejected_geoms = 0
+    if not warning:
+        freqs[freqs < 0] *= -1
+        mask = freqs < limit * (LIGHT_SPEED * 100 * 2 * np.pi)
+        freqs = freqs[mask]
+        normal_coord = normal_coord[:,:, mask]
+    structures = np.zeros((geom.shape[0], geom.shape[1], num_geoms))
+    scales = 1e10 * np.sqrt(
+        HBAR_J / (2 * masses * freqs * np.tanh(HBAR_EV * freqs / (2 * BOLTZ_EV * temp)))
+    )
+    for j in range(num_geoms):
+        ok = False
+        while not ok:
+            start_geom = geom.copy()
+            qs = [norm(scale=scale, loc=0).rvs(size=1) for scale in scales]
+            qs = np.array(qs)
+            start_geom += np.sum(qs.reshape(1, 1, -1) * normal_coord, axis=2)
+            new = lx.tools.adjacency(start_geom, atomos)
+            if 0.5 * np.sum(np.abs(old - new)) < 2 or not warning:
+                ok = True
+                structures[:, :, j] = start_geom
+            else:
+                rejected_geoms += 1
+            if show_progress:
+                progress = 100 * (j + 1) / num_geoms
+                text = f"{progress:2.1f}%"
+                print(" ", text, "of the geometries done.", rejected_geoms, "geometries rejected", end="\r", flush=True)
         try:
-            numbers = np.hstack((numbers, displacement[:, np.newaxis]))
-        # If it is the first iteration, numbers is not defined yet
-        except NameError:
-            numbers = displacement[:, np.newaxis]
-        structure += np.outer(normal_coordinates[:, i], displacement)
-    for i in range(np.shape(structure)[1]):
-        reshaped_structure = np.reshape(structure[:, i], (num_atom, 3))
-        try:
-            final_geometry = np.hstack((final_geometry, reshaped_structure + geometry))
-        except NameError:
-            final_geometry = reshaped_structure + geometry
+            numbers = np.vstack((numbers, qs.T))
+        except UnboundLocalError:
+            numbers = qs.T
     numbers = np.round(numbers, 4)
-    return numbers, atomos, final_geometry
+    return numbers, atomos, structures
 
 
 ###############################################################

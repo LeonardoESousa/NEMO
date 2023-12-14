@@ -157,37 +157,30 @@ def pega_geom(freqlog):
 ###############################################################
 
 
-def pega_modos(file):
-    with open(file, "r", encoding="utf-8") as freq_file:
-        start = False
-        coords = []
-        count = 0
-        for line in freq_file:
+def pega_modos(G, freqlog):
+    freqs, _ = pega_freq(freqlog)
+    num_atoms = np.shape(G)[0]
+    normal_modes = np.zeros((num_atoms, 3, len(freqs))) + np.nan
+    mode = 0
+    fetch = False
+    atom = 0
+    with open(freqlog, "r", encoding='utf-8') as f:
+        for line in f:
             if "X      Y      Z" in line:
-                start = True
-                continue
-            if start:
-                if "TransDip" in line:
-                    start = False
-                    line = line.split()
-                    count += int((len(line) - 1) / 3)
-                    try:
-                        arranged_coords = np.hstack((arranged_coords, np.array(coords)))
-                    except NameError:
-                        arranged_coords = np.array(coords)
-                    coords = []
+                fetch = True
+            elif fetch:
+                line = line.split()
+                if 'TransDip' in line:
+                    fetch = False
+                    mode += 3
+                    atom = 0
                 else:
-                    line = line.split()
-                    buffer = []
-                    for i in range(1, len(line)):
-                        buffer.append(float(line[i]))
-                    coords.append(buffer)
-    final_coords = np.zeros(
-        (arranged_coords.shape[0] * 3, arranged_coords.shape[1] // 3)
-    )
-    for i in range(0, arranged_coords.shape[1] // 3):
-        final_coords[:, i] = arranged_coords[:, 3 * i : 3 * i + 3].flatten()
-    return final_coords
+                    for j in range(1, len(line)):
+                        normal_modes[atom, (j - 1) % 3, mode + (j - 1) // 3] = float(
+                            line[j]
+                        )
+                    atom += 1
+    return normal_modes
 
 
 ##GETS ENERGIES, OSCS, AND INDICES FOR Sn AND Tn STATES##################################
