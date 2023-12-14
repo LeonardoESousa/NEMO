@@ -5,6 +5,7 @@ import sys
 import time
 from subprocess import Popen
 import numpy as np
+import pandas as pd
 from scipy.stats import norm
 import lx.tools
 import lx.parser
@@ -97,23 +98,38 @@ def make_ensemble(freqlog, num_geoms, temperature, header, bottom):
         os.mkdir("Geometries")
     except FileExistsError:
         pass
-    counter = start_counter()
+    counter = nemo.tools.start_counter()
     print("\nGenerating geometries...\n")
-    numbers, atomos, final_geometry = sample_geometries(freqlog, num_geoms, temperature)
-    with open(f"Magnitudes_{temperature:.0f}K_.lx", "a", encoding="utf-8") as file:
-        np.savetxt(file, numbers, delimiter="\t", fmt="%s")
-    for i in range(0, np.shape(final_geometry)[1], 3):
-        gfinal = final_geometry[:, i : i + 3]
-        write_input(
+    numbers, atomos, A = sample_geometries(freqlog, num_geoms, temperature,warning=False, show_progress=True)
+    F, M = nemo.parser.pega_freq(freqlog)
+    # convert numbers to dataframe
+    numbers = pd.DataFrame(
+        numbers, columns=[f"mode_{i+1}" for i in range(np.shape(numbers)[1])]
+    )
+    # check if file exists
+    if os.path.isfile(f"Magnitudes_{temperature:.0f}K_.lx"):
+        data = pd.read_csv(f"Magnitudes_{temperature:.0f}K_.lx")
+        # get only columns with mode_ in the name
+        data = data.filter(regex="mode_")
+        # remove nan values
+        data = data.dropna()
+        # join data and numbers on axis 0
+        numbers = pd.concat([data, numbers], axis=0, ignore_index=True)
+    # concatenate frequencies and masses to numbers
+    numbers = pd.concat(
+        [pd.DataFrame(F, columns=["freq"]), pd.DataFrame(M, columns=["mass"]), numbers],
+        axis=1,
+    )
+    numbers.to_csv(f"Magnitudes_{temperature:.0f}K_.lx", index=False)
+    for n in range(np.shape(A)[2]):
+        gfinal = A[:, :, n]
+        nemo.tools.write_input(
             atomos,
             gfinal,
             header,
             bottom,
-            "Geometries/Geometry-" + str((i + 3) // 3 + counter) + "-.com",
+            f"Geometries/Geometry-{n+1+counter}-.com",
         )
-        progress = 100 * ((i + 3) // 3) / num_geoms
-        text = f"{progress:2.1f}%"
-        print(" ", text, "of the geometries done.", end="\r", flush=True)
     print("\n\nDone! Ready to run.")
 
 
