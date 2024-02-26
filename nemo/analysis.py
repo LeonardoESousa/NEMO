@@ -414,11 +414,13 @@ def gather_data(initial, save=True):
     cols = data.columns.tolist()
     cols = cols[-4:] + cols[:-4]
     data = data[cols]
-    #Apply formats
-    for column, fmt in formats.items():
-        data[column] = data[column].map(fmt.format)
     if save:
-        data.to_csv(arquivo, index=False)
+        # Create a temporary copy of the DataFrame
+        temp_data = data.copy()
+        #Apply formats
+        for column, fmt in formats.items():
+            temp_data[column] = temp_data[column].map(fmt.format)
+        temp_data.to_csv(arquivo, index=False)
     return data
 
 
