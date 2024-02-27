@@ -1,4 +1,4 @@
-# **NEMO** Tutorial Version 1.0.0
+# **NEMO** Tutorial Version 1.1.0
 
 <img src="logo.png" alt="Alt Text" width="100%">
 
@@ -300,7 +300,7 @@ If an imaginary frequency is found (represented by a negative frequency in the o
 
 Once the optimization and frequencies are computed, it is time to generate ensembles.
 
-We start by creating a folder and pasting the frequency output file in it. Make sure your output file ends with either `.log` or `.out`, as **NEMO** will look for it. Let's say we are generating an $S_1$ ensemble and we have a frequency file run with either Gaussian 09/16 or QChem called **freqS1.log**. We create a folder named **EnsermbleS1** and move our frequency file there. Note that you may name the folder whichever way you prefer. It is a good idea, though, to identify to which electronic state the ensemble belongs.
+We start by creating a folder and pasting the frequency output file in it. Make sure your output file ends with either `.log` or `.out`, as **NEMO** will look for it. Let's say we are generating an $S_1$ ensemble and we have a frequency file run with either Gaussian 09/16 or QChem called **freqS1.log**. We create a folder named **EnsembleS1** and move our frequency file there. Note that you may name the folder whichever way you prefer. It is a good idea, though, to identify to which electronic state the ensemble belongs.
 
 Now we need to add to the folder a QChem template file. This file contains the `$rem` section of a QChem input file from where functional, basis set and other information are going to be retrieved. Other sections may also be included if needed. There is no need to include solvent related keywords and subsections as these are automatically added later on. The template file may have any name, just make sure its name ends with `.in`. In this example we name it `template.in`.  
 
@@ -410,7 +410,7 @@ Temperature in Kelvin?
 
 Generating geometries...
 
-  100.0% of the geometries done.
+  100.0% of the geometries done. 2 geometries rejected
 
 Done! Ready to run.
 ```
@@ -428,6 +428,10 @@ At this point, the folder should contain the following:
 The folder named **Geometries** will contain 500 QChem input files corresponding to the sampled geometries. The file named **Magnitudes_300K_.lx** contains the displacements along each vibrational mode that produce each sampled geometry. There is no need to do anything with it, just keep it there. 
 
 That's it. We are ready to run the calculations.
+
+## A Note on Rejected Geometries
+
+**NEMO** computes the adjacency matrix of the optimized molecule and compares it with the adjacency matrix of each geometry sampled in the ensemble. If the matrices do not match, i.e. if one or more bonds are broken, the sampled geometry is rejected. This helps reduce issues with unphysical geometries and negative transition energies.
 
 # Running Ensemble Calculations
 
@@ -799,7 +803,7 @@ TITLE
 
 ```
 
-Now we need out `batch.sh` file. For a slurm system, it will read
+Now we need our `batch.sh` file. For a slurm system, it will read
 
 ```
 sbatch g16.sh $1
