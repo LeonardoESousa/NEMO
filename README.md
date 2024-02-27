@@ -3,9 +3,11 @@
 [![made-with-python](https://img.shields.io/badge/Made%20with-Python-1f425f.svg)](https://www.python.org/)
 [![license](https://img.shields.io/github/license/LeonardoESousa/NEMO?style=plastic)]()
 [![down](https://img.shields.io/pypi/dm/nemophoto)]()
-[![maint](https://img.shields.io/maintenance/yes/2023)]()
+[![maint](https://img.shields.io/maintenance/yes/2024)]()
 [![commit](https://img.shields.io/github/last-commit/LeonardoESousa/NEMO?style=plastic)]()
 [![CodeFactor](https://www.codefactor.io/repository/github/leonardoesousa/nemo/badge)](https://www.codefactor.io/repository/github/leonardoesousa/nemo)
+
+##  Version 1.1.0
 
 Fluorescence, phosphorescence and intersystem crossing (ISC) rate calculations. Absorption, fluorescence and phosphorescence spectrum simulations. Förster radius and singlet exciton diffusion length estimates. Interfaces with the QChem package. 
 
@@ -15,6 +17,7 @@ Fluorescence, phosphorescence and intersystem crossing (ISC) rate calculations. 
 Table of Contents
 =================
 <!--ts-->
+* [New in this version](#new-in-this-version)
 * [Cite as:](#cite-as)
 * [What does this program do?](#what-does-this-program-do)
 * [What is necessary to use it?](#what-is-necessary-to-use-it)
@@ -22,6 +25,12 @@ Table of Contents
 * [How to use it?](#how-to-use-it)
    
 <!--te-->
+
+## New in This Version:
+
+1 - During ensemble generation, **NEMO** now computes the adjacency matrix of the optimized molecule and compares it with the adjacency matrix of each geometry sampled in the ensemble. If the matrices do not match, i.e. if one or more bonds are broken, the sampled geometry is rejected. This helps reduce issues with unphysical geometries and negative transition energies.
+
+2 - Bug fixes.
 
 ## Cite as:
 
