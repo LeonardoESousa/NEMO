@@ -591,7 +591,7 @@ Alternatively, you may just delete the `limit.lx` file from the folder. This wil
 
 Once all calculations are run, there are three ways to get results: 
 
-1. The recommended option is using a separate  visualization tool called [**NEMOview**](https://github.com/LeonardoESousa/nemoview). With **NEMOview** you will be able to interactively plot spectra, visualize rates, generate levels diagrams and more. 
+1. The recommended option is using a separate visualization tool called [**NEMOview**](https://github.com/LeonardoESousa/nemoview). With **NEMOview** you will be able to interactively plot spectra, visualize rates, generate levels diagrams and more. 
 
 2. Use options 5 and 6 in the **NEMO** menu.
 
@@ -891,14 +891,13 @@ y
 
 Functional, basis set, nproc and mem are taken from the input file provided. The remaining parameters are the default options, which should be good enough for any application. Note the option `Optimize at each step:`. By default it is set to `yes`, which means that for each $\omega$ value, the structure will be reoptimized. This means that the initial structure provided in the `geom.com` file does not need to be an equilibrium structure. On the other hand, if you decide not to optimize at each step, then the initial structure should already be optimized. 
 
-Now we get prompted for the `batch.sh` file and for the version of Gaussian we want to use.
+Now we get prompted for the version of Gaussian we want to use. We are also asked whether we want to minimize the submission of jobs. If yes, the calculations that can be done in parallel will be instead performed in series in a single job. This is useful when the time jobs spend waiting in the queue is too long.
 
 ```
-batch.sh
-Is this the batch script file? y ou n?
-y
 g16 or g09?
 g16
+Minimize submission of jobs: y/n
+y
 nohup: ignoring input and appending output to ‘nohup.out’
 ```
 
