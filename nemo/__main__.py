@@ -150,9 +150,11 @@ def main():
         try:
             freqlog = sys.argv[1]
             geometry, atomos = nemo.parser.pega_geom(freqlog)
+            print(len(atomos))
+            print("")
             for i, atomo in enumerate(atomos):
                 print(
-                    f"{atomo:2s}  {geometry[i, 0]:.8f}  {geometry[i, 1]:.8f}  {geometry[i, 2]:.8f}"
+                    f"{atomo:2s}  {geometry[i, 0]:.7f}  {geometry[i, 1]:.7f}  {geometry[i, 2]:.7f}"
                 )
         except IndexError:
             interface()
