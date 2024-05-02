@@ -217,9 +217,9 @@ def pega_energias(file):
             ):
                 exc = False
             elif "SS-PCM correction" in line and corr:
-                correction.append(-1 * float(line.split()[-2]))
+                correction.append(-1 * np.nan_to_num(float(line.split()[-2])))
             elif "LR-PCM correction" in line and corr:
-                correction2.append(-2 * float(line.split()[-2]))
+                correction2.append(-2 * np.nan_to_num(float(line.split()[-2])))
             elif (
                 "------------------------ END OF SUMMARY -----------------------"
                 in line
@@ -231,6 +231,7 @@ def pega_energias(file):
                 total_nopcm = float(line[8])
         if len(correction) == 0:  # When run on logs that do not employ pcm
             correction = np.zeros(len(energies))
+            correction2 = np.zeros(len(energies))
             sol_int = total_nopcm
             total_free = total_nopcm
         singlets = np.array(

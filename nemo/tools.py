@@ -276,7 +276,7 @@ def ask_states(frase):
 
 
 def get_alpha(eps):
-    return (eps - 1) / (eps + 1)
+    return max((eps - 1) / (eps + 1),1e-10)
 
 
 ##FETCHES  FILES###############################################
