@@ -914,3 +914,50 @@ def absorption(initial, dielec, data=None, save=False, detailed=False, nstates=-
 
 
 #########################################################################################
+
+class Ensemble(object):
+    def __init__(self, file):
+        data = pd.read_csv(file)
+        initial = data['ensemble'][0]
+        self.data = data
+        self.initial = initial
+
+    def rate(self, dielec, ensemble_average=False):
+        results, _ = rates(
+            self.initial,
+            dielec,
+            self.data,
+            ensemble_average=ensemble_average,
+            detailed=False
+        )
+        return results
+
+    def emission(self, dielec):
+        _, emi = rates(self.initial, dielec, self.data, ensemble_average=False, detailed=False)
+        return emi
+
+    def complete_emi(self, dielec, ensemble_average=False):
+        results, emi, breakdown = rates(self.initial, dielec, self.data, ensemble_average=ensemble_average, detailed=True)
+        return results, emi, breakdown
+
+    def complete_abs(self, dielec):
+        abs_spec, breakdown = absorption(self.initial, dielec, self.data, save=False, detailed=True)
+        return abs_spec, breakdown
+
+    def absorption(self, dielec):
+        abs_spec = absorption(self.initial, dielec, data=self.data, save=False, detailed=False)
+        return abs_spec
+
+    def breakdown(self, dielec):
+        if self.initial == 's0':
+            _, _, breakdown = absorption(self.initial, dielec, data=self.data, save=False, detailed=True)
+        else:
+            _, _, breakdown = rates(self.initial, dielec, self.data, ensemble_average=False, detailed=True)
+        return breakdown
+
+    def save(self, dielec, mode):
+        if mode == 'emi':
+            results, emi = rates(self.initial, dielec, self.data, ensemble_average=False, detailed=False)
+            export_results(results, emi, dielec)
+        elif mode == 'abs':
+            _ = absorption(self.initial, dielec, data=self.data, save=True, detailed=False)
