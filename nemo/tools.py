@@ -476,14 +476,3 @@ def andamento():
     the_watcher.report()
 
 ###############################################################
-
-##CALCULATES FLUORESCENCE LIFETIME IN S########################
-def calc_emi_rate(energy, diff_rate, diff_rate_error):
-    # Integrates the emission spectrum
-    int_emi = np.trapz(diff_rate, energy)
-    taxa = (1 / HBAR_EV) * int_emi
-    error = (1 / HBAR_EV) * np.sqrt(np.trapz((diff_rate_error**2), energy))
-    return taxa, error
-
-
-###############################################################

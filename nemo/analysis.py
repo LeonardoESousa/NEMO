@@ -228,8 +228,12 @@ def analysis(files):
 
 
 ##PRINTS EMISSION SPECTRUM###############################################################
-def printa_espectro_emi(initial, eps, refractive_index, tdm, energy, mean_y, error):
-    mean_rate, error_rate = nemo.tools.calc_emi_rate(energy, mean_y, error)
+def printa_espectro_emi(initial, eps, refractive_index, emission):
+    mean_rate, error_rate = emission.rate, emission.error
+    energy = emission["Energy"].to_numpy()
+    mean_y = emission["Diffrate"].to_numpy()
+    error = emission["Error"].to_numpy()
+    tdm = emission.tdm
     primeira = f"{'#Energy(ev)':4s} {'diff_rate':4s} {'error':4s} TDM={tdm:.3f} au\n"
     primeira += (
         f"# Total Rate {initial} -> S0: {mean_rate:5.2e} +/- {error_rate:5.2e} s^-1\n"
@@ -435,10 +439,7 @@ def export_results(data, emission, dielec):
         initial,
         dielec[0],
         dielec[1],
-        emission["TDM"][0],
-        emission["Energy"].values,
-        emission["Diffrate"].values,
-        emission["Error"].values,
+        emission
     )
     pre_r, pre_dr, exp = format_rate(data["Rate(s^-1)"], data["Error(s^-1)"])
     rate = [f"{pre_r[i]:5.2f}e{exp[i]:+03.0f}" for i in range(len(pre_r))]
@@ -619,7 +620,8 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
     )
     number_geoms = y_axis.shape[0]
     mean_y, error = rate_and_uncertainty(y_axis)
-    emi_rate, emi_error = nemo.tools.calc_emi_rate(x_axis, mean_y, error)
+    emi_rate = np.mean(espectro, axis=0) / HBAR_EV
+    emi_error = np.sqrt(np.sum((espectro /HBAR_EV - emi_rate) ** 2, axis=0) / (number_geoms * (number_geoms - 1)))
     gap_emi = means(delta_emi, espectro, ensemble_average)
     mean_sigma_emi = means(l_total, espectro, ensemble_average)
     mean_part_emi = (100 / number_geoms) / means(
@@ -629,7 +631,9 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
         (x_axis[:, np.newaxis], mean_y[:, np.newaxis], error[:, np.newaxis])
     )
     emi = pd.DataFrame(emi, columns=["Energy", "Diffrate", "Error"])
-    emi.insert(0, "TDM", tdm)
+    emi.tdm = tdm
+    emi.rate = emi_rate
+    emi.error = emi_error
 
     # Checks number of logs
     if data is None:
@@ -916,11 +920,14 @@ def absorption(initial, dielec, data=None, save=False, detailed=False, nstates=-
 #########################################################################################
 
 class Ensemble(object):
-    def __init__(self, file):
+    def __init__(self, file, name=''):
         data = pd.read_csv(file)
         initial = data['ensemble'][0]
+        self.eps = data['eps'][0]
+        self.nr = data['nr'][0]
         self.data = data
         self.initial = initial
+        self.name = name
 
     def rate(self, dielec, ensemble_average=False):
         results, _ = rates(
@@ -961,3 +968,6 @@ class Ensemble(object):
             export_results(results, emi, dielec)
         elif mode == 'abs':
             _ = absorption(self.initial, dielec, data=self.data, save=True, detailed=False)
+
+    def geometries(self):
+        return self.data['geometry'].astype(int)
