@@ -956,8 +956,8 @@ class Ensemble(object):
         return abs_spec
 
     def breakdown(self, dielec):
-        if self.initial == 's0':
-            _, _, breakdown = absorption(self.initial, dielec, data=self.data, save=False, detailed=True)
+        if self.initial == 'S0':
+            _, breakdown = absorption(self.initial, dielec, data=self.data, save=False, detailed=True)
         else:
             _, _, breakdown = rates(self.initial, dielec, self.data, ensemble_average=False, detailed=True)
         return breakdown
