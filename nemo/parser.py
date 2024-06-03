@@ -200,16 +200,16 @@ def pega_energias(file):
             elif ss_mark in line:
                 corr = True
             elif "Solute Internal Energy" in line:
-                sol_int = float(line.split()[5])
+                sol_int = float(line.split()[-1])
             elif "Total Free Energy" in line:
-                total_free = float(line.split()[9])
+                total_free = float(line.split()[-2])
             elif "Excited state" in line and exc:
-                energies.append(float(line.split()[7]))
+                energies.append(float(line.split()[-1]))
                 ind.append(int(line.split()[2].replace(":", "")))
             elif "Multiplicity" in line and exc:
-                spins.append(line.split()[1])
+                spins.append(line.split()[-1])
             elif "Strength" in line and exc:
-                oscs.append(float(line.split()[2]))
+                oscs.append(float(line.split()[-1]))
             elif (
                 "---------------------------------------------------" in line
                 and exc
@@ -506,16 +506,20 @@ def pega_oscs(files, indices, initial):
         ind = str(ind)
         with open("Geometries/" + file, "r", encoding="utf-8") as log_file:
             dip = False
+            check = False
             for line in log_file:
                 if frase in line:
+                    oscs = []
                     dip = True
                 elif dip and "--" not in line:
+                    if 'States' not in line:
+                        check = True
                     line = line.split()
                     if (line[0] == ind and int(line[1]) in ind_s) or (
                         line[1] == ind and int(line[0]) in ind_s
                     ):
-                        oscs.append(float(line[5]))
-                elif len(oscs) > 0 and "---" in line:
+                        oscs.append(float(line[-1]))
+                elif check and "---" in line:
                     dip = False
             try:
                 total_oscs = np.vstack((total_oscs, np.array(oscs)[np.newaxis, :]))
