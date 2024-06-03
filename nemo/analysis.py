@@ -960,6 +960,7 @@ class Ensemble(object):
             _, breakdown = absorption(self.initial, dielec, data=self.data, save=False, detailed=True)
         else:
             _, _, breakdown = rates(self.initial, dielec, self.data, ensemble_average=False, detailed=True)
+        breakdown.insert(0, 'Geometry', self.data['geometry'].astype(int))
         return breakdown
 
     def save(self, dielec, mode):
@@ -968,6 +969,3 @@ class Ensemble(object):
             export_results(results, emi, dielec)
         elif mode == 'abs':
             _ = absorption(self.initial, dielec, data=self.data, save=True, detailed=False)
-
-    def geometries(self):
-        return self.data['geometry'].astype(int)
