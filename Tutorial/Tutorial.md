@@ -1,4 +1,4 @@
-# **NEMO** Tutorial Version 1.1.0
+# **NEMO** Tutorial Version 1.2.0
 
 <img src="logo.png" alt="Alt Text" width="100%">
 
