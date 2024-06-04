@@ -911,7 +911,7 @@ def absorption(initial, dielec, data=None, save=False, detailed=False, nstates=-
         )
     if detailed:
         breakdown = make_breakdown(
-            initial, spin, num, constante*oscs, deltae_lambda, lambda_neq, alphaopt1, l_total
+            initial, spin, num, constante*oscs, deltae_lambda, lambda_neq[:,:nstates], alphaopt1, l_total
         )
         return abs_spec, breakdown
     return abs_spec
@@ -948,13 +948,13 @@ class Ensemble(object):
         breakdown.insert(0, 'Geometry', self.data['geometry'].astype(int))
         return results, emi, breakdown
 
-    def complete_abs(self, dielec):
-        abs_spec, breakdown = absorption(self.initial, dielec, self.data, save=False, detailed=True)
+    def complete_abs(self, dielec, nstates=-1):
+        abs_spec, breakdown = absorption(self.initial, dielec, self.data, nstates=nstates, save=False, detailed=True)
         breakdown.insert(0, 'Geometry', self.data['geometry'].astype(int))
         return abs_spec, breakdown
 
-    def absorption(self, dielec):
-        abs_spec = absorption(self.initial, dielec, data=self.data, save=False, detailed=False)
+    def absorption(self, dielec, nstates=-1):
+        abs_spec = absorption(self.initial, dielec, data=self.data, nstates=nstates, save=False, detailed=False)
         return abs_spec
 
     def breakdown(self, dielec):
