@@ -945,10 +945,12 @@ class Ensemble(object):
 
     def complete_emi(self, dielec, ensemble_average=False):
         results, emi, breakdown = rates(self.initial, dielec, self.data, ensemble_average=ensemble_average, detailed=True)
+        breakdown.insert(0, 'Geometry', self.data['geometry'].astype(int))
         return results, emi, breakdown
 
     def complete_abs(self, dielec):
         abs_spec, breakdown = absorption(self.initial, dielec, self.data, save=False, detailed=True)
+        breakdown.insert(0, 'Geometry', self.data['geometry'].astype(int))
         return abs_spec, breakdown
 
     def absorption(self, dielec):
