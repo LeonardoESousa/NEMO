@@ -136,7 +136,7 @@ def make_ensemble(freqlog, num_geoms, temperature, header, bottom):
 ################################################################
 
 def check_dielectric(eps,nr):
-    if eps <= 1 or nr**2 > eps:
+    if eps < 1 or nr**2 > eps:
         nemo.parser.fatal_error("Dielectric constant must be higher than 1 and the refractive index squared must be lower than the static dielectric constant! Goodbye!")
 
 def setup_ensemble():
