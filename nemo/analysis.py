@@ -510,8 +510,8 @@ def x_values(mean, std):
 def sorting_parameters(*args):
     args = list(args)
     argsort = np.argsort(args[0], axis=1)
-    for arg in args:
-        arg = np.take_along_axis(arg, argsort, axis=1)
+    for i in range(len(args)):
+        args[i] = np.take_along_axis(args[i], argsort, axis=1)
     return args
 
 
