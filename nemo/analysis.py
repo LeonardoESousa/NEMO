@@ -187,6 +187,8 @@ def analysis(files):
             ss_s,
             ss_t,
             ground_pol,
+            double_s,#addition R2^2 double excitation
+            double_t,
         ) = nemo.parser.pega_energias("Geometries/" + file)
         print(file,triplets.shape)
         singlets = np.array([singlets[:n_state]])
@@ -197,26 +199,39 @@ def analysis(files):
         ind_s = np.array([ind_s[:n_state]])
         ind_t = np.array([ind_t[:n_state]])
         ground_pol = np.array([ground_pol])
+        double_s = np.array([double_s[:n_state]])
+        double_t = np.array([double_t[:n_state]])
+
         try:
             total_singlets = np.vstack((total_singlets, singlets))
             total_triplets = np.vstack((total_triplets, triplets))
+
+
             total_oscs = np.vstack((total_oscs, oscs))
             total_ss_s = np.vstack((total_ss_s, ss_s))
             total_ss_t = np.vstack((total_ss_t, ss_t))
             total_ind_s = np.vstack((total_ind_s, ind_s))
             total_ind_t = np.vstack((total_ind_t, ind_t))
             total_ground_pol = np.append(total_ground_pol, ground_pol)
+            total_double_s = np.vstack((total_double_s, double_s))
+            total_double_t = np.vstack((total_double_t, double_t))
+
         except NameError:
             total_singlets = singlets
             total_triplets = triplets
+
             total_oscs = oscs
             total_ss_s = ss_s
             total_ss_t = ss_t
             total_ind_s = ind_s
             total_ind_t = ind_t
             total_ground_pol = ground_pol
+            total_double_s = double_s
+            total_double_t = double_t
+
         numbers.append(int(file.split("-")[1]))
     numbers = np.array(numbers)[:, np.newaxis]
+    print('total ground', total_ground_pol.shape)
     return (
         numbers,
         total_singlets,
@@ -227,6 +242,8 @@ def analysis(files):
         total_ground_pol,
         total_ind_s,
         total_ind_t,
+        total_double_s,
+        total_double_t,
     )
 
 
@@ -287,8 +304,6 @@ def format_rate(rate, delta_rate):
 
 #########################################################################################
 
-
-###SAVES ENSEMBLE DATA#################################################################
 def gather_data(initial, save=True):
     formats = {}
     files = [i for i in os.listdir("Geometries") if ".log" in i]
@@ -308,6 +323,8 @@ def gather_data(initial, save=True):
             ground_pol,
             ind_s,
             ind_t,
+            double_s,
+            double_t
         ) = analysis(files)
         if "s0" == initial.lower():
             label_oscs = [f"osc_s{i+1}" for i in range(oscs.shape[1])]
@@ -335,7 +352,7 @@ def gather_data(initial, save=True):
         except IndexError:
             pass
     else:
-        numbers, singlets, triplets, _, ss_s, ss_t, ground_pol, ind_s, ind_t = analysis(
+        numbers, singlets, triplets, _, ss_s, ss_t, ground_pol, ind_s, ind_t,double_s,double_t  = analysis(
             files
         )
         oscs = get_osc_phosph(files, singlets, triplets, ind_s, ind_t)
@@ -386,6 +403,10 @@ def gather_data(initial, save=True):
     header.extend(["gp"])
     formats["gp"] = "{:.4f}"
     header.extend(label_oscs)
+    header.extend([f"R2^2_s{i}" for i in range(1, 1 + double_s.shape[1])])
+    any({formats.update({f"R2^2_s{i}": "{:.4f}"}) for i in range(1, 1 + double_s.shape[1])})
+    header.extend([f"R2^2_t{i}" for i in range(1, 1 + double_t.shape[1])])
+    any({formats.update({f"R2^2_t{i}": "{:.4f}"}) for i in range(1, 1 + double_t.shape[1])})
     try:
         header.extend(header7)
         data = np.hstack(
@@ -398,12 +419,15 @@ def gather_data(initial, save=True):
                 ground_pol[:, np.newaxis],
                 oscs,
                 socs_complete,
+                double_s, # Add double excitation data for singlets
+                double_t # Add double excitation data for triplets
             )
         )
     except NameError:
         data = np.hstack(
-            (numbers, singlets, triplets, ss_s, ss_t, ground_pol[:, np.newaxis], oscs)
+            (numbers, singlets, triplets, ss_s, ss_t, ground_pol[:, np.newaxis], oscs,double_s,double_t)
         )
+ 
     arquivo = f"Ensemble_{initial.upper()}_.lx"
     data = pd.DataFrame(data, columns=header)
     # add 'ensemble', 'kbT', 'nr', 'eps' columns with constant values
@@ -426,11 +450,9 @@ def gather_data(initial, save=True):
     if save:
         data.to_csv(arquivo, index=False)
     return data
+########################################################################################
 
-
-#######################################################################################
-
-
+ 
 ###PRINTS RATES AND EMISSION SPECTRUM##################################################
 def export_results(data, emission, dielec):
     data = data.copy()

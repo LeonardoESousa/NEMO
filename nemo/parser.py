@@ -217,7 +217,7 @@ def pega_energias(file):
     with open(file, "r", encoding="utf-8") as log_file:
         fetch_osc = False
         correction, correction2 = [], []
-        energies, spins, oscs, ind = [], [], [], []
+        energies, spins, oscs, ind, double = [], [], [], [], []
         spin = 'Singlet'
         for line in log_file:
             if "Solving for EOMEE-CCSD A triplet states." in line:
@@ -236,8 +236,10 @@ def pega_energias(file):
                     num = spins.count('Triplet')   
                 ind.append(num)
                 spins.append(spin)
+            elif "R2^2" in line:
+                double.append(float(line.split()[8]))
             elif "Oscillator strength (a.u.):" in line and fetch_osc:
-                oscs.append(float(line.split()[3]))
+                oscs.append(float(line.split()[-1]))
                 fetch_osc = False
             elif "Total energy in the final basis set" in line:
                 line = line.split()
@@ -248,6 +250,7 @@ def pega_energias(file):
         singlets = np.array(
             [energies[i] for i in range(len(energies)) if spins[i] == "Singlet"]
         )
+        double_s = np.array([double[i] for i in range(len(double)) if spins[i] == "Singlet"])
         ss_s = np.array(
             [
                 correction[i] + correction2[i]
@@ -262,6 +265,7 @@ def pega_energias(file):
         triplets = np.array(
             [energies[i] for i in range(len(energies)) if spins[i] == "Triplet"]
         )
+        double_t = np.array([double[i] for i in range(len(double)) if spins[i] == "Triplet"])
         ss_t = np.array(
             [
                 correction[i] + correction2[i]
@@ -282,7 +286,8 @@ def pega_energias(file):
         oscs = oscs[order_s]
         ind_s = ind_s[order_s]
         ind_t = ind_t[order_t]
-
+        double_s = double_s[order_s]
+        double_t = double_t[order_t]
         return (
             singlets,
             triplets,
@@ -292,6 +297,8 @@ def pega_energias(file):
             ss_s,
             ss_t,
             (sol_int - total_free) * 27.2114,
+            double_s,
+            double_t,
         )
 
 
@@ -301,7 +308,7 @@ def pega_energias(file):
 ##GETS SOC BETWEEN Sn STATE AND TRIPLETS#################################################
 def pega_soc_singlet(file, n_state):
     socs = []
-    _, _, _, ind_s, ind_t, _, _, _ = pega_energias("Geometries/" + file)
+    _, _, _, ind_s, ind_t, _, _, _ ,_,_= pega_energias("Geometries/" + file)
     order_s = np.argsort(ind_s)
     order_t = np.argsort(ind_t)
     n_state = order_s[n_state] + 1
@@ -328,7 +335,7 @@ def pega_soc_singlet(file, n_state):
 ##GETS SOC BETWEEN Tn STATE AND SINGLETS#################################################
 def pega_soc_triplet(file, n_state):
     socs = []
-    _, _, _, ind_s, ind_t, _, _, _ = pega_energias("Geometries/" + file)
+    _, _, _, ind_s, ind_t, _, _, _, _, _ = pega_energias("Geometries/" + file)
     order_s = np.argsort(ind_s)
     order_t = np.argsort(ind_t)
     n_state = order_s[n_state] + 1
@@ -605,7 +612,6 @@ def pega_oscs(files, indices, initial):
                 elif '-----------------------' in line:
                     states = []
                 elif len(states) == 2 and "Oscillator strength (a.u.):" in line:
-                    #print('aaa',num,states)
                     if num+1 in states:
                         if states[0] == num+1:
                             x = states[1]
@@ -677,7 +683,7 @@ def soc_t1(file, mqn, n_state, ind_s):
     else:
         mqn = '(L+)' 
     socs = np.zeros((1))
-    _, _, _, ind_s, ind_t, _, _, _ = pega_energias("Geometries/" + file)
+    _, _, _, ind_s, ind_t, _, _, _,_,_ = pega_energias("Geometries/" + file)
     order_s = np.argsort(ind_s)
     order_t = np.argsort(ind_t)
     n_state = order_s[n_state] + 1
