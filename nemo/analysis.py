@@ -403,10 +403,7 @@ def gather_data(initial, save=True):
     header.extend(["gp"])
     formats["gp"] = "{:.4f}"
     header.extend(label_oscs)
-    header.extend([f"R2^2_s{i}" for i in range(1, 1 + double_s.shape[1])])
-    any({formats.update({f"R2^2_s{i}": "{:.4f}"}) for i in range(1, 1 + double_s.shape[1])})
-    header.extend([f"R2^2_t{i}" for i in range(1, 1 + double_t.shape[1])])
-    any({formats.update({f"R2^2_t{i}": "{:.4f}"}) for i in range(1, 1 + double_t.shape[1])})
+    
     try:
         header.extend(header7)
         data = np.hstack(
@@ -427,7 +424,10 @@ def gather_data(initial, save=True):
         data = np.hstack(
             (numbers, singlets, triplets, ss_s, ss_t, ground_pol[:, np.newaxis], oscs,double_s,double_t)
         )
- 
+    header.extend([f"R2^2_s{i}" for i in range(1, 1 + double_s.shape[1])])
+    any({formats.update({f"R2^2_s{i}": "{:.4f}"}) for i in range(1, 1 + double_s.shape[1])})
+    header.extend([f"R2^2_t{i}" for i in range(1, 1 + double_t.shape[1])])
+    any({formats.update({f"R2^2_t{i}": "{:.4f}"}) for i in range(1, 1 + double_t.shape[1])})
     arquivo = f"Ensemble_{initial.upper()}_.lx"
     data = pd.DataFrame(data, columns=header)
     # add 'ensemble', 'kbT', 'nr', 'eps' columns with constant values
