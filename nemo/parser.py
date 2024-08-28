@@ -190,27 +190,36 @@ def pega_modos(file):
     return final_coords
 
 
-def pega_correction(file):
+def pega_correction(file, max_corr):
     ss_mark = "Excited-state properties with   relaxed density"
     folder = file.split('/')[0]
     file = file.split('/')[-1]
-    with open(folder +'/TDDFT/' + file, "r", encoding="utf-8") as log_file:
+    correction, correction2 = [], []
+    for spin in ['singlet', 'triplet']:
+        spin_mark = f"Relaxed   {spin} excited state"
         corr = False
-        correction, correction2 = [], []
-        for line in log_file:
-            if ss_mark in line:
-                corr = True
-            elif "SS-PCM correction" in line and corr:
-                correction.append(-1 * float(line.split()[-2]))
-            elif "LR-PCM correction" in line and corr:
-                correction2.append(-2 * float(line.split()[-2]))
-            elif (
-                "------------------------ END OF SUMMARY -----------------------"
-                in line
-                and corr
-            ):
-                corr = False
-    return correction, correction2 
+        catch = False
+        with open(folder +'/TDDFT/' + file, "r", encoding="utf-8") as log_file:
+            j = 0
+            for line in log_file:
+                if ss_mark in line:
+                    catch = True
+                elif spin_mark in line:
+                    corr = True
+                elif "SS-PCM correction" in line and corr:
+                    correction.append(-1 * float(line.split()[-2]))
+                    j += 1
+                elif "LR-PCM correction" in line and corr:
+                    correction2.append(-2 * float(line.split()[-2]))
+                    corr = False
+                    j += 1
+                elif "------------------------ END OF SUMMARY -----------------------" in line and corr:
+                    catch = False
+                elif j == 2*max_corr:
+                    break
+    return correction, correction2
+
+
 
 ##GETS ENERGIES, OSCS, AND INDICES FOR Sn AND Tn STATES##################################
 def pega_energias(file):
@@ -243,10 +252,7 @@ def pega_energias(file):
                 fetch_osc = False
             elif "Total energy in the final basis set" in line:
                 line = line.split()
-        correction, correction2 = pega_correction(file)
-        if len(correction) > len(energies):
-            correction = correction[:len(energies)]
-            correction2 = correction2[:len(energies)]
+        correction, correction2 = pega_correction(file, len(energies)/2)
         singlets = np.array(
             [energies[i] for i in range(len(energies)) if spins[i] == "Singlet"]
         )
