@@ -261,8 +261,15 @@ def means(variable, weight, ensemble_mean=False):
     else:
         try:
             mean = np.average(variable, axis=0, weights=weight)
-        except (IndexError,ZeroDivisionError):
-            mean = np.average(variable, axis=0)
+        except ZeroDivisionError:
+            column_sums = np.sum(weight, axis=0)
+            # Identify columns where the sum is zero
+            zero_sum_columns = column_sums == 0
+            # Modify columns with zero sum by setting all their elements to 1
+            weight[:, zero_sum_columns] = 1
+            mean = np.average(variable, axis=0, weights=weight)
+        except IndexError:
+            mean = np.average(variable, weights=weight)
     return mean
 
 
@@ -731,7 +738,7 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
     mean_sigma = means(sigma, y_axis, ensemble_average)[:, np.newaxis]
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        mean_part = np.nan_to_num(100 * rate / means(y_axis, y_axis, ensemble_average))
+        mean_part = np.nan_to_num(100 * rate / means(y_axis, y_axis, ensemble_average), posinf=100)
     rate = rate[:, np.newaxis]
     error = error[:, np.newaxis]
     labels = [f"{initial.upper()}->S0"] + [f"{initial.upper()}~>{j}" for j in final]
