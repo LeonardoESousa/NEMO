@@ -52,6 +52,8 @@ def interface():
     print(
         "\t9 - Perform tuning of long range corrected functional (Gaussian 09/16 only)"
     )
+    print('\n')
+    nemo.tools.check_for_updates('nemophoto')
     operation = input()
     if operation == "1":
         nemo.tools.setup_ensemble()
