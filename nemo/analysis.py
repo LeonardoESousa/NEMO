@@ -26,20 +26,20 @@ def check_normal(files):
     for file in files:
         with open("Geometries/" + file, "r", encoding="utf-8") as log_file:
             for line in log_file:
-                if (
-                    "TDDFT/TDA Excitation Energies" in line
-                    or "TDDFT Excitation Energies" in line
-                ):
-                    exc = True
-                elif "Excited state" in line and exc:
-                    eng = float(line.split()[7])
-                    if eng < 0:
-                        add = False
-                        abnormal.append(file)
-                    else:
-                        add = True
-                    exc = False
-                elif "Have a nice day" in line and add:
+                #if (
+                #    "TDDFT/TDA Excitation Energies" in line
+                #    or "TDDFT Excitation Energies" in line
+                #):
+                #    exc = True
+                #elif "Excited state" in line and exc:
+                #    eng = float(line.split()[7])
+                #    if eng < 0:
+                #        add = False
+                #        abnormal.append(file)
+                #    else:
+                #        add = True
+                #    exc = False
+                if "Have a nice day" in line:# and add:
                     normal.append(file)
     if len(abnormal) > 0:
         print(f"Warning! Negative transition energies detected in {len(abnormal)} files:")
@@ -58,17 +58,14 @@ def check_normal(files):
 ##READS NUMBER OF EXCITED STATES FROM INPUT FILE#########################################
 def read_cis(file):
     file = file[:-3] + "com"
-    with open("Geometries/" + file, "r", encoding="utf-8") as com_file:
-        for line in com_file:
-            if "cis_n_roots" in line.lower():
-                line = line.split()
-                for elem in line:
-                    try:
-                        n_state = int(elem)
-                        break
-                    except ValueError:
-                        pass
-    return n_state
+    text = open("Geometries/" + file, "r", encoding="utf-8").read().lower()
+    if "cis_n_roots" in text:
+        n_state = int(text.split("cis_n_roots")[1].split()[0])
+        calculation_type = "tddft"
+    elif "ee_singlets" in text:
+        n_state = int(text.split("ee_singlets")[1].split()[0])
+        calculation_type = "eom-ccsd"
+    return n_state, calculation_type
 
 
 #########################################################################################
@@ -222,16 +219,6 @@ get_oscs = {'tddft': nemo.parser.pega_oscs, 'eom-ccsd': nemo.eom.pega_oscs}
 get_avg_socs = {'tddft': nemo.parser.avg_socs, 'eom-ccsd': nemo.eom.avg_socs}
 get_phosph_osc = {'tddft': nemo.parser.phosph_osc, 'eom-ccsd': nemo.eom.phosph_osc}
 
-
-def get_calculation_type(file):
-    with open("Geometries/" + file, "r", encoding="utf-8") as log_file:
-        for line in log_file:
-            if "TDDFT/TDA Excitation Energies" in line:
-                return "tddft"
-            elif "Solving for EOMEE-CCSD" in line:
-                return "eom-ccsd"
-    return None
-
 ###SAVES ENSEMBLE DATA#################################################################
 def gather_data(initial, save=True):
     formats = {}
@@ -241,8 +228,7 @@ def gather_data(initial, save=True):
     n_state = int(initial[1:]) - 1
     eps_i, nr_i = nemo.tools.get_nr()
     kbt = nemo.tools.detect_sigma()
-    total_states = read_cis(files[0])
-    calculation_type = get_calculation_type(files[0])
+    total_states, calculation_type = read_cis(files[0])
     if "s" in initial.lower():
         (
             numbers,
