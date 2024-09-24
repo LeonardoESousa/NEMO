@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 import nemo.tools
 import nemo.parser
+import nemo.eom
 
 # pylint: disable=unbalanced-tuple-unpacking
 
@@ -51,40 +52,6 @@ def check_normal(files):
 #########################################################################################
 
 
-##CALCULATES TRANSITION DIPOLE MOMENTS FOR Tn TO S0 TRANSITIONS##########################
-def moment(file, ess, ets, dipss, dipts, n_triplet, ind_s, ind_t):
-    # Conversion factor between a.u. = e*bohr to SI
-    conversion = 8.4783533e-30
-    fake_t = np.where(np.sort(ind_t) == ind_t[n_triplet])[0][0]
-    ess = np.array(ess)
-    ets = np.array(ets)
-    ess = np.insert(ess, 0, 0)
-    moments = []
-    for mqn in ["1", "-1", "0"]:
-        socst1 = nemo.parser.soc_t1(file, mqn, fake_t, ind_s)
-        socss0 = nemo.parser.soc_s0(file, mqn, ind_t)
-        socst1 = np.vstack((socss0[0, :], socst1))
-        # Conjugate to get <S0|H|T1>
-        socst1[0] = socst1[0].conjugate()
-        # Now conjugate socst1
-        socst1 = socst1.conjugate()
-        ess = ess[: np.shape(socst1)[0]]
-        if 0 in ets[n_triplet] - ess:
-            return 0
-        for i in [0, 1, 2]:
-            part_1 = (socss0 / (0 - ets)) * dipts[:, i]
-            part_1 = np.sum(part_1)
-            part_2 = (socst1 / (ets[n_triplet] - ess)) * dipss[:, i]
-            part_2 = np.sum(part_2)
-            complex_dipole = part_1 + part_2
-            # append magnitude squared
-            moments.append((complex_dipole * complex_dipole.conjugate()).real)
-
-    moments = np.array(moments)
-    moments = np.sum(moments) * (conversion**2)
-    return moments
-
-
 #########################################################################################
 
 
@@ -107,48 +74,7 @@ def read_cis(file):
 #########################################################################################
 
 
-def phosph_osc(file, n_state, ind_s, ind_t, singlets, triplets):
-    zero = ["0"]
-    zero.extend(ind_s)
-    total_moments = []
-    ground_dipoles = nemo.parser.pega_dipolos(
-        file, zero, "Electron Dipole Moments of Ground State", 0
-    )
-    ground_singlet_dipoles = nemo.parser.pega_dipolos(
-        file, zero, "Transition Moments Between Ground and Singlet Excited States", 0
-    )
-    ground_dipoles = np.vstack((ground_dipoles, ground_singlet_dipoles))
-    for n_triplet in range(n_state):
-        triplet_dipoles = nemo.parser.pega_dipolos(
-            file, ind_t, "Electron Dipole Moments of Triplet Excited State", n_triplet
-        )
-        triplet_triplet_dipoles = nemo.parser.pega_dipolos(
-            file, ind_t, "Transition Moments Between Triplet Excited States", n_triplet
-        )
-        triplet_dipoles = np.vstack((triplet_dipoles, triplet_triplet_dipoles))
-        # Fixing the order
-        order = np.arange(1, n_state)
-        order = np.insert(order, n_triplet, 0)
-        triplet_dipoles = triplet_dipoles[order, :]
-        moments = moment(
-            file,
-            singlets,
-            triplets,
-            ground_dipoles,
-            triplet_dipoles,
-            n_triplet,
-            ind_s,
-            ind_t,
-        )
-        total_moments.append(moments)
-    total_moments = np.array(total_moments)
-    term = E_CHARGE * (HBAR_J**2) / triplets
-    osc_strength = (2 * MASS_E) * total_moments / (3 * term)
-    return osc_strength[np.newaxis, :]
-
-
-def get_osc_phosph(files, singlets, triplets, ind_s, ind_t):
-    n_state = read_cis(files[0])
+def get_osc_phosph(files, singlets, triplets, n_state, ind_s, ind_t, phosph_osc):
     # removed correction from phosph_osc calculation
     eng_singlets = singlets  # - (alphast2/alphaopt1)*Ss_s
     eng_triplets = triplets  # - (alphast2/alphaopt1)*Ss_t
@@ -169,8 +95,7 @@ def get_osc_phosph(files, singlets, triplets, ind_s, ind_t):
 
 
 ##GETS ALL RELEVANT INFORMATION FROM LOG FILES###########################################
-def analysis(files):
-    n_state = read_cis(files[0])
+def analysis(files, n_state, get_energies):
     numbers = []
     for file in files:
         (
@@ -182,7 +107,7 @@ def analysis(files):
             ss_s,
             ss_t,
             ground_pol,
-        ) = nemo.parser.pega_energias("Geometries/" + file)
+        ) = get_energies("Geometries/" + file)
         singlets = np.array([singlets[:n_state]])
         triplets = np.array([triplets[:n_state]])
         oscs = np.array([oscs[:n_state]])
@@ -292,6 +217,20 @@ def format_rate(rate, delta_rate):
 
 #########################################################################################
 
+get_energies = {'tddft': nemo.parser.pega_energias, 'eom-ccsd': nemo.eom.pega_energias}
+get_oscs = {'tddft': nemo.parser.pega_oscs, 'eom-ccsd': nemo.eom.pega_oscs}
+get_avg_socs = {'tddft': nemo.parser.avg_socs, 'eom-ccsd': nemo.eom.avg_socs}
+get_phosph_osc = {'tddft': nemo.parser.phosph_osc, 'eom-ccsd': nemo.eom.phosph_osc}
+
+
+def get_calculation_type(file):
+    with open("Geometries/" + file, "r", encoding="utf-8") as log_file:
+        for line in log_file:
+            if "TDDFT/TDA Excitation Energies" in line:
+                return "tddft"
+            elif "Solving for EOMEE-CCSD" in line:
+                return "eom-ccsd"
+    return None
 
 ###SAVES ENSEMBLE DATA#################################################################
 def gather_data(initial, save=True):
@@ -302,6 +241,8 @@ def gather_data(initial, save=True):
     n_state = int(initial[1:]) - 1
     eps_i, nr_i = nemo.tools.get_nr()
     kbt = nemo.tools.detect_sigma()
+    total_states = read_cis(files[0])
+    calculation_type = get_calculation_type(files[0])
     if "s" in initial.lower():
         (
             numbers,
@@ -313,22 +254,21 @@ def gather_data(initial, save=True):
             ground_pol,
             ind_s,
             ind_t,
-        ) = analysis(files)
+        ) = analysis(files, total_states, get_energies[calculation_type])
         if "s0" == initial.lower():
             label_oscs = [f"osc_s{i+1}" for i in range(oscs.shape[1])]
             any({formats.update({f"osc_s{i+1}": "{:.5e}"}) for i in range(oscs.shape[1])})
         else:
-            # Oscs       = Oscs[:,n_state][:,np.newaxis]
             label_oscs = [f"osce_s{n_state+1+i}" for i in range(oscs.shape[1])]
             any({formats.update({f"osce_s{n_state+1+i}": "{:.5e}"}) for i in range(oscs.shape[1])})
-            noscs = nemo.parser.pega_oscs(files, ind_s, initial)
+            noscs = get_oscs[calculation_type](files, ind_s, initial)
             label_oscs.extend([f"osc_s{n_state+2+i}" for i in range(noscs.shape[1])])
             any({formats.update({f"osc_s{n_state+2+i}": "{:.5e}"}) for i in range(noscs.shape[1])})
             oscs = np.hstack((oscs, noscs))
         try:
             header7 = []
             for i in range(singlets.shape[1]):
-                socs_partial = nemo.parser.avg_socs(files, "singlet", i)
+                socs_partial = get_avg_socs[calculation_type](files, "singlet", i, ind_s, ind_t)
                 header7.extend(
                     [f"soc_s{i+1}_t{j}" for j in range(1, 1 + socs_partial.shape[1])]
                 )
@@ -341,13 +281,12 @@ def gather_data(initial, save=True):
             pass
     else:
         numbers, singlets, triplets, _, ss_s, ss_t, ground_pol, ind_s, ind_t = analysis(
-            files
+            files, total_states, get_energies[calculation_type]
         )
-        oscs = get_osc_phosph(files, singlets, triplets, ind_s, ind_t)
-        # Oscs       = Oscs[:,n_state][:,np.newaxis]
+        oscs = get_osc_phosph(files, singlets, triplets, ind_s, ind_t, get_phosph_osc[calculation_type])
         label_oscs = [f"osce_t{n_state+1+i}" for i in range(oscs.shape[1])]
         any({formats.update({f"osce_t{n_state+1+i}": "{:.5e}"}) for i in range(oscs.shape[1])})
-        noscs = nemo.parser.pega_oscs(files, ind_t, initial)
+        noscs =  get_oscs[calculation_type](files, ind_t, initial)
         oscs = np.hstack((oscs, noscs))
         label_oscs.extend([f"osc_t{n_state+2+i}" for i in range(noscs.shape[1])])
         any({formats.update({f"osc_t{n_state+2+i}": "{:.5e}"}) for i in range(noscs.shape[1])})
@@ -356,9 +295,9 @@ def gather_data(initial, save=True):
             for i in range(triplets.shape[1]):
                 socs_partial = np.hstack(
                     (
-                        nemo.parser.avg_socs(files, "ground", i),
-                        nemo.parser.avg_socs(files, "triplet", i),
-                        nemo.parser.avg_socs(files, "tts", i),
+                        get_avg_socs[calculation_type](files, "ground", i),
+                        get_avg_socs[calculation_type](files, "triplet", i),
+                        get_avg_socs[calculation_type](files, "tts", i),
                     )
                 )
                 indices = [

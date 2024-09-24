@@ -288,9 +288,8 @@ def pega_energias(file):
 
 
 ##GETS SOC BETWEEN Sn STATE AND TRIPLETS#################################################
-def pega_soc_singlet(file, n_state):
+def pega_soc_singlet(file, n_state, ind_s, ind_t):
     socs = []
-    _, _, _, ind_s, ind_t, _, _, _ = pega_energias("Geometries/" + file)
     order_s = np.argsort(ind_s)
     order_t = np.argsort(ind_t)
     n_state = order_s[n_state] + 1
@@ -318,9 +317,8 @@ def pega_soc_singlet(file, n_state):
 
 
 ##GETS SOC BETWEEN Tn STATE AND SINGLETS#################################################
-def pega_soc_triplet(file, n_state):
+def pega_soc_triplet(file, n_state, ind_s, ind_t):
     socs = []
-    _, _, _, ind_s, ind_t, _, _, _ = pega_energias("Geometries/" + file)
     order_s = np.argsort(ind_s)
     order_t = np.argsort(ind_t)
     n_state = order_t[n_state] + 1
@@ -346,7 +344,7 @@ def pega_soc_triplet(file, n_state):
 
 
 ##GETS SOC BETWEEN Tn STATE AND S0#######################################################
-def pega_soc_ground(file, n_state):
+def pega_soc_ground(file, n_state, ind_s, ind_t):
     socs = []
     # _, _, _, ind_s, ind_t, _, _, _ = pega_energias('Geometries/'+file)
     # order_s = np.argsort(ind_s)
@@ -376,7 +374,7 @@ def pega_soc_ground(file, n_state):
 
 
 ##GETS SOC BETWEEN Tn STATE AND SINGLETS#################################################
-def pega_soc_triplet_triplet(file, n_state):
+def pega_soc_triplet_triplet(file, n_state, ind_s, ind_t):
     socs = []
     # _, _, _, ind_s, ind_t, _, _, _ = pega_energias('Geometries/'+file)
     # order_s = np.argsort(ind_s)
@@ -415,7 +413,7 @@ def pega_soc_triplet_triplet(file, n_state):
 
 
 ##DECIDES WHICH FUNCTION TO USE IN ORDER TO GET SOCS#####################################
-def avg_socs(files, tipo, n_state):
+def avg_socs(files, tipo, n_state, ind_s, ind_t):
     col = None
     if tipo == "singlet":
         pega_soc = pega_soc_singlet
@@ -426,7 +424,7 @@ def avg_socs(files, tipo, n_state):
     elif tipo == "tts":
         pega_soc = pega_soc_triplet_triplet
     for file in files:
-        socs = pega_soc(file, n_state)
+        socs = pega_soc(file, n_state, ind_s, ind_t)
         try:
             socs = socs[:, :col]
             total_socs = np.vstack((total_socs, socs))
@@ -490,6 +488,79 @@ def pega_dipolos(file, ind, frase, state):
 
 #########################################################################################
 
+##CALCULATES TRANSITION DIPOLE MOMENTS FOR Tn TO S0 TRANSITIONS##########################
+def moment(file, ess, ets, dipss, dipts, n_triplet, ind_s, ind_t, get_soc_t1, get_soc_s0):
+    # Conversion factor between a.u. = e*bohr to SI
+    conversion = 8.4783533e-30
+    fake_t = np.where(np.sort(ind_t) == ind_t[n_triplet])[0][0]
+    ess = np.array(ess)
+    ets = np.array(ets)
+    ess = np.insert(ess, 0, 0)
+    moments = []
+    for mqn in ["1", "-1", "0"]:
+        socst1 = get_soc_t1(file, mqn, fake_t, ind_s)   
+        socss0 = get_soc_s0(file, mqn, ind_t)           
+        socst1 = np.vstack((socss0[0, :], socst1))
+        # Conjugate to get <S0|H|T1>
+        socst1[0] = socst1[0].conjugate()
+        # Now conjugate socst1
+        socst1 = socst1.conjugate()
+        ess = ess[: np.shape(socst1)[0]]
+        if 0 in ets[n_triplet] - ess:
+            return 0
+        for i in [0, 1, 2]:
+            part_1 = (socss0 / (0 - ets)) * dipts[:, i]
+            part_1 = np.sum(part_1)
+            part_2 = (socst1 / (ets[n_triplet] - ess)) * dipss[:, i]
+            part_2 = np.sum(part_2)
+            complex_dipole = part_1 + part_2
+            # append magnitude squared
+            moments.append((complex_dipole * complex_dipole.conjugate()).real)
+
+    moments = np.array(moments)
+    moments = np.sum(moments) * (conversion**2)
+    return moments
+
+def phosph_osc(file, n_state, ind_s, ind_t, singlets, triplets, get_dipoles, get_soc_t1, get_soc_s0):
+    zero = ["0"]
+    zero.extend(ind_s)
+    total_moments = []
+    ground_dipoles = get_dipoles(
+        file, zero, "Electron Dipole Moments of Ground State", 0
+    )
+    ground_singlet_dipoles = get_dipoles(
+        file, zero, "Transition Moments Between Ground and Singlet Excited States", 0
+    )
+    ground_dipoles = np.vstack((ground_dipoles, ground_singlet_dipoles))
+    for n_triplet in range(n_state):
+        triplet_dipoles = get_dipoles(
+            file, ind_t, "Electron Dipole Moments of Triplet Excited State", n_triplet
+        )
+        triplet_triplet_dipoles = get_dipoles(
+            file, ind_t, "Transition Moments Between Triplet Excited States", n_triplet
+        )
+        triplet_dipoles = np.vstack((triplet_dipoles, triplet_triplet_dipoles))
+        # Fixing the order
+        order = np.arange(1, n_state)
+        order = np.insert(order, n_triplet, 0)
+        triplet_dipoles = triplet_dipoles[order, :]
+        moments = moment(
+            file,
+            singlets,
+            triplets,
+            ground_dipoles,
+            triplet_dipoles,
+            n_triplet,
+            ind_s,
+            ind_t,
+            get_soc_t1,
+            get_soc_s0,
+        )
+        total_moments.append(moments)
+    total_moments = np.array(total_moments)
+    term = E_CHARGE * (HBAR_J**2) / triplets
+    osc_strength = (2 * MASS_E) * total_moments / (3 * term)
+    return osc_strength[np.newaxis, :]
 
 ##GETS TRANSITION DIPOLE MOMENTS#########################################################
 def pega_oscs(files, indices, initial):
