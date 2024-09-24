@@ -141,6 +141,75 @@ def check_dielectric(eps,nr):
     if eps < 1 or nr**2 > eps:
         nemo.parser.fatal_error("Dielectric constant must be higher than 1 and the refractive index squared must be lower than the static dielectric constant! Goodbye!")
 
+def add_header(rem, num_ex, soc, static, refrac):
+    rem = rem.lower().strip()
+    method = rem.split()
+    method = method[method.index('method')+1]
+    if method == 'eom-ccsd':
+        header =(f"$rem\n"
+            f"ee_singlets             {num_ex}\n"
+            f"ee_triplets             {num_ex}\n"
+            f"cc_trans_prop           2\n"
+            f"calc_soc                {soc}\n"
+            f"solvent_method          PCM\n"
+            f"EOM_DAVIDSON_MAXVECTORS 300\n"
+            f"EOM_DAVIDSON_MAX_ITER 300\n"
+            f"$end\n"
+            f"\n"
+            f"$trans_prop\n"
+            f"state_list\n"
+            f"ref\n"
+            f"ee_singlets 0 0\n"
+            f"end_list\n"
+            f"calc dipole linmom soc opdm_norm\n\n"
+            f"state_list\n"
+            f"ref\n"
+            f"ee_triplets 0 0\n"
+            f"end_list\n"
+            f"calc dipole linmom soc opdm_norm\n\n"
+            f"state_list\n"
+            f"ee_singlets 0 0\n"
+            f"ee_singlets 0 0\n"
+            f"end_list\n"
+            f"calc dipole linmom opdm_norm\n\n"
+            f"state_list\n"
+            f"ee_singlets 0 0\n"
+            f"ee_triplets 0 0\n"
+            f"end_list\n"
+            f"calc dipole linmom soc opdm_norm\n\n"
+            f"state_list\n"
+            f"ee_triplets 0 0\n"
+            f"ee_triplets 0 0\n"
+            f"end_list\n"
+            f"calc dipole linmom  opdm_norm\n"
+            f"$end\n")
+ 
+    else:
+        header =(f"$rem\n"
+            f"cis_n_roots             {num_ex}\n"
+            f"cis_singlets            true\n"
+            f"cis_triplets            true\n"
+            f"calc_soc                {soc}\n"
+            f"STS_MOM                 true\n"
+            f"CIS_RELAXED_DENSITY     TRUE\n"
+            f"solvent_method          PCM\n"
+            f"MAX_CIS_CYCLES          200\n"
+            f"MAX_SCF_CYCLES          200\n"
+            f"$end\n")
+    header += ("\n$pcm\n"
+            "theory                  IEFPCM\n"
+            "ChargeSeparation        Marcus\n"
+            "StateSpecific           Perturb\n"
+            "$end\n")
+    header += (f"\n$solvent\n"
+            f"Dielectric              {static}\n"
+            f"OpticalDielectric       {refrac**2}\n"
+            f"$end\n\n")   
+    #remove $end from rem
+    rem = rem.replace("$end", "")
+    header = header.replace("$rem", rem)
+    return header    
+
 def setup_ensemble():
     freqlog = fetch_file("frequency", [".out", ".log"])
     print(f"\n\nFrequency log file: {freqlog}")
@@ -164,11 +233,6 @@ def setup_ensemble():
     print("\nThe configurations to be used are:\n")
     rem += extra + "\n"
     print(rem)
-    rem += ("\n$pcm\n"
-            "theory                  IEFPCM\n"
-            "ChargeSeparation        Marcus\n"
-            "StateSpecific           Perturb\n"
-            "$end\n")
     static = input("Solvent's static dielectric constant?\n")
     refrac = input("Solvent's refractive index?\n")
     try:
@@ -179,37 +243,23 @@ def setup_ensemble():
             "Dielectric constant and refractive index must be numbers!"
         )
     check_dielectric(static,refrac)
-    rem += (f"\n$solvent\n"
-            f"Dielectric              {static}\n"
-            f"OpticalDielectric       {refrac**2}\n"
-            f"$end\n\n")
     num_ex = input("How many excited states?\n")
     try:
         num_ex = int(num_ex)
     except ValueError:
         nemo.parser.fatal_error("This must be a number! Better luck next time!")
-    header =(f"$rem\n"
-            f"cis_n_roots             {num_ex}\n"
-            f"cis_singlets            true\n"
-            f"cis_triplets            true\n"
-            f"STS_MOM                 true\n"
-            f"CIS_RELAXED_DENSITY     TRUE\n"
-            f"solvent_method          PCM\n"
-            f"MAX_CIS_CYCLES          200\n"
-            f"MAX_SCF_CYCLES          200\n")
     abs_only = input("Are you interested in absorption spectra ONLY? (y or n)\n")
     if abs_only.lower() == "y":
         print(
             ("Ok, calculations will only be suitable for absorption "
              "or fluorescence spectrum simulations!\n")
         )
-        header += "calc_soc                false\n"
+        header = add_header(rem, num_ex, 'false', static, refrac) 
     else:
         print(
             "Ok, calculations will be suitable for all spectra and ISC rate estimates!\n"
         )
-        header += "calc_soc             true\n"
-    header = rem.replace("$rem", header)
+        header = add_header(rem, num_ex, 'true', static, refrac)
     header += f"$molecule\n{charge_multiplicity}\n"
     num_geoms = int(input("How many geometries to be sampled?\n"))
     temperature = float(input("Temperature in Kelvin?\n"))
