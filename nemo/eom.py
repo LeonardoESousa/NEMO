@@ -32,8 +32,8 @@ def pega_energias(file):
                     num = spins.count('Triplet')   
                 ind.append(num)
                 spins.append(spin)
-            elif "R2^2" in line:
-                double.append(float(line.split()[8]))
+            #elif "R2^2" in line:
+            #    double.append(float(line.split()[8]))
             elif "Oscillator strength (a.u.):" in line and fetch_osc:
                 oscs.append(float(line.split()[-1]))
                 fetch_osc = False
@@ -43,7 +43,7 @@ def pega_energias(file):
         singlets = np.array(
             [energies[i] for i in range(len(energies)) if spins[i] == "Singlet"]
         )
-        double_s = np.array([double[i] for i in range(len(double)) if spins[i] == "Singlet"])
+        #double_s = np.array([double[i] for i in range(len(double)) if spins[i] == "Singlet"])
         ss_s = np.array(
             [
                 correction[i] + correction2[i]
@@ -58,7 +58,7 @@ def pega_energias(file):
         triplets = np.array(
             [energies[i] for i in range(len(energies)) if spins[i] == "Triplet"]
         )
-        double_t = np.array([double[i] for i in range(len(double)) if spins[i] == "Triplet"])
+        #double_t = np.array([double[i] for i in range(len(double)) if spins[i] == "Triplet"])
         ss_t = np.array(
             [
                 correction[i] + correction2[i]
@@ -79,8 +79,8 @@ def pega_energias(file):
         oscs = oscs[order_s]
         ind_s = ind_s[order_s]
         ind_t = ind_t[order_t]
-        double_s = double_s[order_s]
-        double_t = double_t[order_t]
+        #double_s = double_s[order_s]
+        #double_t = double_t[order_t]
         return (
             singlets,
             triplets,
@@ -90,8 +90,6 @@ def pega_energias(file):
             ss_s,
             ss_t,
             (sol_int - total_free) * 27.2114,
-            double_s,
-            double_t,
         )
 
 #########################################################################################
