@@ -186,8 +186,9 @@ def avg_socs(files, tipo, n_state, ind_s, ind_t):
         pega_soc = pega_soc_ground
     #elif tipo == "tts":
     #    pega_soc = pega_soc_triplet_triplet
+    i = 0
     for file in files:
-        socs = pega_soc(file, n_state, ind_s, ind_t)
+        socs = pega_soc(file, n_state, ind_s[i,:], ind_t[i,:])
         try:
             socs = socs[:, :col]
             total_socs = np.vstack((total_socs, socs))
@@ -251,7 +252,7 @@ def pega_dipolos(file, ind, frase, state):
 #########################################################################################
 
 ##CALCULATES TRANSITION DIPOLE MOMENTS FOR Tn TO S0 TRANSITIONS##########################
-def moment(file, ess, ets, dipss, dipts, n_triplet, ind_s, ind_t, get_soc_t1, get_soc_s0):
+def moment(file, ess, ets, dipss, dipts, n_triplet, ind_s, ind_t):
     # Conversion factor between a.u. = e*bohr to SI
     conversion = 8.4783533e-30
     fake_t = np.where(np.sort(ind_t) == ind_t[n_triplet])[0][0]
@@ -260,8 +261,8 @@ def moment(file, ess, ets, dipss, dipts, n_triplet, ind_s, ind_t, get_soc_t1, ge
     ess = np.insert(ess, 0, 0)
     moments = []
     for mqn in ["1", "-1", "0"]:
-        socst1 = get_soc_t1(file, mqn, fake_t, ind_s)
-        socss0 = get_soc_s0(file, mqn, ind_t)
+        socst1 = soc_t1(file, mqn, fake_t, ind_s, ind_t)
+        socss0 = soc_s0(file, mqn, ind_t)
         socst1 = np.vstack((socss0[0, :], socst1))
         # Conjugate to get <S0|H|T1>
         socst1[0] = socst1[0].conjugate()
@@ -369,12 +370,12 @@ def phosph_osc(file, n_state, ind_s, ind_t, singlets, triplets):
     zero = ["0"]
     zero.extend(ind_s)
     total_moments = []
-    ground_dipoles = nemo.parser.pega_dipole_ground(file)
-    ground_singlet_dipoles = nemo.parser.pega_dipole_ground_singlet(file)  
+    ground_dipoles = pega_dipole_ground(file)
+    ground_singlet_dipoles = pega_dipole_ground_singlet(file)  
     ground_dipoles = np.vstack((ground_dipoles, ground_singlet_dipoles))
     for n_triplet in range(n_state):
-        triplet_dipoles = nemo.parser.pega_dipole_triplets(file,ind_t,n_triplet)
-        triplet_triplet_dipoles = nemo.parser.pega_dipole_triplet_triplet(file,ind_t,n_triplet)
+        triplet_dipoles = pega_dipole_triplets(file,ind_t,n_triplet)
+        triplet_triplet_dipoles = pega_dipole_triplet_triplet(file,ind_t,n_triplet)
         triplet_dipoles = np.vstack((triplet_dipoles, triplet_triplet_dipoles))
         # Fixing the order
         order = np.arange(1, n_state)
@@ -487,7 +488,7 @@ def soc_s0(file, mqn, ind_t):
 
 
 ##GETS SOCS BETWEEN Sm AND EACH Tn SUBLEVEL##############################################
-def soc_t1(file, mqn, n_state, ind_s):
+def soc_t1(file, mqn, n_state, ind_s, ind_t):
     if mqn == '-1':
         mqn = '(L-)'
     elif mqn == '0':
@@ -495,7 +496,6 @@ def soc_t1(file, mqn, n_state, ind_s):
     else:
         mqn = '(L+)' 
     socs = np.zeros((1))
-    _, _, _, ind_s, ind_t, _, _, _,_,_ = pega_energias("Geometries/" + file)
     order_s = np.argsort(ind_s)
     order_t = np.argsort(ind_t)
     n_state = order_s[n_state] + 1

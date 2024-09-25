@@ -423,8 +423,9 @@ def avg_socs(files, tipo, n_state, ind_s, ind_t):
         pega_soc = pega_soc_ground
     elif tipo == "tts":
         pega_soc = pega_soc_triplet_triplet
+    i = 0    
     for file in files:
-        socs = pega_soc(file, n_state, ind_s, ind_t)
+        socs = pega_soc(file, n_state, ind_s[i,:], ind_t[i,:])
         try:
             socs = socs[:, :col]
             total_socs = np.vstack((total_socs, socs))

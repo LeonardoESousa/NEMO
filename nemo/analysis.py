@@ -269,7 +269,7 @@ def gather_data(initial, save=True):
         numbers, singlets, triplets, _, ss_s, ss_t, ground_pol, ind_s, ind_t = analysis(
             files, total_states, get_energies[calculation_type]
         )
-        oscs = get_osc_phosph(files, singlets, triplets, ind_s, ind_t, get_phosph_osc[calculation_type])
+        oscs = get_osc_phosph(files, singlets, triplets, total_states, ind_s, ind_t, get_phosph_osc[calculation_type])
         label_oscs = [f"osce_t{n_state+1+i}" for i in range(oscs.shape[1])]
         any({formats.update({f"osce_t{n_state+1+i}": "{:.5e}"}) for i in range(oscs.shape[1])})
         noscs =  get_oscs[calculation_type](files, ind_t, initial)
