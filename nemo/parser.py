@@ -490,7 +490,7 @@ def pega_dipolos(file, ind, frase, state):
 #########################################################################################
 
 ##CALCULATES TRANSITION DIPOLE MOMENTS FOR Tn TO S0 TRANSITIONS##########################
-def moment(file, ess, ets, dipss, dipts, n_triplet, ind_s, ind_t, get_soc_t1, get_soc_s0):
+def moment(file, ess, ets, dipss, dipts, n_triplet, ind_s, ind_t):
     # Conversion factor between a.u. = e*bohr to SI
     conversion = 8.4783533e-30
     fake_t = np.where(np.sort(ind_t) == ind_t[n_triplet])[0][0]
@@ -499,8 +499,8 @@ def moment(file, ess, ets, dipss, dipts, n_triplet, ind_s, ind_t, get_soc_t1, ge
     ess = np.insert(ess, 0, 0)
     moments = []
     for mqn in ["1", "-1", "0"]:
-        socst1 = get_soc_t1(file, mqn, fake_t, ind_s)   
-        socss0 = get_soc_s0(file, mqn, ind_t)           
+        socst1 = soc_t1(file, mqn, fake_t, ind_s)   
+        socss0 = soc_s0(file, mqn, ind_t)           
         socst1 = np.vstack((socss0[0, :], socst1))
         # Conjugate to get <S0|H|T1>
         socst1[0] = socst1[0].conjugate()
@@ -522,22 +522,22 @@ def moment(file, ess, ets, dipss, dipts, n_triplet, ind_s, ind_t, get_soc_t1, ge
     moments = np.sum(moments) * (conversion**2)
     return moments
 
-def phosph_osc(file, n_state, ind_s, ind_t, singlets, triplets, get_dipoles, get_soc_t1, get_soc_s0):
+def phosph_osc(file, n_state, ind_s, ind_t, singlets, triplets): 
     zero = ["0"]
     zero.extend(ind_s)
     total_moments = []
-    ground_dipoles = get_dipoles(
+    ground_dipoles = pega_dipolos(
         file, zero, "Electron Dipole Moments of Ground State", 0
     )
-    ground_singlet_dipoles = get_dipoles(
+    ground_singlet_dipoles = pega_dipolos(
         file, zero, "Transition Moments Between Ground and Singlet Excited States", 0
     )
     ground_dipoles = np.vstack((ground_dipoles, ground_singlet_dipoles))
     for n_triplet in range(n_state):
-        triplet_dipoles = get_dipoles(
+        triplet_dipoles = pega_dipolos(
             file, ind_t, "Electron Dipole Moments of Triplet Excited State", n_triplet
         )
-        triplet_triplet_dipoles = get_dipoles(
+        triplet_triplet_dipoles = pega_dipolos(
             file, ind_t, "Transition Moments Between Triplet Excited States", n_triplet
         )
         triplet_dipoles = np.vstack((triplet_dipoles, triplet_triplet_dipoles))
@@ -554,8 +554,6 @@ def phosph_osc(file, n_state, ind_s, ind_t, singlets, triplets, get_dipoles, get
             n_triplet,
             ind_s,
             ind_t,
-            get_soc_t1,
-            get_soc_s0,
         )
         total_moments.append(moments)
     total_moments = np.array(total_moments)
