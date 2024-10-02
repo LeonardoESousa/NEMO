@@ -281,9 +281,9 @@ def gather_data(initial, save=True):
             for i in range(triplets.shape[1]):
                 socs_partial = np.hstack(
                     (
-                        get_avg_socs[calculation_type](files, "ground", i),
-                        get_avg_socs[calculation_type](files, "triplet", i),
-                        get_avg_socs[calculation_type](files, "tts", i),
+                        get_avg_socs[calculation_type](files, "ground", i, ind_s, ind_t),
+                        get_avg_socs[calculation_type](files, "triplet", i, ind_s, ind_t),
+                        get_avg_socs[calculation_type](files, "tts", i, ind_s, ind_t),
                     )
                 )
                 indices = [
