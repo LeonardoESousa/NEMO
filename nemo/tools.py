@@ -144,7 +144,10 @@ def check_dielectric(eps,nr):
 def add_header(rem, num_ex, soc, static, refrac):
     rem = rem.lower().strip()
     method = rem.split()
-    method = method[method.index('method')+1]
+    try:
+        method = method[method.index('method')+1]
+    except ValueError:
+        method = 'td-dft'
     if method == 'eom-ccsd':
         header =(f"$rem\n"
             f"ee_singlets             {num_ex}\n"
