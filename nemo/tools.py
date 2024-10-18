@@ -9,6 +9,7 @@ from subprocess import Popen
 import numpy as np
 import pandas as pd
 from scipy.stats import norm
+from joblib import Parallel, delayed
 import lx.tools
 import lx.parser
 import nemo.parser
@@ -49,44 +50,63 @@ def start_counter():
 ###############################################################
 
 
-##SAMPLES GEOMETRIES###########################################
+def sample_single_geometry(args):
+    geom, atomos, old, scales, normal_coord, warning = args
+    rejected_geoms = 0
+    ok = False
+    
+    while not ok:
+        start_geom = geom.copy()
+        qs = [norm(scale=scale, loc=0).rvs(size=1) for scale in scales]
+        qs = np.array(qs)
+        start_geom += np.sum(qs.reshape(1, 1, -1) * normal_coord, axis=2)
+        new = lx.tools.adjacency(start_geom, atomos)
+        if 0.5 * np.sum(np.abs(old - new)) < 1 or not warning:
+            ok = True
+            return (start_geom, qs.T, rejected_geoms)
+        else:
+            rejected_geoms += 1
+
 def sample_geometries(freqlog, num_geoms, temp, limit=np.inf, warning=True, show_progress=False):
     geom, atomos = nemo.parser.pega_geom(freqlog)
     old = lx.tools.adjacency(geom, atomos)
     freqs, masses = nemo.parser.pega_freq(freqlog)
     normal_coord = nemo.parser.pega_modos(geom, freqlog)
-    rejected_geoms = 0
+
     if not warning:
         freqs[freqs < 0] *= -1
         mask = freqs < limit * (LIGHT_SPEED * 100 * 2 * np.pi)
         freqs = freqs[mask]
         masses = masses[mask]
-        normal_coord = normal_coord[:,:, mask]
-    structures = np.zeros((geom.shape[0], geom.shape[1], num_geoms))
+        normal_coord = normal_coord[:, :, mask]
+
     scales = 1e10 * np.sqrt(
         HBAR_J / (2 * masses * freqs * np.tanh(HBAR_EV * freqs / (2 * BOLTZ_EV * temp)))
     )
-    for j in range(num_geoms):
-        ok = False
-        while not ok:
-            start_geom = geom.copy()
-            qs = [norm(scale=scale, loc=0).rvs(size=1) for scale in scales]
-            qs = np.array(qs)
-            start_geom += np.sum(qs.reshape(1, 1, -1) * normal_coord, axis=2)
-            new = lx.tools.adjacency(start_geom, atomos)
-            if 0.5 * np.sum(np.abs(old - new)) < 1 or not warning:
-                ok = True
-                structures[:, :, j] = start_geom
-            else:
-                rejected_geoms += 1
-            if show_progress:
-                progress = 100 * (j + 1) / num_geoms
-                text = f"{progress:2.1f}%"
-                print(" ", text, "of the geometries done.", rejected_geoms, "geometries rejected", end="\r", flush=True)
-        try:
-            numbers = np.vstack((numbers, qs.T))
-        except UnboundLocalError:
-            numbers = qs.T
+
+    args = [(geom, atomos, old, scales, normal_coord, warning) for _ in range(num_geoms)]
+
+    # Use joblib to parallelize the geometry generation
+    results = Parallel(n_jobs=-1, verbose=show_progress)(
+        delayed(sample_single_geometry)(arg) for arg in args
+    )
+
+    structures = np.zeros((geom.shape[0], geom.shape[1], num_geoms))
+    numbers = np.zeros((num_geoms, len(scales)))
+
+    progress, rejected = 0, 0
+
+    for j, output in enumerate(results):
+        if output is None:
+            continue
+        structures[:, :, j] = output[0]
+        numbers[j] = output[1].flatten()
+        rejected += output[-1]
+        progress += 1
+
+    if show_progress:
+        print(f"\nAccepted Geometries: {progress} Rejected Geometries: {rejected}")
+
     numbers = np.round(numbers, 4)
     return numbers, atomos, structures
 
