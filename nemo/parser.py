@@ -186,7 +186,6 @@ def pega_modos(G, freqlog):
 ##GETS ENERGIES, OSCS, AND INDICES FOR Sn AND Tn STATES##################################
 def pega_energias(file):
     ss_mark_rel = "Excited-state properties with   relaxed density"
-    ss_mark_unrel = "Excited-state properties with unrelaxed density"
     with open(file, "r", encoding="utf-8") as log_file:
         exc = False
         corr = False
@@ -198,10 +197,8 @@ def pega_energias(file):
             ):
                 energies, spins, oscs, ind = [], [], [], []
                 exc = True
-            elif ss_mark_unrel in line:
-                corr = True
             elif ss_mark_rel in line:
-                corr = False    
+                corr = True
             elif "Solute Internal Energy" in line:
                 sol_int = float(line.split()[-1])
             elif "Total Free Energy" in line:
