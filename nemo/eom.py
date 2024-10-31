@@ -174,6 +174,9 @@ def pega_soc_ground(file, n_state, ind_s, ind_t):
 
 #########################################################################################
 
+def pega_soc_triplet_triplet(file, n_state, ind_s, ind_t):
+    #temporary fix since triplet-triplet socs are not used yet 
+    return np.zeros((1, n_state-1))
 
 ##DECIDES WHICH FUNCTION TO USE IN ORDER TO GET SOCS#####################################
 def avg_socs(files, tipo, n_state, ind_s, ind_t):
@@ -183,10 +186,9 @@ def avg_socs(files, tipo, n_state, ind_s, ind_t):
     elif tipo == "triplet":
         pega_soc = pega_soc_triplet
     elif tipo == "ground":
-        pega_soc = pega_soc_ground
-    #temporary fix since triplet-triplet socs are not used yet    
+        pega_soc = pega_soc_ground   
     elif tipo == "tts":
-        pega_soc = pega_soc_triplet # pega_soc_triplet_triplet
+        pega_soc = pega_soc_triplet_triplet
     i = 0
     for file in files:
         socs = pega_soc(file, n_state, ind_s[i,:], ind_t[i,:])
