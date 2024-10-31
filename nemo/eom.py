@@ -176,7 +176,7 @@ def pega_soc_ground(file, n_state, ind_s, ind_t):
 
 def pega_soc_triplet_triplet(file, n_state, ind_s, ind_t):
     #temporary fix since triplet-triplet socs are not used yet 
-    return np.zeros((1, n_state-1))
+    return np.zeros((1, len(ind_t)-1))
 
 ##DECIDES WHICH FUNCTION TO USE IN ORDER TO GET SOCS#####################################
 def avg_socs(files, tipo, n_state, ind_s, ind_t):
