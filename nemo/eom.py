@@ -184,8 +184,9 @@ def avg_socs(files, tipo, n_state, ind_s, ind_t):
         pega_soc = pega_soc_triplet
     elif tipo == "ground":
         pega_soc = pega_soc_ground
-    #elif tipo == "tts":
-    #    pega_soc = pega_soc_triplet_triplet
+    #temporary fix since triplet-triplet socs are not used yet    
+    elif tipo == "tts":
+        pega_soc = pega_soc_triplet # pega_soc_triplet_triplet
     i = 0
     for file in files:
         socs = pega_soc(file, n_state, ind_s[i,:], ind_t[i,:])
