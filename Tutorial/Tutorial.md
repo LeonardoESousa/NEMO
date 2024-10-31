@@ -73,6 +73,10 @@ To get a full picture of the photophysics of your molecule you will need to run 
 
 Frequency calculations used as input for **NEMO** can be run with either QChem or Gaussian 09/16. The actual ensemble calculations can only be run with QChem, though Qchem versions >= 5.0 are supported. 
 
+### Method Selection
+
+**NEMO** is typically run with TD(A)-DFT. However, ensemble calculation run with EOM-CCSD are also available as this method can be useful for studying molecules for which DFT is known to fail, such as for molecules with inverted singlet-triplet gaps. Note that EOM-CCSD calculations are much more computationally expensive that TD(A)-DFT ones, which restrict them to samll molecules only.
+
 ### Functional Selection
 
 For TADF molecules, it is often the case that charge-transfer (CT) states are relevant. Proper description of CT states in DFT requires the use of range-separated functionals such as $\omega\text{B97XD}$ or $\text{LRC-}\omega\text{PBE}$. For better results, consider performing the non-empirically tuning of the $\omega$ parameter. This can be done within **NEMO**.  See details in the section on [Functional Tuning](#functional-tuning). The next best alternative would be to use the M062X functional.
@@ -96,9 +100,10 @@ Some observations:
 
 1. In the following, the $\text{LC-}\omega\text{hPBE}$ functional is used with the 6-31G(d,p) basis set.
 2. The long-range parameter is set to 0.1843 $\text{bohr}^{-1}$. This is done by including the keywords `iop(3/108=0184300000) iop(3/107=0184300000)`. If these keywords are not added, the default $\omega$ value is used.
-3. In the excited state calculations, TDA is being invoked. If you do not wish to use it, substitute the keyword `TDA` with `TD`. 
-4. The `noraman` keyword is used in the frequency jobs to speed up calculations. 
-5. In the examples below, the optimization and frequency steps are separated in two consecutive jobs. If you make changes in the inputs for one job, make sure to make the same modification to the second job. 
+3. In the excited state calculations, TDA is being invoked. If you do not wish to use it, substitute the keyword `TDA` with `TD`.
+4. It is recommended to use the `tight` keyword in the optimization step, especially for molecules with very low frequency modes. However, this ins not mandatory. 
+5. The `noraman` keyword is used in the frequency jobs to speed up calculations. 
+6. In the examples below, the optimization and frequency steps are separated in two consecutive jobs. If you make changes in the inputs for one job, make sure to make the same modification to the second job. 
 
 #### **IMPORTANT!**
 
@@ -111,7 +116,8 @@ Some observations:
 ```
 %nproc=40
 %mem=100GB
-# lc-whpbe/6-31G(d,p) iop(3/108=0184300000) iop(3/107=0184300000) opt 
+%chk=s0.chk
+# lc-whpbe/6-31G(d,p) iop(3/108=0184300000) iop(3/107=0184300000) opt=tight 
 
 TITLE
 
@@ -121,6 +127,7 @@ TITLE
 --Link1--
 %nproc=40
 %mem=100GB
+%chk=s0.chk
 # lc-whpbe/6-31G(d,p) iop(3/108=0184300000) iop(3/107=0184300000) freq=noraman geom=allcheck
 ```
 
@@ -130,7 +137,8 @@ TITLE
 ```
 %nproc=40
 %mem=100GB
-# lc-whpbe/6-31G(d,p) iop(3/108=0184300000) iop(3/107=0184300000) opt TDA
+%chk=s1.chk
+# lc-whpbe/6-31G(d,p) iop(3/108=0184300000) iop(3/107=0184300000) opt=tight TDA
 
 TITLE
 
@@ -140,6 +148,7 @@ TITLE
 --Link1--
 %nproc=40
 %mem=100GB
+%chk=s1.chk
 # lc-whpbe/6-31G(d,p) iop(3/108=0184300000) iop(3/107=0184300000) TDA freq=noraman geom=allcheck
 ```
 
@@ -149,7 +158,8 @@ TITLE
 ```
 %nproc=40
 %mem=100GB
-# lc-whpbe/6-31G(d,p) iop(3/108=0184300000) iop(3/107=0184300000) opt TDA=(Triplets)
+%chk=t1.chk
+# lc-whpbe/6-31G(d,p) iop(3/108=0184300000) iop(3/107=0184300000) opt=tight TDA=(Triplets)
 
 TITLE
 
@@ -159,6 +169,7 @@ TITLE
 --Link1--
 %nproc=40
 %mem=100GB
+%chk=t1.chk
 # lc-whpbe/6-31G(d,p) iop(3/108=0184300000) iop(3/107=0184300000) TDA=(Triplets) freq=noraman geom=allcheck
 ```
 
@@ -304,6 +315,10 @@ We start by creating a folder and pasting the frequency output file in it. Make 
 
 Now we need to add to the folder a QChem template file. This file contains the `$rem` section of a QChem input file from where functional, basis set and other information are going to be retrieved. Other sections may also be included if needed. There is no need to include solvent related keywords and subsections as these are automatically added later on. The template file may have any name, just make sure its name ends with `.in`. In this example we name it `template.in`.  
 
+## TD(A)-DFT
+
+For TDA-DFT calculations, the `template.in` file will look something like this:
+
 ```
 $rem
 mem_total             100000
@@ -312,6 +327,20 @@ method                LRC-wPBE
 omega                 184
 basis                 6-31G(d,p)
 RPA                   false
+$end
+```
+
+## EOM-CCSD
+
+For EOM-CCSD calculations, the `template.in` file will look something like this:
+
+```
+$rem
+METHOD eom-ccsd
+BASIS cc-pVDZ
+MEM_TOTAL 200000
+MEM_STATIC 2000
+CC_MEMORY 50000
 $end
 ```
 

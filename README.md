@@ -36,7 +36,7 @@ Table of Contents
 
 ## What does this program do?
 
-1.  Photophysics with TD(A)-DFT:
+1.  Photophysics with TD(A)-DFT/EOM-CCSD:
     - Calculates fluorescence and phosphorescence rates from an excited state.
     - Calculates ISC rates from a given singlet state to several triplet states and vice-versa.
     - Absorption, Fluorescence and Phosphorescence spectrum simulations.
