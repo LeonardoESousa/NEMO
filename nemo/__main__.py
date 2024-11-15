@@ -4,6 +4,7 @@ This module contains the main function for the NEMO program,
 which is a tool for simulating photophysical processes in organic materials.
 """
 import sys
+import argparse
 import lx.tools
 import nemo.tools
 import nemo.parser
@@ -148,6 +149,20 @@ def main():
     This function is the entry point for the NEMO program. It takes command line arguments
     and either prints out the geometry of a molecule or launches the program's interface.
     """
+    # Initialize the argument parser
+    parser = argparse.ArgumentParser(description="Nemo script with susceptibility check option.")
+    
+    # Add the `-c` flag for susceptibility check with a file argument
+    parser.add_argument('-c', '--check', type=str, help="Run susceptibility check on the specified file.")
+    
+    # Parse arguments
+    args = parser.parse_args()
+    
+    # If `-c` is provided, call the susceptibility_check function
+    if args.check:
+        nemo.tools.susceptibility_check(args.check)
+        sys.exit(0)
+
     if len(sys.argv) > 1:
         try:
             freqlog = sys.argv[1]
@@ -158,7 +173,7 @@ def main():
                 print(
                     f"{atomo:2s}  {geometry[i, 0]:.7f}  {geometry[i, 1]:.7f}  {geometry[i, 2]:.7f}"
                 )
-        except IndexError:
+        except FileNotFoundError:
             interface()
     else:
         interface()

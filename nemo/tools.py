@@ -403,23 +403,55 @@ def detect_sigma():
 
 ###############################################################
 
+def fetch_nr(file):
+    refractive_index = None
+    epsilon = None
+    with open(file, "r", encoding="utf-8") as f:
+        for line in f:
+            if "opticaldielectric" in line.lower():
+                refractive_index = np.sqrt(float(line.split()[1]))
+            elif "dielectric" in line.lower() and "optical" not in line.lower():
+                epsilon = float(line.split()[1])
+            if refractive_index is not None and epsilon is not None:
+                return epsilon, refractive_index
+    return epsilon, refractive_index        
+
+def susceptibility_check(file):
+    # Fetch energy levels and other data
+    es, et, _, _, _, ss_s, ss_t, _ = nemo.parser.pega_energias(file)
+    _, nr = fetch_nr(file)
+    
+    # Calculate alpha and susceptibility chi values
+    alpha = (nr**2 - 1) / (nr**2 + 1)
+    chi_s = ss_s / alpha
+    chi_t = ss_t / alpha
+    
+    # Print header with aligned columns
+    print(f"{'State':<6} {'E_vac(eV)':>12} {'Chi(eV)':>10}")
+    print("-" * 30)  # Separator line
+    
+    # Print singlet states
+    for i, (e, chi) in enumerate(zip(es, chi_s), start=1):
+        print(f"S{i:<4} {e:>10.3f} {chi:>10.3f}")
+    
+    # Print triplet states
+    for i, (e, chi) in enumerate(zip(et, chi_t), start=1):
+        print(f"T{i:<4} {e:>10.3f} {chi:>10.3f}")
+
+
 
 ##FETCHES REFRACTIVE INDEX#####################################
 def get_nr():
-    refractive_index = 1
-    epsilon = 1
     coms = [
         file
         for file in os.listdir("Geometries")
         if "Geometr" in file and ".com" in file
     ]
-    with open("Geometries/" + coms[0], "r", encoding="utf-8") as com_file:
-        for line in com_file:
-            if "opticaldielectric" in line.lower():
-                refractive_index = np.sqrt(float(line.split()[1]))
-            elif "dielectric" in line.lower() and "optical" not in line.lower():
-                epsilon = float(line.split()[1])
-    return epsilon, refractive_index
+    epsilon, refractive_index = fetch_nr(coms[0])
+    if epsilon is None:
+        return 1, 1
+    else:
+        return epsilon, refractive_index
 
 
 ###############################################################
