@@ -416,7 +416,7 @@ def fetch_nr(file):
                 return epsilon, refractive_index
     return epsilon, refractive_index        
 
-def susceptibility_check(file):
+def susceptibility_check(file, tuning=False):
     # Fetch energy levels and other data
     es, et, _, _, _, ss_s, ss_t, _ = nemo.parser.pega_energias(file)
     _, nr = fetch_nr(file)
@@ -426,17 +426,20 @@ def susceptibility_check(file):
     chi_s = ss_s / alpha
     chi_t = ss_t / alpha
     
-    # Print header with aligned columns
-    print(f"{'State':<6} {'E_vac(eV)':>12} {'Chi(eV)':>10}")
-    print("-" * 30)  # Separator line
-    
-    # Print singlet states
-    for i, (e, chi) in enumerate(zip(es, chi_s), start=1):
-        print(f"S{i:<4} {e:>10.3f} {chi:>10.3f}")
-    
-    # Print triplet states
-    for i, (e, chi) in enumerate(zip(et, chi_t), start=1):
-        print(f"T{i:<4} {e:>10.3f} {chi:>10.3f}")
+    if tuning:
+        return es[0], chi_s[0]
+    else:
+        chi_symbol = '\u03C7(eV)'
+        # Print header with aligned columns
+        print(fr"{'State':<6} {'E_vac(eV)':<12} {chi_symbol:<10}")
+        
+        # Print singlet states
+        for i, (e, chi) in enumerate(zip(es, chi_s), start=1):
+            print(f"S{i:<5} {e:<12.3f} {chi:<10.3f}")
+
+        # Print triplet states
+        for i, (e, chi) in enumerate(zip(et, chi_t), start=1):
+            print(f"T{i:<5} {e:<12.3f} {chi:<10.3f}")
 
 
 
@@ -488,9 +491,10 @@ def abort_batch():
 
 
 class Watcher:
-    def __init__(self, folder):
+    def __init__(self, folder, key="Geometr"):
         self.folder = folder
-        self.files = [i[:-4] for i in os.listdir(folder) if i.endswith('.com') and "Geometr" in i]
+        self.key = key
+        self.files = [i[:-4] for i in os.listdir(folder) if i.endswith('.com') and key in i]
         self.files = sorted(self.files, key=lambda pair: float(pair.split("-")[1]))
         self.number_inputs = len(self.files)
         self.done = []
@@ -533,10 +537,16 @@ class Watcher:
             print('These are: ', self.license_error)
 
     def limit(self):
-        try:
-            return np.loadtxt("../limit.lx",encoding='utf-8')
-        except (OSError,FileNotFoundError):
-            sys.exit()
+        if self.key == "Geometr":
+            try:
+                return np.loadtxt("../limit.lx",encoding='utf-8')
+            except (OSError,FileNotFoundError):
+                sys.exit()
+        else:
+            try:
+                return np.loadtxt("limit.lx",encoding='utf-8')
+            except (OSError,FileNotFoundError):
+                sys.exit()
 
     def keep_going(self,num):
         if len(self.running) / num < self.limit():
@@ -575,7 +585,12 @@ class Watcher:
                 self.check()
                 concluded = self.done + self.error + self.license_error
                 self.running = [elem for elem in self.running if elem not in concluded]
-                keep = self.keep_going(num)
+                keep = self.keep_going(num)    
+
+    def hold_watch(self):
+        while len(self.files) > 0:
+            time.sleep(20)
+            self.check()
 
 ##CHECKS PROGRESS##############################################
 def andamento():
@@ -601,3 +616,77 @@ def check_for_updates(package_name):
 
     except Exception as e:
         print(f"An error occurred while checking for updates: {e}")
+
+##RUNS W TUNING################################################
+def empirical_tuning():
+    geomlog = fetch_file("input or log", [".com", ".log"])
+    rem, _, extra = nemo.parser.busca_input(geomlog)
+    print(f"QChem template file: {geomlog}")
+    rem += extra + "\n"
+    #iterate over lines of rem
+    for line in rem.split("\n"):
+        if "method" in line.lower() or 'exchange' in line.lower():
+            functional = line.split()[-1]
+        if "basis" in line.lower():
+            basis = line.split()[-1]
+        if  'mem_total' in line.lower():
+            mem = line.split()[-1]   
+    omega1 = "0.1"
+    passo = "0.025"
+    relax = 'yes'
+    print(f"Total memory: {mem}")
+    print(f"Functional: {functional}")
+    print(f"Basis: {basis}")
+    print(f"Initial Omega: {omega1} bohr^-1")
+    print(f"Step: {passo} bohr^-1")
+    print(f'Optimize at each step? {relax}')
+    change = input("Are you satisfied with these parameters? y or n?\n")
+    if change == "n":
+        functional = default(
+            functional,
+            f"Functional is {functional}. If ok, Enter. Otherwise, type functional/basis.\n",
+        )
+        basis = default(
+            basis,
+            f"Basis is {basis}. If ok, Enter. Otherwise, type functional/basis.\n",
+        )
+        #mem = default(mem, f"mem={mem}. If ok, Enter. Otherwise, type it.\n")
+        omega1 = default(
+            omega1,
+            f"Initial omega is {omega1} bohr^-1. If ok, Enter. Otherwise, type it.\n",
+        )
+        passo = default(
+            passo,
+            f"Initial step is {passo} bohr^-1. If ok, Enter. Otherwise, type it.\n",
+        )
+        relax = default(
+            relax,
+            f"Optimize at each step? {relax}. If ok, Enter. Otherwise, type n.\n",
+        )
+    script = fetch_file("batch script", ["batch.sh"])
+    nproc = input("Number of threads for each calculation\n")
+    e_exp = input("Experimental vacuum energy and uncertainty in eV? (space separated)\n")
+    chi_exp = input("Experimental susceptibility and uncertainty in eV? (space separated)?\n")
+    
+    with open("limit.lx", "w",encoding="utf-8") as f:
+        f.write("10")
+    subprocess.Popen(
+        [
+            "nohup",
+            "nemo_tuning",
+            geomlog,
+            functional,
+            basis,
+            nproc,
+            omega1,
+            passo,
+            relax,
+            script,
+            e_exp,
+            chi_exp,
+            mem,
+            "&",
+        ]
+    )
+
+###############################################################

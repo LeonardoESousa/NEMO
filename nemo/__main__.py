@@ -141,7 +141,8 @@ def interface():
     elif operation == "9":
         lx.tools.omega_tuning()
     else:
-        nemo.parser.fatal_error("It must be one of the options... Goodbye!")
+        nemo.tools.empirical_tuning()
+        #nemo.parser.fatal_error("It must be one of the options... Goodbye!")
 
 
 def main():
