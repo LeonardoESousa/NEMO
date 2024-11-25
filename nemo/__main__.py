@@ -155,7 +155,8 @@ def main():
     
     # Add the `-c` flag for susceptibility check with a file argument
     parser.add_argument('-c', '--check', type=str, help="Run susceptibility check on the specified file.")
-    
+
+    parser.add_argument('-g', '--geom', type=str, help="Gets geometry from a log file.")    
     # Parse arguments
     args = parser.parse_args()
     
@@ -164,16 +165,17 @@ def main():
         nemo.tools.susceptibility_check(args.check)
         sys.exit(0)
 
-    if len(sys.argv) > 1:
+    elif args.geom:
         try:
-            freqlog = sys.argv[1]
-            geometry, atomos = nemo.parser.pega_geom(freqlog)
+            geometry, atomos = nemo.parser.pega_geom(args.geom)
             print(len(atomos))
             print("")
             for i, atomo in enumerate(atomos):
                 print(
                     f"{atomo:2s}  {geometry[i, 0]:.7f}  {geometry[i, 1]:.7f}  {geometry[i, 2]:.7f}"
                 )
+            sys.exit(0)
+
         except FileNotFoundError:
             interface()
     else:
