@@ -642,15 +642,6 @@ def empirical_tuning():
     print(f'Optimize at each step? {relax}')
     change = input("Are you satisfied with these parameters? y or n?\n")
     if change == "n":
-        functional = default(
-            functional,
-            f"Functional is {functional}. If ok, Enter. Otherwise, type functional/basis.\n",
-        )
-        basis = default(
-            basis,
-            f"Basis is {basis}. If ok, Enter. Otherwise, type functional/basis.\n",
-        )
-        #mem = default(mem, f"mem={mem}. If ok, Enter. Otherwise, type it.\n")
         omega1 = default(
             omega1,
             f"Initial omega is {omega1} bohr^-1. If ok, Enter. Otherwise, type it.\n",
