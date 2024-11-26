@@ -290,7 +290,7 @@ def main():
         if max_omega - min_omega <= 2:
             break
     
-        write_tolog(omegas, Js, f"#E_vac: {e_exp:.3f} ± {de_exp:.3f} eV\n#\u03C7_exp: {chi_exp:.3f} ± {dchi_exp:.3f}\n#Best value so far:")
+        write_tolog(omegas, Js, f"#E_vac: {e_exp:.3f} ± {de_exp:.3f} eV\n#\u03C7_exp: {chi_exp:.3f} ± {dchi_exp:.3f} eV\n#Best value so far:")
         iteration += 1
         
 
