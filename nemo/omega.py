@@ -296,7 +296,7 @@ def main():
 
     write_tolog(omegas, Js, f"#E_vac: {e_exp:.3f} ± {de_exp:.3f} eV\n#\u03C7_exp: {chi_exp:.3f} ± {dchi_exp:.3f} eV\n#Done! Optimized value:")
     menor = omegas[Js.index(min(Js, key=abs))] 
-    log = f"Logs/SP-{menor:3.0f}-.log"
+    log = f"Logs/SP-{menor:03d}-.log"
     #copy log file
     shutil.copy(log, "tuned.log")
 

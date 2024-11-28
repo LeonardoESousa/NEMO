@@ -450,7 +450,7 @@ def get_nr():
         for file in os.listdir("Geometries")
         if "Geometr" in file and ".com" in file
     ]
-    epsilon, refractive_index = fetch_nr(coms[0])
+    epsilon, refractive_index = fetch_nr('Geometries/'+coms[0])
     if epsilon is None:
         return 1, 1
     else:
