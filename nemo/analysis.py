@@ -520,6 +520,9 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
     alphast2 = nemo.tools.get_alpha(eps)
     alphaopt1 = nemo.tools.get_alpha(nr_i**2)
     alphaopt2 = nemo.tools.get_alpha(refractive_index**2)
+    #ground state susceptibility
+    chi_s0 = data['gp'].to_numpy()/alphast1
+
     n_state = int(initial[1:]) - 1
     initial = initial.lower()
 
@@ -531,8 +534,11 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
     ).flatten()
     l_total = total_reorganization_energy(lambda_be, kbt)
     energies = fetch(data, [f"^e_{initial[0]}"])
+    #fix dimension of chi_s0
+    chi_s0_emi = np.repeat(chi_s0[:, np.newaxis], energies.shape[1], axis=1)
+    energies = energies + chi_s0_emi*alphast1
     delta_emi_unsorted = energies - (alphast2 / alphaopt1) * fetch(
-        data, [f"^d_{initial[0]}"]
+        data, [f"^d_{initial[0]}"] + chi_s0*alphast2
     )
     constante = (
         (refractive_index**2)
@@ -573,6 +579,10 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
     # Intersystem Crossing Rates
     singlets = fetch(data, ["^e_s"])
     triplets = fetch(data, ["^e_t"])
+    chi_s0_isc = np.repeat(chi_s0[:, np.newaxis], singlets.shape[1], axis=1)
+    singlets = singlets + chi_s0_isc * alphast1
+    triplets = triplets + chi_s0_isc * alphast1
+
     ss_s = fetch(data, ["^d_s"])
     ss_t = fetch(data, ["^d_t"])
     if "s" in initial:
@@ -767,17 +777,20 @@ def another_dimension(nstates, *args):
 def absorption(initial, dielec, data=None, save=False, detailed=False, nstates=-1):
     if data is None:
         data = gather_data(initial, save=True)
-        _, nr_i = nemo.tools.get_nr()
+        eps_i, nr_i = nemo.tools.get_nr()
         kbt = nemo.tools.detect_sigma()
     else:
-        # eps_i = data["eps"][0]
+        eps_i = data["eps"][0]
         nr_i = data["nr"][0]
         kbt = data["kbT"][0]
     eps, refractive_index = dielec[0], dielec[1]
-    # alphast1 = nemo.tools.get_alpha(eps_i)
+    alphast1 = nemo.tools.get_alpha(eps_i)
     alphast2 = nemo.tools.get_alpha(eps)
     alphaopt1 = nemo.tools.get_alpha(nr_i**2)
     alphaopt2 = nemo.tools.get_alpha(refractive_index**2)
+    #ground state susceptibility
+    chi_s0 = data['gp'].to_numpy()/alphast1
+    
     initial = initial.lower()
     constante = (
         (np.pi * (E_CHARGE**2) * HBAR_EV)
@@ -790,10 +803,15 @@ def absorption(initial, dielec, data=None, save=False, detailed=False, nstates=-
     lambda_neq = fetch(data, [f"^d_{spin}"])
     oscs = fetch(data, ["^osc_"])
     engs = engs[:, num:]
+    #fix dimension of chi_s0
+    chi_s0 = np.repeat(chi_s0[:, np.newaxis], engs.shape[1], axis=1)
+    #add ground state polarization to get vacuum energies 
+    engs = engs + chi_s0*alphast1
+
     lambda_neq = lambda_neq[:, num:]
     lambda_b = (alphast2 / alphaopt1 - alphaopt2 / alphaopt1) * lambda_neq
     if initial == "s0":
-        deltae_lambda = engs - (alphaopt2 / alphaopt1) * lambda_neq
+        deltae_lambda = engs - (alphaopt2 / alphaopt1) * lambda_neq + chi_s0*alphast2
     else:
         base = fetch(data, [rf"\be_{initial}\b"])
         lambda_neq_base = fetch(data, [rf"^d_{initial}"])

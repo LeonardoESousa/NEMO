@@ -418,13 +418,17 @@ def fetch_nr(file):
 
 def susceptibility_check(file, tuning=False):
     # Fetch energy levels and other data
-    es, et, _, _, _, ss_s, ss_t, _ = nemo.parser.pega_energias(file)
-    _, nr = fetch_nr(file)
+    es, et, _, _, _, ss_s, ss_t, gp = nemo.parser.pega_energias(file)
+    eps, nr = fetch_nr(file)
     
     # Calculate alpha and susceptibility chi values
-    alpha = (nr**2 - 1) / (nr**2 + 1)
-    chi_s = ss_s / alpha
-    chi_t = ss_t / alpha
+    alpha_st = get_alpha(eps)
+    alpha_opt = get_alpha(nr**2)
+    chi_s = ss_s / alpha_opt
+    chi_t = ss_t / alpha_opt
+    chi_s0 = gp / alpha_st
+    es = es - gp
+    et = et - gp
     
     if tuning:
         return es[0], chi_s[0]
@@ -433,6 +437,8 @@ def susceptibility_check(file, tuning=False):
         # Print header with aligned columns
         print(fr"{'State':<6} {'E_vac(eV)':<12} {chi_symbol:<10}")
         
+        print(f"S{0:<5} {0:<12.3f} {chi_s0:<10.3f}")
+
         # Print singlet states
         for i, (e, chi) in enumerate(zip(es, chi_s), start=1):
             print(f"S{i:<5} {e:<12.3f} {chi:<10.3f}")
