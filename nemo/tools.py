@@ -427,8 +427,8 @@ def susceptibility_check(file, tuning=False):
     chi_s = ss_s / alpha_opt
     chi_t = ss_t / alpha_opt
     chi_s0 = gp / alpha_st
-    es = es - gp
-    et = et - gp
+    es = es + gp
+    et = et + gp
     
     if tuning:
         return es[0], chi_s[0]
