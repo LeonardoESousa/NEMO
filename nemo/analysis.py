@@ -538,8 +538,8 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
     chi_s0_emi = np.repeat(chi_s0[:, np.newaxis], energies.shape[1], axis=1)
     energies = energies + chi_s0_emi*alphast1
     delta_emi_unsorted = energies - (alphast2 / alphaopt1) * fetch(
-        data, [f"^d_{initial[0]}"] + chi_s0*alphast2
-    )
+        data, [f"^d_{initial[0]}"]
+    ) + chi_s0_emi*alphaopt2
     constante = (
         (refractive_index**2)
         * (E_CHARGE**2)
