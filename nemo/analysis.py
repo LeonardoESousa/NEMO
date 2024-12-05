@@ -787,7 +787,7 @@ def absorption(initial, dielec, data=None, save=False, detailed=False, nstates=-
     spin = initial[0]
     num = int(initial[1:])
     engs = fetch(data, [f"^e_{spin}"])
-    lambda_neq = fetch(data, [rf"^d_{initial}\b"])
+    lambda_neq = fetch(data, [f"^d_{spin}"])
     oscs = fetch(data, ["^osc_"])
     engs = engs[:, num:]
     lambda_neq = lambda_neq[:, num:]
@@ -796,7 +796,7 @@ def absorption(initial, dielec, data=None, save=False, detailed=False, nstates=-
         deltae_lambda = engs - (alphaopt2 / alphaopt1) * lambda_neq
     else:
         base = fetch(data, [rf"\be_{initial}\b"])
-        lambda_neq_base = fetch(data, [rf"^d_{initial}"])
+        lambda_neq_base = fetch(data, [rf"^d_{initial}\b"])
         deltae_lambda = (
             engs
             - (alphaopt2 / alphaopt1) * lambda_neq

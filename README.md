@@ -1,6 +1,6 @@
 # **NEMO** - Photophysics with the Nuclear Ensemble Method
 
-##  Version 1.3.0
+##  Version 1.3.1
 
 [![made-with-python](https://img.shields.io/badge/Made%20with-Python-1f425f.svg)](https://www.python.org/)
 [![license](https://img.shields.io/github/license/LeonardoESousa/NEMO?style=plastic)]()

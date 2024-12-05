@@ -1,3 +1,7 @@
+## Version 1.3.1
+
+1 - Bug fixes.
+
 ## Version 1.3.0
 
 1 - Added EOM-CCSD capabilities do NEMO
