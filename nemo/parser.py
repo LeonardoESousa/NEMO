@@ -195,7 +195,7 @@ def pega_energias(file):
                 "TDDFT/TDA Excitation Energies" in line
                 or "TDDFT Excitation Energies" in line
             ):
-                energies, spins, oscs, ind = [], [], [], []
+                energies, spins, oscs, ind, dipoles = [], [], [], [], []
                 exc = True
             elif ss_mark_rel in line:
                 corr = True
@@ -220,6 +220,12 @@ def pega_energias(file):
                 correction.append(-1 * np.nan_to_num(float(line.split()[-2])))
             elif "LR-PCM correction" in line and corr:
                 correction2.append(-1 * np.nan_to_num(float(line.split()[-2])))
+            elif "Dipole Mom. (Debye):" in line and corr:
+                line = line.split()
+                x, y, z = float(line[3]), float(line[5]), float(line[7])
+                dipoles.append(np.sqrt(x ** 2 + y ** 2 + z ** 2))
+            elif len(line.split()) == 2 and line.split()[0] == "Tot":
+                mu_0 = float(line.split()[1])     
             elif (
                 "------------------------ END OF SUMMARY -----------------------"
                 in line
@@ -248,6 +254,8 @@ def pega_energias(file):
         oscs = np.array(
             [oscs[i] for i in range(len(energies)) if spins[i] == "Singlet"]
         )
+        mu_s = np.array(dipoles[i] for i in range(len(dipoles)) if spins[i] == "Singlet")
+        mu_s = mu_s/mu_0
         triplets = np.array(
             [energies[i] for i in range(len(energies)) if spins[i] == "Triplet"]
         )
@@ -259,7 +267,8 @@ def pega_energias(file):
             ]
         )
         ind_t = np.array([ind[i] for i in range(len(ind)) if spins[i] == "Triplet"])
-
+        mu_t = np.array(dipoles[i] for i in range(len(dipoles)) if spins[i] == "Triplet")
+        mu_t = mu_t/mu_0
         oscs = np.array([x for _, x in zip(singlets, oscs)])
         ind_s = np.array([x for _, x in zip(singlets, ind_s)])
         ind_t = np.array([x for _, x in zip(triplets, ind_t)])
@@ -269,8 +278,16 @@ def pega_energias(file):
         singlets = np.sort(singlets)
         triplets = np.sort(triplets)
         oscs = oscs[order_s]
+        mu_s = mu_s[order_s]
         ind_s = ind_s[order_s]
         ind_t = ind_t[order_t]
+        mu_t = mu_t[order_t]
+
+        gp = (sol_int - total_free) * 27.2114
+
+        #Correcting excitation energies
+        singlets = singlets * gp * (1 - mu_s/mu_0)
+        triplets = triplets * gp * (1 - mu_t/mu_0)
 
         return (
             singlets,
@@ -280,7 +297,7 @@ def pega_energias(file):
             ind_t,
             ss_s,
             ss_t,
-            (sol_int - total_free) * 27.2114,
+            gp
         )
 
 

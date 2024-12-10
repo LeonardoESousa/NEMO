@@ -579,10 +579,7 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
     # Intersystem Crossing Rates
     singlets = fetch(data, ["^e_s"])
     triplets = fetch(data, ["^e_t"])
-    chi_s0_isc = np.repeat(chi_s0[:, np.newaxis], singlets.shape[1], axis=1)
-    singlets = singlets + chi_s0_isc * alphast1
-    triplets = triplets + chi_s0_isc * alphast1
-
+    
     ss_s = fetch(data, ["^d_s"])
     ss_t = fetch(data, ["^d_t"])
     if "s" in initial:
@@ -632,7 +629,7 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
         # Tn to S0 ISC
         socs_s0 = fetch(data, ["^soc_t.*s0"])
         delta_emi, socs_s0 = sorting_parameters(delta_emi_unsorted, socs_s0)
-        delta_emi = delta_emi[:, n_state]
+        delta_emi = delta_emi[:, n_state] + chi_s0_emi[:, n_state] * alphaopt2
         socs_s0 = socs_s0[:, n_state]
         socs_complete = np.hstack((socs_s0[:, np.newaxis], socs_complete))
         delta = np.hstack((delta_emi[:, np.newaxis], delta))
