@@ -192,7 +192,7 @@ def pega_mu_0(file):
             elif check:
                 line = line.split()
                 x, y, z = float(line[1]), float(line[3]), float(line[5])
-            return np.array([x,y,z])
+                return np.array([x,y,z])
 
 ##GETS ENERGIES, OSCS, AND INDICES FOR Sn AND Tn STATES##################################
 def pega_energias(file):
@@ -234,7 +234,7 @@ def pega_energias(file):
                 correction2.append(-1 * np.nan_to_num(float(line.split()[-2])))
             elif "Dipole Mom. (Debye):" in line and corr:
                 line = line.split()
-                mu = np.array(float(line[3]), float(line[5]), float(line[7]))
+                mu = np.array([line[3], line[5], line[7]]).astype(float)
                 mu_term = np.dot(mu, mu_0)/np.dot(mu_0, mu_0)
                 dipoles.append(mu_term)   
             elif (
