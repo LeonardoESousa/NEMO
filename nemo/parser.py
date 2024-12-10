@@ -286,8 +286,8 @@ def pega_energias(file):
         gp = (sol_int - total_free) * 27.2114
 
         #Correcting excitation energies
-        singlets = singlets * gp * (1 - mu_s/mu_0)
-        triplets = triplets * gp * (1 - mu_t/mu_0)
+        singlets = singlets - gp * (1 - mu_s/mu_0)
+        triplets = triplets - gp * (1 - mu_t/mu_0)
 
         return (
             singlets,
