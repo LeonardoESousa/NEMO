@@ -814,7 +814,7 @@ def absorption(initial, dielec, data=None, save=False, detailed=False, nstates=-
         deltae_lambda = engs - (alphaopt2 / alphaopt1) * lambda_neq + chi_s0*alphast2
     else:
         base = fetch(data, [rf"\be_{initial}\b"])
-        lambda_neq_base = fetch(data, [rf"^d_{initial}"])
+        lambda_neq_base = fetch(data, [rf"^d_{initial}\b"])
         deltae_lambda = (
             engs
             - (alphaopt2 / alphaopt1) * lambda_neq
