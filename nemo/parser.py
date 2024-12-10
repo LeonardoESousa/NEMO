@@ -254,7 +254,7 @@ def pega_energias(file):
         oscs = np.array(
             [oscs[i] for i in range(len(energies)) if spins[i] == "Singlet"]
         )
-        mu_s = np.array(dipoles[i] for i in range(len(dipoles)) if spins[i] == "Singlet")
+        mu_s = np.array([dipoles[i] for i in range(len(dipoles)) if spins[i] == "Singlet"])
         mu_s = mu_s/mu_0
         triplets = np.array(
             [energies[i] for i in range(len(energies)) if spins[i] == "Triplet"]
@@ -267,7 +267,7 @@ def pega_energias(file):
             ]
         )
         ind_t = np.array([ind[i] for i in range(len(ind)) if spins[i] == "Triplet"])
-        mu_t = np.array(dipoles[i] for i in range(len(dipoles)) if spins[i] == "Triplet")
+        mu_t = np.array([dipoles[i] for i in range(len(dipoles)) if spins[i] == "Triplet"])
         mu_t = mu_t/mu_0
         oscs = np.array([x for _, x in zip(singlets, oscs)])
         ind_s = np.array([x for _, x in zip(singlets, ind_s)])
