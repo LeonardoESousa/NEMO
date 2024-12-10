@@ -183,8 +183,20 @@ def pega_modos(G, freqlog):
     return normal_modes
 
 
+def pega_mu_0(file):
+    check = False
+    with open(file, "r", encoding="utf-8") as log_file:
+        for line in log_file:
+            if "Dipole Moment (Debye)" in line:
+                check = True
+            elif check:
+                line = line.split()
+                x, y, z = float(line[1]), float(line[3]), float(line[5])
+            return np.array([x,y,z])
+
 ##GETS ENERGIES, OSCS, AND INDICES FOR Sn AND Tn STATES##################################
 def pega_energias(file):
+    mu_0 = pega_mu_0(file)
     ss_mark_rel = "Excited-state properties with   relaxed density"
     with open(file, "r", encoding="utf-8") as log_file:
         exc = False
@@ -222,10 +234,9 @@ def pega_energias(file):
                 correction2.append(-1 * np.nan_to_num(float(line.split()[-2])))
             elif "Dipole Mom. (Debye):" in line and corr:
                 line = line.split()
-                x, y, z = float(line[3]), float(line[5]), float(line[7])
-                dipoles.append(np.sqrt(x ** 2 + y ** 2 + z ** 2))
-            elif len(line.split()) == 2 and line.split()[0] == "Tot":
-                mu_0 = float(line.split()[1])     
+                mu = np.array(float(line[3]), float(line[5]), float(line[7]))
+                mu_term = np.dot(mu, mu_0)/np.dot(mu_0, mu_0)
+                dipoles.append(mu_term)   
             elif (
                 "------------------------ END OF SUMMARY -----------------------"
                 in line
@@ -254,8 +265,7 @@ def pega_energias(file):
         oscs = np.array(
             [oscs[i] for i in range(len(energies)) if spins[i] == "Singlet"]
         )
-        mu_s = np.array([dipoles[i] for i in range(len(dipoles)) if spins[i] == "Singlet"])
-        mu_s = mu_s/mu_0
+        mu_s0 = np.array([dipoles[i] for i in range(len(dipoles)) if spins[i] == "Singlet"])
         triplets = np.array(
             [energies[i] for i in range(len(energies)) if spins[i] == "Triplet"]
         )
@@ -267,8 +277,7 @@ def pega_energias(file):
             ]
         )
         ind_t = np.array([ind[i] for i in range(len(ind)) if spins[i] == "Triplet"])
-        mu_t = np.array([dipoles[i] for i in range(len(dipoles)) if spins[i] == "Triplet"])
-        mu_t = mu_t/mu_0
+        mu_t0 = np.array([dipoles[i] for i in range(len(dipoles)) if spins[i] == "Triplet"])
         oscs = np.array([x for _, x in zip(singlets, oscs)])
         ind_s = np.array([x for _, x in zip(singlets, ind_s)])
         ind_t = np.array([x for _, x in zip(triplets, ind_t)])
@@ -278,16 +287,16 @@ def pega_energias(file):
         singlets = np.sort(singlets)
         triplets = np.sort(triplets)
         oscs = oscs[order_s]
-        mu_s = mu_s[order_s]
+        mu_s0 = mu_s0[order_s]
         ind_s = ind_s[order_s]
         ind_t = ind_t[order_t]
-        mu_t = mu_t[order_t]
+        mu_t0 = mu_t0[order_t]
 
         gp = (sol_int - total_free) * 27.2114
 
         #Correcting excitation energies
-        singlets = singlets - gp * (1 - mu_s/mu_0)
-        triplets = triplets - gp * (1 - mu_t/mu_0)
+        singlets = singlets - gp * (1 - mu_s0)
+        triplets = triplets - gp * (1 - mu_t0)
 
         return (
             singlets,
