@@ -494,6 +494,8 @@ def fetch(data, criteria_list):
 
 
 def total_reorganization_energy(lambda_b, kbt):
+    #cap lambda_b at 0
+    lambda_b[lambda_b < 0] = 0
     return np.sqrt(2 * lambda_b * kbt + kbt**2)
 
 
@@ -537,7 +539,7 @@ def dipole_correction(data,i,f):
     mu_f_y = data[f"mu_{f}_y"].to_numpy()
     mu_f_z = data[f"mu_{f}_z"].to_numpy()
     #inner product
-    correction = np.abs(mu_i_x*mu_f_x + mu_i_y*mu_f_y + mu_i_z*mu_f_z)/(mu_i_x**2 + mu_i_y**2 + mu_i_z**2)
+    correction = -1*(mu_i_x*mu_f_x + mu_i_y*mu_f_y + mu_i_z*mu_f_z)/(mu_i_x**2 + mu_i_y**2 + mu_i_z**2)
     return correction
 
 
@@ -545,11 +547,8 @@ def dipole_correction(data,i,f):
 def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
     if data is None:
         data = gather_data(initial, save=True)
-        eps_i, nr_i = nemo.tools.get_nr()
         kbt = nemo.tools.detect_sigma()
     else:
-        eps_i = data["eps"][0]
-        nr_i = data["nr"][0]
         kbt = data["kbT"][0]
     eps, refractive_index = dielec[0], dielec[1]
     #alphast1 = nemo.tools.get_alpha(eps_i)
@@ -574,14 +573,13 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
     data = fix_absent_soc(data)
 
     # Emission Calculations
-    lambda_be = (alphast2 - alphaopt2) * chi_s0.flatten()
-    l_total = total_reorganization_energy(lambda_be, kbt)
+    
     energies = fetch(data, [f"^e_{initial[0]}"])
     #fix dimension of chi_s0
     chi_s0_emi = np.repeat(chi_s0[:, np.newaxis], energies.shape[1], axis=1)
-    dip_correction = 1 - dipole_correction(data,initial,'s0') 
-    print(energies.shape, chi_s.shape, dip_correction.shape, chi_s0_emi.shape)
-    delta_emi_unsorted = energies - chi_s*alphast2*dip_correction + chi_s0_emi*alphaopt2
+    dip_correction = dipole_correction(data,initial,'s0') 
+
+    delta_emi_unsorted = energies - chi_s*alphast2*(1 -dip_correction) + chi_s0_emi*alphaopt2
     constante = (
         (refractive_index**2)
         * (E_CHARGE**2)
@@ -589,9 +587,20 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
     )
     if "t" in initial:
         constante *= 1 / 3
+        #reorganization energy
+        lambda_be = (alphast2 - alphaopt2) * chi_s0_emi - dip_correction * chi_t * alphast2
+    else:
+        #reorganization energy
+        lambda_be = (alphast2 - alphaopt2) * chi_s0_emi - dip_correction * chi_s * alphaopt2     
+
+    
     oscs = fetch(data, ["^osce_"])
-    delta_emi, oscs, energies = sorting_parameters(delta_emi_unsorted, oscs, energies)
-    delta_emi, oscs, energies = select_columns(n_state, delta_emi, oscs, energies)
+    delta_emi, oscs, energies, lambda_be = sorting_parameters(delta_emi_unsorted, oscs, energies, lambda_be)
+    delta_emi, oscs, energies, lambda_be = select_columns(n_state, delta_emi, oscs, energies, lambda_be)
+    
+    l_total = total_reorganization_energy(lambda_be, kbt)
+    print('Reorg',min(lambda_be), max(lambda_be))
+    
     espectro = constante * ((delta_emi - lambda_be) ** 2) * oscs
     tdm = nemo.tools.calc_tdm(oscs, energies, espectro)
     x_axis = x_values(delta_emi, l_total)
@@ -636,7 +645,7 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
         delta = final_state - np.repeat(
             initial_state[:, np.newaxis], final_state.shape[1], axis=1
         )
-        lambda_b = (alphast2 - alphaopt2) * chi_t
+        lambda_b = (alphast2 - alphaopt2) * chi_t - dip_correction * chi_s * alphast2
         final = [
             i.split("_")[2].upper()
             for i in data.columns.values
@@ -666,7 +675,7 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
         delta = final_state - np.repeat(
             initial_state[:, np.newaxis], final_state.shape[1], axis=1
         )
-        lambda_b = (alphast2 - alphaopt2) * chi_s
+        lambda_b = (alphast2 - alphaopt2) * chi_s - dip_correction * chi_t * alphast2
         final = [
             i.split("_")[2].upper()
             for i in data.columns.values
@@ -688,7 +697,7 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
         # lambda_bt= (alphast2/alphaopt1 - alphaopt2/alphaopt1)*Ss_t
         # lambda_b = np.hstack((lambda_b,lambda_bt[:,indices]))
         # final.extend([i.upper()[4:] for i in data.columns.values if 'soc_t' in i])
-
+    print('Reorg ISC',np.min(lambda_b), np.max(lambda_b))
     sigma = total_reorganization_energy(lambda_b, kbt)
     y_axis = (
         (2 * np.pi / HBAR_EV) * (socs_complete**2) * nemo.tools.gauss(delta, 0, sigma)
@@ -781,7 +790,7 @@ def save_absorption_spectrum(
 
 
 def make_breakdown(
-    initial, spin, num, oscs, deltae_lambda, lambda_neq, alphaopt1, l_total
+    initial, spin, num, oscs, deltae_lambda, chis, l_total
 ):
     # concatenate oscs[:,:,0] with DE[:,:,0] and ds
     colunas = [
@@ -791,7 +800,7 @@ def make_breakdown(
     colunas += [
         f"eng_{spin}{i}" for i in range(num + 1, num + deltae_lambda.shape[1] + 1)
     ]
-    colunas += [f"chi_{spin}{i}" for i in range(num + 1, num + lambda_neq.shape[1] + 1)]
+    colunas += [f"chi_{spin}{i}" for i in range(num + 1, num + chis.shape[1] + 1)]
     colunas += [f"sigma_{spin}{i}" for i in range(num + 1, num + l_total.shape[1] + 1)]
     # concatenate oscs[:,:,0] with DE[:,:,0] and ds
     breakdown = pd.DataFrame(
@@ -799,7 +808,7 @@ def make_breakdown(
             (
                 oscs[:, :, 0],
                 deltae_lambda[:, :, 0],
-                lambda_neq / alphaopt1,
+                chis ,
                 l_total[:, :, 0],
             )
         ),
@@ -820,11 +829,8 @@ def another_dimension(nstates, *args):
 def absorption(initial, dielec, data=None, save=False, detailed=False, nstates=-1):
     if data is None:
         data = gather_data(initial, save=True)
-        eps_i, nr_i = nemo.tools.get_nr()
         kbt = nemo.tools.detect_sigma()
     else:
-        eps_i = data["eps"][0]
-        nr_i = data["nr"][0]
         kbt = data["kbT"][0]
     eps, refractive_index = dielec[0], dielec[1]
     alphast2 = nemo.tools.get_alpha(eps)
@@ -910,7 +916,7 @@ def absorption(initial, dielec, data=None, save=False, detailed=False, nstates=-
         )
     if detailed:
         breakdown = make_breakdown(
-            initial, spin, num, constante*oscs, deltae_lambda, lambda_neq[:,:nstates], alphaopt1, l_total
+            initial, spin, num, constante*oscs, deltae_lambda, chis[:,:nstates], l_total
         )
         return abs_spec, breakdown
     return abs_spec
