@@ -19,7 +19,7 @@ $molecule
 read
 $end
 
-$rem
+{basic}
 cis_n_roots             {num_ex}
 cis_singlets            true
 cis_triplets            true
