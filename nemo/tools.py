@@ -161,77 +161,71 @@ def check_dielectric(eps,nr):
     if eps < 1 or nr**2 > eps:
         nemo.parser.fatal_error("Dielectric constant must be higher than 1 and the refractive index squared must be lower than the static dielectric constant! Goodbye!")
 
-def add_header(rem, num_ex, soc, static, refrac):
+
+def add_header(rem, num_ex, soc, static, refrac, cm):
+    """
+    Generates a Q-Chem input header by reading a template file and substituting placeholders.
+
+    Parameters:
+    rem (str): The $rem section from the Q-Chem input.
+    num_ex (int): Number of excited states.
+    static (float): Solvent's static dielectric constant.
+    refrac (float): Solvent's refractive index.
+    cm (str, optional): Charge and multiplicity information. Defaults to "{cm}".
+    geometry (str, optional): Molecular geometry. Defaults to "{geometry}".
+
+    Returns:
+    str: The formatted Q-Chem input header.
+    """
+
+    def load_template(method):
+        """Loads the Q-Chem template file."""
+        template_dir = os.path.join(os.path.dirname(__file__), "templates")
+        template_file = os.path.join(template_dir, f"{method}.in")
+
+        if not os.path.exists(template_file):
+            raise FileNotFoundError(f"Template file not found: {template_file}")
+
+        with open(template_file, "r", encoding="utf-8") as f:
+            return f.read()
+
+    def extract_basic_rem(rem):
+        """Extracts relevant information from the rem section and removes $end."""
+        return rem.replace("$end", "").strip()
+
     rem = rem.lower().strip()
     method = rem.split()
     try:
         method = method[method.index('method')+1]
     except ValueError:
         method = 'td-dft'
-    if method == 'eom-ccsd':
-        header =(f"$rem\n"
-            f"ee_singlets             {num_ex}\n"
-            f"ee_triplets             {num_ex}\n"
-            f"cc_trans_prop           2\n"
-            f"calc_soc                {soc}\n"
-            f"solvent_method          PCM\n"
-            f"EOM_DAVIDSON_MAXVECTORS 300\n"
-            f"EOM_DAVIDSON_MAX_ITER 300\n"
-            f"$end\n"
-            f"\n"
-            f"$trans_prop\n"
-            f"state_list\n"
-            f"ref\n"
-            f"ee_singlets 0 0\n"
-            f"end_list\n"
-            f"calc dipole linmom soc opdm_norm\n\n"
-            f"state_list\n"
-            f"ref\n"
-            f"ee_triplets 0 0\n"
-            f"end_list\n"
-            f"calc dipole linmom soc opdm_norm\n\n"
-            f"state_list\n"
-            f"ee_singlets 0 0\n"
-            f"ee_singlets 0 0\n"
-            f"end_list\n"
-            f"calc dipole linmom opdm_norm\n\n"
-            f"state_list\n"
-            f"ee_singlets 0 0\n"
-            f"ee_triplets 0 0\n"
-            f"end_list\n"
-            f"calc dipole linmom soc opdm_norm\n\n"
-            f"state_list\n"
-            f"ee_triplets 0 0\n"
-            f"ee_triplets 0 0\n"
-            f"end_list\n"
-            f"calc dipole linmom  opdm_norm\n"
-            f"$end\n")
- 
+
+    # Extract relevant part of rem
+    basic_rem = extract_basic_rem(rem)
+
+    
+    if method == 'eom-ccsd':    
+        template = load_template('eom-ccsd')
+        header = template.format(
+            num_ex=num_ex,
+            stat=static,
+            optic=refrac**2,
+            basic=basic_rem,
+            cm=cm,
+            soc=soc
+        )
     else:
-        header =(f"$rem\n"
-            f"cis_n_roots             {num_ex}\n"
-            f"cis_singlets            true\n"
-            f"cis_triplets            true\n"
-            f"calc_soc                {soc}\n"
-            f"STS_MOM                 true\n"
-            f"CIS_RELAXED_DENSITY     TRUE\n"
-            f"solvent_method          PCM\n"
-            f"MAX_CIS_CYCLES          200\n"
-            f"MAX_SCF_CYCLES          200\n"
-            f"$end\n")
-    header += ("\n$pcm\n"
-            "theory                  IEFPCM\n"
-            "ChargeSeparation        Marcus\n"
-            "StateSpecific           Perturb\n"
-            "$end\n")
-    header += (f"\n$solvent\n"
-            f"Dielectric              {static}\n"
-            f"OpticalDielectric       {refrac**2}\n"
-            f"$end\n\n")   
-    #remove $end from rem
-    rem = rem.replace("$end", "")
-    header = header.replace("$rem", rem)
-    return header    
+        template = load_template('td-dft')
+        header = template.format(
+            num_ex=num_ex,
+            stat=static,
+            optic=refrac**2,
+            basic=basic_rem,
+            cm=cm,
+            soc=soc
+        )
+    return header
+
 
 def setup_ensemble():
     freqlog = fetch_file("frequency", [".out", ".log"])
@@ -277,21 +271,24 @@ def setup_ensemble():
             ("Ok, calculations will only be suitable for absorption "
              "or fluorescence spectrum simulations!\n")
         )
-        header = add_header(rem, num_ex, 'false', static, refrac) 
+        header = add_header(rem, num_ex, 'false', static, refrac, charge_multiplicity) 
     else:
         print(
             "Ok, calculations will be suitable for all spectra and ISC rate estimates!\n"
         )
-        header = add_header(rem, num_ex, 'true', static, refrac)
-    header += f"$molecule\n{charge_multiplicity}\n"
+        header = add_header(rem, num_ex, 'true', static, refrac, charge_multiplicity)
+    header = header.split("#GGG#")
+    bottom = header[1]
+    header = header[0]
+    
     num_geoms = int(input("How many geometries to be sampled?\n"))
     temperature = float(input("Temperature in Kelvin?\n"))
     if temperature <= 0:
         nemo.parser.fatal_error("Have you heard about absolute zero? Goodbye!")
     if gaussian:
-        lx.tools.make_ensemble(freqlog, num_geoms, temperature, header, "$end\n")
+        lx.tools.make_ensemble(freqlog, num_geoms, temperature, header, bottom)
     else:
-        make_ensemble(freqlog, num_geoms, temperature, header, "$end\n")
+        make_ensemble(freqlog, num_geoms, temperature, header, bottom)
 
 
 
@@ -418,14 +415,19 @@ def fetch_nr(file):
 
 def susceptibility_check(file, tuning=False):
     # Fetch energy levels and other data
-    es, et, _, _, _, ss_s, ss_t, _ = nemo.parser.pega_energias(file)
-    _, nr = fetch_nr(file)
+    es, et, _, _, _, ss_s, ss_t, e_g, ss_g = nemo.parser.pega_energias(file)
+    eps, nr = fetch_nr(file)
     
     # Calculate alpha and susceptibility chi values
-    alpha = (nr**2 - 1) / (nr**2 + 1)
-    chi_s = ss_s / alpha
-    chi_t = ss_t / alpha
-    
+    alpha_opt = (nr**2 - 1) / (nr**2 + 1)
+    chi_s = ss_s / alpha_opt
+    chi_t = ss_t / alpha_opt
+    alpha_st = (eps - 1) / (eps + 1)
+    chi_g = ss_g / alpha_st
+
+    s_vac = es - e_g
+    t_vac = et - e_g
+
     if tuning:
         return es[0], chi_s[0]
     else:
@@ -433,12 +435,14 @@ def susceptibility_check(file, tuning=False):
         # Print header with aligned columns
         print(fr"{'State':<6} {'E_vac(eV)':<12} {chi_symbol:<10}")
         
+        print(f"S{0:<5} {0:<12.3f} {chi_g:<10.3f}")
+
         # Print singlet states
-        for i, (e, chi) in enumerate(zip(es, chi_s), start=1):
+        for i, (e, chi) in enumerate(zip(s_vac, chi_s), start=1):
             print(f"S{i:<5} {e:<12.3f} {chi:<10.3f}")
 
         # Print triplet states
-        for i, (e, chi) in enumerate(zip(et, chi_t), start=1):
+        for i, (e, chi) in enumerate(zip(t_vac, chi_t), start=1):
             print(f"T{i:<5} {e:<12.3f} {chi:<10.3f}")
 
 
@@ -506,23 +510,41 @@ class Watcher:
     def check(self):
         list_to_check = self.files.copy()
         for input_file in list_to_check:
+            input_file_path = f"{self.folder}/{input_file}"
+        
             try:
-                with open(self.folder + "/" + input_file + ".log", "r",encoding="utf-8") as log_file:
+                # Check if "@@@" is present in the input file
+                with open(input_file_path, "r", encoding="utf-8") as inp_file:
+                    has_triple_at = any("@@@" in line for line in inp_file)
+
+                # Now check the corresponding log file
+                log_file_path = f"{input_file_path}.log"
+                with open(log_file_path, "r", encoding="utf-8") as log_file:
+                    have_a_nice_day_count = 0
+
                     for line in log_file:
                         if "Have a nice day" in line:
-                            self.done.append(input_file)
-                            del self.files[self.files.index(input_file)]
-                            break
+                            have_a_nice_day_count += 1
+                            if not has_triple_at and have_a_nice_day_count == 1:
+                                self.done.append(input_file)
+                                self.files.remove(input_file)
+                                break
+                            elif has_triple_at and have_a_nice_day_count == 2:
+                                self.done.append(input_file)
+                                self.files.remove(input_file)
+                                break
                         elif "fatal error" in line:
                             self.error.append(input_file)
-                            del self.files[self.files.index(input_file)]
+                            self.files.remove(input_file)
                             break
                         elif "failed standard" in line:
                             self.license_error.append(input_file)
-                            del self.files[self.files.index(input_file)]
+                            self.files.remove(input_file)
                             break
+
             except FileNotFoundError:
                 pass
+
 
     def report(self):
         self.check()

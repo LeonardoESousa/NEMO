@@ -189,23 +189,24 @@ def pega_energias(file):
     with open(file, "r", encoding="utf-8") as log_file:
         exc = False
         corr = False
-        correction, correction2 = [], []
+        total_energy, correction, correction2 = [], [], []
         for line in log_file:
             if (
                 "TDDFT/TDA Excitation Energies" in line
                 or "TDDFT Excitation Energies" in line
             ):
+                try:
+                    vac = energies.copy()
+                except:
+                    pass
                 energies, spins, oscs, ind = [], [], [], []
                 exc = True
             elif ss_mark_rel in line:
                 corr = True
-            elif "Solute Internal Energy" in line:
-                sol_int = float(line.split()[-1])
-            elif "Total Free Energy" in line:
-                total_free = float(line.split()[-2])
             elif "Excited state" in line and exc:
-                energies.append(float(line.split()[-1]))
                 ind.append(int(line.split()[2].replace(":", "")))
+            elif "Total energy for state" in line and exc:
+                energies.append(float(line.split()[-2])*27.21139)
             elif "Multiplicity" in line and exc:
                 spins.append(line.split()[-1])
             elif "Strength" in line and exc:
@@ -228,18 +229,16 @@ def pega_energias(file):
                 corr = False
             elif "Total energy in the final basis set" in line:
                 line = line.split()
-                total_nopcm = float(line[8])
+                total_energy.append(float(line[8]))
         if len(correction) == 0:  # When run on logs that do not employ pcm
             correction = np.zeros(len(energies))
             correction2 = np.zeros(len(energies))
-            sol_int = total_nopcm
-            total_free = total_nopcm
         singlets = np.array(
-            [energies[i] for i in range(len(energies)) if spins[i] == "Singlet"]
+            [vac[i] for i in range(len(vac)) if spins[i] == "Singlet"]
         )
         ss_s = np.array(
             [
-                correction[i] + correction2[i]
+                correction[i] + correction2[i] + (vac[i] - energies[i])
                 for i in range(len(correction))
                 if spins[i] == "Singlet"
             ]
@@ -249,11 +248,11 @@ def pega_energias(file):
             [oscs[i] for i in range(len(energies)) if spins[i] == "Singlet"]
         )
         triplets = np.array(
-            [energies[i] for i in range(len(energies)) if spins[i] == "Triplet"]
+            [vac[i] for i in range(len(vac)) if spins[i] == "Triplet"]
         )
         ss_t = np.array(
             [
-                correction[i] + correction2[i]
+                correction[i] + correction2[i] + (vac[i] - energies[i])
                 for i in range(len(correction))
                 if spins[i] == "Triplet"
             ]
@@ -280,7 +279,8 @@ def pega_energias(file):
             ind_t,
             ss_s,
             ss_t,
-            (sol_int - total_free) * 27.2114,
+            total_energy[0] * 27.2114,
+            (total_energy[0] - total_energy[1]) * 27.2114,
         )
 
 

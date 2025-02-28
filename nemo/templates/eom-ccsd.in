@@ -1,0 +1,57 @@
+{basic}
+ee_singlets             {num_ex}
+ee_triplets             {num_ex}
+cc_trans_prop           2
+calc_soc                {soc}
+solvent_method          PCM
+EOM_DAVIDSON_MAXVECTORS 300
+EOM_DAVIDSON_MAX_ITER   300
+$end
+
+$trans_prop
+state_list
+ref
+ee_singlets 0 0
+end_list
+calc dipole linmom soc opdm_norm
+
+state_list
+ref
+ee_triplets 0 0
+end_list
+calc dipole linmom soc opdm_norm
+
+state_list
+ee_singlets 0 0
+ee_singlets 0 0
+end_list
+calc dipole linmom opdm_norm
+
+state_list
+ee_singlets 0 0
+ee_triplets 0 0
+end_list
+calc dipole linmom soc opdm_norm
+
+state_list
+ee_triplets 0 0
+ee_triplets 0 0
+end_list
+calc dipole linmom  opdm_norm
+$end
+
+$pcm
+theory                  IEFPCM
+ChargeSeparation        Marcus
+StateSpecific           Perturb
+$end
+
+$solvent
+Dielectric              {stat}
+OpticalDielectric       {optic}
+$end
+
+$molecule
+0 1
+$GGG$
+$end
