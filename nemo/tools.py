@@ -514,7 +514,7 @@ class Watcher:
         
             try:
                 # Check if "@@@" is present in the input file
-                with open(input_file_path, "r", encoding="utf-8") as inp_file:
+                with open(f"{input_file_path}.com", "r", encoding="utf-8") as inp_file:
                     has_triple_at = any("@@@" in line for line in inp_file)
 
                 # Now check the corresponding log file
