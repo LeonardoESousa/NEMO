@@ -20,37 +20,10 @@ EPSILON_0 = nemo.parser.EPSILON_0
 
 
 ##RETURNS LIST OF LOG FILES WITH NORMAL TERMINATION######################################
-def check_normal(files):
-    normal, abnormal = [], []
-    add = False
-    for file in files:
-        with open("Geometries/" + file, "r", encoding="utf-8") as log_file:
-            for line in log_file:
-                #if (
-                #    "TDDFT/TDA Excitation Energies" in line
-                #    or "TDDFT Excitation Energies" in line
-                #):
-                #    exc = True
-                #elif "Excited state" in line and exc:
-                #    eng = float(line.split()[7])
-                #    if eng < 0:
-                #        add = False
-                #        abnormal.append(file)
-                #    else:
-                #        add = True
-                #    exc = False
-                if "Have a nice day" in line:# and add:
-                    normal.append(file)
-    if len(abnormal) > 0:
-        print(f"Warning! Negative transition energies detected in {len(abnormal)} files:")
-        for file in abnormal:
-            print(file)
-        print("They will not be considered in the analysis")
-    return normal
-
-
-#########################################################################################
-
+def check_normal(folder):
+    watcher = nemo.tools.Watcher(folder)
+    watcher.check()
+    return [i+'.log' for i in watcher.done]    
 
 #########################################################################################
 
@@ -228,8 +201,7 @@ get_phosph_osc = {'tddft': nemo.parser.phosph_osc, 'eom-ccsd': nemo.eom.phosph_o
 ###SAVES ENSEMBLE DATA#################################################################
 def gather_data(initial, save=True):
     formats = {}
-    files = [i for i in os.listdir("Geometries") if ".log" in i]
-    files = check_normal(files)
+    files = check_normal("Geometries")
     files = sorted(files, key=lambda pair: float(pair.split("-")[1]))
     n_state = int(initial[1:]) - 1
     eps_i, nr_i = nemo.tools.get_nr()
