@@ -241,7 +241,7 @@ def gather_data(initial, save=True):
         formats[f"chi_t{i+1}"] = "{:.4f}"
 
     data["e_g"] = e_s0
-    formats["e_g"] = "{:.4e}"
+    formats["e_g"] = "{:.4f}"
     data["chi_s0"] = ground_pol
     formats["chi_s0"] = "{:.4f}"
         

@@ -182,107 +182,140 @@ def pega_modos(G, freqlog):
                     atom += 1
     return normal_modes
 
+def parse_block(block, collect_corrections=False):
+    """
+    Parses a calculation block from a quantum chemistry log file.
 
-##GETS ENERGIES, OSCS, AND INDICES FOR Sn AND Tn STATES##################################
-def pega_energias(file):
-    ss_mark_rel = "Excited-state properties with   relaxed density"
-    with open(file, "r", encoding="utf-8") as log_file:
-        exc = False
-        corr = False
-        total_energy, correction, correction2 = [], [], []
-        for line in log_file:
-            if (
-                "TDDFT/TDA Excitation Energies" in line
-                or "TDDFT Excitation Energies" in line
-            ):
-                try:
-                    vac = energies.copy()
-                except:
-                    pass
-                energies, spins, oscs, ind = [], [], [], []
-                exc = True
-            elif ss_mark_rel in line:
-                corr = True
-            elif "Excited state" in line and exc:
-                ind.append(int(line.split()[2].replace(":", "")))
-            elif "Total energy for state" in line and exc:
-                energies.append(float(line.split()[-2])*27.21139)
-            elif "Multiplicity" in line and exc:
-                spins.append(line.split()[-1])
-            elif "Strength" in line and exc:
-                oscs.append(float(line.split()[-1]))
-            elif (
-                "---------------------------------------------------" in line
-                and exc
-                and len(energies) > 0
-            ):
+    Parameters:
+        block (str): The text block corresponding to one calculation.
+        collect_corrections (bool): Whether to parse SS corrections.
+
+    Returns:
+        dict: Contains excited-state energies, spins, oscillator strengths, state indices,
+              corrections, and total energies.
+    """
+    data = {
+        'energies': [],
+        'spins': [],
+        'oscillator': [],
+        'indices': [],
+        'correction': [],
+        'correction2': [],
+        'total_energy': []
+    }
+    exc = False  # Flag to indicate that we are within an excited state section.
+    corr = False # Flag for PCM correction section.
+
+    for line in block.splitlines():
+        # Start a new excited state section.
+        if "TDDFT/TDA Excitation Energies" in line or "TDDFT Excitation Energies" in line:
+            data['energies'] = []
+            data['spins'] = []
+            data['oscillator'] = []
+            data['indices'] = []
+            exc = True
+        elif exc:
+            if "Excited state" in line:
+                parts = line.split()
+                state_index = int(parts[2].replace(":", ""))
+                data['indices'].append(state_index)
+            elif "Total energy for state" in line:
+                # Multiply by conversion factor to eV immediately.
+                energy_val = float(line.split()[-2]) * 27.21139
+                data['energies'].append(energy_val)
+            elif "Multiplicity" in line:
+                data['spins'].append(line.split()[-1])
+            elif "Strength" in line:
+                osc_val = float(line.split()[-1])
+                data['oscillator'].append(osc_val)
+            # End of the excited state section.
+            elif "---------------------------------------------------" in line and len(data['energies']) > 0:
                 exc = False
-            elif "SS-PCM correction" in line and corr:
-                correction.append(-1 * np.nan_to_num(float(line.split()[-2])))
-            elif "LR-PCM correction" in line and corr:
-                correction2.append(-1 * np.nan_to_num(float(line.split()[-2])))
-            elif (
-                "------------------------ END OF SUMMARY -----------------------"
-                in line
-                and corr
-            ):
-                corr = False
-            elif "Total energy in the final basis set" in line:
-                line = line.split()
-                total_energy.append(float(line[8]))
-        if len(correction) == 0:  # When run on logs that do not employ pcm
-            correction = np.zeros(len(energies))
-            correction2 = np.zeros(len(energies))
-        singlets = np.array(
-            [vac[i] for i in range(len(vac)) if spins[i] == "Singlet"]
-        )
-        ss_s = np.array(
-            [
-                correction[i] + correction2[i] + (vac[i] - energies[i])
-                for i in range(len(correction))
-                if spins[i] == "Singlet"
-            ]
-        )
-        ind_s = np.array([ind[i] for i in range(len(ind)) if spins[i] == "Singlet"])
-        oscs = np.array(
-            [oscs[i] for i in range(len(energies)) if spins[i] == "Singlet"]
-        )
-        triplets = np.array(
-            [vac[i] for i in range(len(vac)) if spins[i] == "Triplet"]
-        )
-        ss_t = np.array(
-            [
-                correction[i] + correction2[i] + (vac[i] - energies[i])
-                for i in range(len(correction))
-                if spins[i] == "Triplet"
-            ]
-        )
-        ind_t = np.array([ind[i] for i in range(len(ind)) if spins[i] == "Triplet"])
 
-        oscs = np.array([x for _, x in zip(singlets, oscs)])
-        ind_s = np.array([x for _, x in zip(singlets, ind_s)])
-        ind_t = np.array([x for _, x in zip(triplets, ind_t)])
+        # PCM correction information.
+        if collect_corrections:
+            if "Excited-state properties with   relaxed density" in line:
+                corr = True
+            if corr:
+                if "SS-PCM correction" in line:
+                    val = float(line.split()[-2])
+                    data['correction'].append(-1 * np.nan_to_num(val))
+                elif "LR-PCM correction" in line:
+                    val = float(line.split()[-2])
+                    data['correction2'].append(-1 * np.nan_to_num(val))
+                if "------------------------ END OF SUMMARY -----------------------" in line:
+                    corr = False
 
-        order_s = np.argsort(singlets)
-        order_t = np.argsort(triplets)
-        singlets = np.sort(singlets)
-        triplets = np.sort(triplets)
-        oscs = oscs[order_s]
-        ind_s = ind_s[order_s]
-        ind_t = ind_t[order_t]
+        # Total energy in the final basis set.
+        if "Total energy in the final basis set" in line:
+            parts = line.split()
+            data['total_energy'].append(float(parts[8]) * 27.21139)
+            
+    spins = np.array(data['spins'])
+    singlet_idx = np.where(spins == "Singlet")[0]
+    triplet_idx = np.where(spins == "Triplet")[0]
+    data['ind_s'] = np.array(data['indices'])[singlet_idx]
+    data['ind_t'] = np.array(data['indices'])[triplet_idx]
+    data['singlets'] = np.array(data['energies'])[singlet_idx]
+    data['triplets'] = np.array(data['energies'])[triplet_idx]
+    data['osc_singlets'] = np.array(data['oscillator'])[singlet_idx]
+    if collect_corrections:
+        data['ss_s'] = np.array(data['correction'])[singlet_idx] + np.array(data['correction2'])[singlet_idx]
+        data['ss_t'] = np.array(data['correction'])[triplet_idx] + np.array(data['correction2'])[triplet_idx]
+    data['len'] = len(data['energies']) // 2
+    
+    return data
 
-        return (
-            singlets,
-            triplets,
-            oscs,
-            ind_s,
-            ind_t,
-            ss_s,
-            ss_t,
-            total_energy[0] * 27.2114,
-            (total_energy[0] - total_energy[1]) * 27.2114,
-        )
+def pega_energias(file):
+    """
+    Extracts excited-state and total energy properties from a quantum chemistry log file.
 
+    The log file is expected to contain two calculations separated by the marker "Have a nice day".
+    The first calculation provides vacuum (reference) excited-state energies, and the second includes
+    PCM corrections. The function returns sorted arrays of singlet and triplet energies (vacuum),
+    their oscillator strengths and state indices (for singlets), the calculated solvent shifts, and
+    the total energy (and its difference between the two calculations) in eV.
+
+    Parameters:
+        file (str): Path to the log file.
+
+    Returns:
+        tuple: (singlets, triplets, oscs, ind_s, ind_t, ss_s, ss_t, total_energy, energy_diff)
+            where:
+              - singlets (np.array): Vacuum energies for singlet excited states.
+              - triplets (np.array): Vacuum energies for triplet excited states.
+              - oscs (np.array): Oscillator strengths for singlet states.
+              - ind_s (np.array): State indices for singlet states.
+              - ind_t (np.array): State indices for triplet states.
+              - ss_s (np.array): Solvent shifts for singlet states.
+              - ss_t (np.array): Solvent shifts for triplet states.
+              - total_energy (float): Total energy of S0.
+              - s0_corr (float): Solvent correction to S0.
+    """
+    with open(file, "r", encoding="utf-8") as f:
+        content = f.read()
+
+    # Split the file into two calculation blocks.
+    blocks = content.split("Have a nice day")
+    if len(blocks) < 2:
+        raise ValueError("Log file does not contain two calculations as expected.")
+
+    # Parse the vacuum (first) and PCM-corrected (second) calculation blocks.
+    vac_data = parse_block(blocks[0], collect_corrections=False)
+    corr_data = parse_block(blocks[1], collect_corrections=True)
+
+    min_len = min(vac_data['len'], corr_data['len'])
+     
+    singlets = vac_data['singlets'][:min_len]
+    triplets = vac_data['triplets'][:min_len]
+    oscs = vac_data['osc_singlets'][:min_len]
+    ind_s = corr_data['ind_s'][:min_len]
+    ind_t = corr_data['ind_t'][:min_len]
+    ss_s = corr_data['ss_s'][:min_len] + singlets - corr_data['singlets'][:min_len]
+    ss_t = corr_data['ss_t'][:min_len] + triplets - corr_data['triplets'][:min_len]
+    total_energy = vac_data['total_energy'][0]
+    s0_corr = vac_data['total_energy'][0] - corr_data['total_energy'][0]    
+    return singlets, triplets, oscs, ind_s, ind_t, ss_s, ss_t, total_energy, s0_corr
 
 #########################################################################################
 
