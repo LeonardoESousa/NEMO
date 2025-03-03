@@ -523,13 +523,13 @@ def pega_dipolos(file, ind, frase, state):
 #########################################################################################
 
 ##CALCULATES TRANSITION DIPOLE MOMENTS FOR Tn TO S0 TRANSITIONS##########################
-def moment(file, ess, ets, dipss, dipts, n_triplet, ind_s, ind_t):
+def moment(file, ess, ets, e_s0, dipss, dipts, n_triplet, ind_s, ind_t):
     # Conversion factor between a.u. = e*bohr to SI
     conversion = 8.4783533e-30
     fake_t = np.where(np.sort(ind_t) == ind_t[n_triplet])[0][0]
     ess = np.array(ess)
     ets = np.array(ets)
-    ess = np.insert(ess, 0, 0)
+    ess = np.insert(ess, 0, e_s0)
     moments = []
     for mqn in ["1", "-1", "0"]:
         socst1 = soc_t1(file, mqn, fake_t, ind_s)   
@@ -543,7 +543,7 @@ def moment(file, ess, ets, dipss, dipts, n_triplet, ind_s, ind_t):
         if 0 in ets[n_triplet] - ess:
             return 0
         for i in [0, 1, 2]:
-            part_1 = (socss0 / (0 - ets)) * dipts[:, i]
+            part_1 = (socss0 / (e_s0 - ets)) * dipts[:, i]
             part_1 = np.sum(part_1)
             part_2 = (socst1 / (ets[n_triplet] - ess)) * dipss[:, i]
             part_2 = np.sum(part_2)
@@ -555,7 +555,7 @@ def moment(file, ess, ets, dipss, dipts, n_triplet, ind_s, ind_t):
     moments = np.sum(moments) * (conversion**2)
     return moments
 
-def phosph_osc(file, n_state, ind_s, ind_t, singlets, triplets): 
+def phosph_osc(file, n_state, ind_s, ind_t, singlets, triplets, e_s0): 
     zero = ["0"]
     zero.extend(ind_s)
     total_moments = []
@@ -582,6 +582,7 @@ def phosph_osc(file, n_state, ind_s, ind_t, singlets, triplets):
             file,
             singlets,
             triplets,
+            e_s0,
             ground_dipoles,
             triplet_dipoles,
             n_triplet,

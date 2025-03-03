@@ -44,7 +44,7 @@ def read_cis(file):
 #########################################################################################
 
 
-def get_osc_phosph(files, singlets, triplets, n_state, ind_s, ind_t, phosph_osc):
+def get_osc_phosph(files, singlets, triplets, e_s0, n_state, ind_s, ind_t, phosph_osc):
     # removed correction from phosph_osc calculation
     eng_singlets = singlets  # - (alphast2/alphaopt1)*Ss_s
     eng_triplets = triplets  # - (alphast2/alphaopt1)*Ss_t
@@ -56,6 +56,7 @@ def get_osc_phosph(files, singlets, triplets, n_state, ind_s, ind_t, phosph_osc)
             ind_t[j, :],
             eng_singlets[j, :],
             eng_triplets[j, :],
+            e_s0[j],
         )
         try:
             osc_strengths = np.vstack((osc_strengths, tos))
@@ -273,7 +274,7 @@ def gather_data(initial, save=True):
             pass
     else:
         
-        oscs = get_osc_phosph(files, singlets, triplets, total_states, ind_s, ind_t, get_phosph_osc[calculation_type])
+        oscs = get_osc_phosph(files, singlets, triplets, e_s0, total_states, ind_s, ind_t, get_phosph_osc[calculation_type])
         
         for i in range(oscs.shape[1]):
             data[f"osce_t{n_state+1+i}"] = oscs[:, i]
@@ -291,15 +292,15 @@ def gather_data(initial, save=True):
                 
                 soc_ground = get_avg_socs[calculation_type](files, "ground", i, ind_s, ind_t)
                 soc_triplet = get_avg_socs[calculation_type](files, "triplet", i, ind_s, ind_t)
-                soc_tts = get_avg_socs[calculation_type](files, "tts", i, ind_s, ind_t)
+                #soc_tts = get_avg_socs[calculation_type](files, "tts", i, ind_s, ind_t)
 
+                data[f"soc_t{i+1}_s0"] = soc_ground[:, 0]
+                formats[f"soc_t{i+1}_s0"] = "{:.5e}"
                 for j in range(triplets.shape[1]):
-                    data[f"soc_t{i+1}_s0"] = soc_ground[:, j]
-                    formats[f"soc_t{i+1}_s0"] = "{:.5e}"
                     data[f"soc_t{i+1}_s{j+1}"] = soc_triplet[:, j]
                     formats[f"soc_t{i+1}_s{j+1}"] = "{:.5e}"
-                    data[f"soc_t{i+1}_t{j+1}"] = soc_tts[:, j]
-                    formats[f"soc_t{i+1}_t{j+1}"] = "{:.5e}"
+                    #data[f"soc_t{i+1}_t{j+1}"] = soc_tts[:, j]
+                    #formats[f"soc_t{i+1}_t{j+1}"] = "{:.5e}"
                 
         except IndexError:
             pass
@@ -525,13 +526,19 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
     lambda_be = np.repeat(lambda_be, energies.shape[1], axis=1)
 
     oscs = fetch(data, ["^osce_"])
-    print(delta_emi_unsorted.shape, oscs.shape, lambda_be.shape)
     delta_emi, oscs, lambda_be = sorting_parameters(delta_emi_unsorted, oscs, lambda_be)
     delta_emi, oscs, lambda_be = select_columns(n_state, delta_emi, oscs, lambda_be)
     
     l_total = total_reorganization_energy(lambda_be, kbt)
-    
-    espectro = constante * ((delta_emi - lambda_be) ** 2) * oscs
+    #check if oscs is all positive
+    if np.any(oscs < 0):
+        print("Warning: Negative oscillator strengths detected")
+        #show indices of negative oscs
+        print(np.where(oscs < 0))
+    #same for delta_emi
+    if np.any(delta_emi < 0):
+        print("Warning: Negative energy differences detected")    
+    espectro = constante * (delta_emi ** 2) * oscs
     tdm = nemo.tools.calc_tdm(oscs, delta_emi, espectro)
     x_axis = x_values(delta_emi, l_total)
     y_axis = espectro[:, np.newaxis] * nemo.tools.gauss(
