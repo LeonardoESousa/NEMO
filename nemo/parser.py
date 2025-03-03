@@ -591,7 +591,7 @@ def phosph_osc(file, n_state, ind_s, ind_t, singlets, triplets, e_s0):
         )
         total_moments.append(moments)
     total_moments = np.array(total_moments)
-    term = E_CHARGE * (HBAR_J**2) / triplets
+    term = E_CHARGE * (HBAR_J**2) / (triplets - e_s0)
     osc_strength = (2 * MASS_E) * total_moments / (3 * term)
     return osc_strength[np.newaxis, :]
 
