@@ -529,15 +529,7 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
     delta_emi, oscs, lambda_be = sorting_parameters(delta_emi_unsorted, oscs, lambda_be)
     delta_emi, oscs, lambda_be = select_columns(n_state, delta_emi, oscs, lambda_be)
     
-    l_total = total_reorganization_energy(lambda_be, kbt)
-    #check if oscs is all positive
-    if np.any(oscs < 0):
-        print("Warning: Negative oscillator strengths detected")
-        #show indices of negative oscs
-        print(np.where(oscs < 0))
-    #same for delta_emi
-    if np.any(delta_emi < 0):
-        print("Warning: Negative energy differences detected")    
+    l_total = total_reorganization_energy(lambda_be, kbt)    
     espectro = constante * (delta_emi ** 2) * oscs
     tdm = nemo.tools.calc_tdm(oscs, delta_emi, espectro)
     x_axis = x_values(delta_emi, l_total)
