@@ -247,9 +247,9 @@ def parse_block(block, collect_corrections=False):
                     corr = False
 
         # Total energy in the final basis set.
-        if "Total energy in the final basis set" in line:
+        if "Total energy" in line and "=" in line:
             parts = line.split()
-            data['total_energy'].append(float(parts[8]) * 27.21139)
+            data['total_energy'].append(float(parts[-1]) * 27.21139)
             
     spins = np.array(data['spins'])
     singlet_idx = np.where(spins == "Singlet")[0]
