@@ -306,16 +306,20 @@ def pega_energias(file):
 
     min_len = min(vac_data['len'], corr_data['len'])
      
-    singlets = vac_data['singlets'][:min_len]
-    triplets = vac_data['triplets'][:min_len]
+    singlets_vac = vac_data['singlets'][:min_len]
+    triplets_vac = vac_data['triplets'][:min_len]
+    singlets_pcm = corr_data['singlets'][:min_len]
+    triplets_pcm = corr_data['triplets'][:min_len]
     oscs = vac_data['osc_singlets'][:min_len]
     ind_s = corr_data['ind_s'][:min_len]
     ind_t = corr_data['ind_t'][:min_len]
-    ss_s = corr_data['ss_s'][:min_len] + singlets - corr_data['singlets'][:min_len]
-    ss_t = corr_data['ss_t'][:min_len] + triplets - corr_data['triplets'][:min_len]
-    total_energy = vac_data['total_energy'][0]
-    s0_corr = vac_data['total_energy'][0] - corr_data['total_energy'][0]    
-    return singlets, triplets, oscs, ind_s, ind_t, ss_s, ss_t, total_energy, s0_corr
+    s0_vac = vac_data['total_energy'][0]
+    s0_pcm = corr_data['total_energy'][0]
+    s0_corr = s0_vac - s0_pcm
+    ss_s = (singlets_vac - s0_vac) - (singlets_pcm - s0_pcm) + corr_data['ss_s'][:min_len]
+    ss_t = (triplets_vac - s0_vac) - (triplets_pcm - s0_pcm) + corr_data['ss_t'][:min_len]
+        
+    return singlets_vac, triplets_vac, oscs, ind_s, ind_t, ss_s, ss_t, s0_vac, s0_corr
 
 #########################################################################################
 

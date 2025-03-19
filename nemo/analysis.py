@@ -509,7 +509,7 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
     energies = fetch(data, [f"^e_{initial[0]}"])
     
     
-    delta_emi_unsorted = energies - chi_s * alphast2 - (ground - chi_s0 * alphaopt2) 
+    delta_emi_unsorted = energies - chi_s * alphast2 #- (ground - chi_s0 * alphaopt2) 
     constante = (
         (refractive_index**2)
         * (E_CHARGE**2)
@@ -619,6 +619,9 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
     y_axis = (
         (2 * np.pi / HBAR_EV) * (socs_complete**2) * nemo.tools.gauss(delta, 0, sigma)
     )
+    tau_D = (refractive_index**2 / eps)*1e-12
+    g_ad = 0#np.nan_to_num((2 * np.pi * (socs_complete**2) * tau_D)/ (HBAR_EV * lambda_b))
+    y_axis =  y_axis / (1 + g_ad)
     # hstack y and espectro
     individual = np.hstack((espectro[:, np.newaxis], y_axis))
     number_geoms = y_axis.shape[0]
@@ -640,6 +643,8 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
     mean_gap = means(delta, y_axis, ensemble_average)[:, np.newaxis]
     mean_soc = 1000 * means(socs_complete, y_axis, ensemble_average)[:, np.newaxis]
     mean_sigma = means(sigma, y_axis, ensemble_average)[:, np.newaxis]
+    #mean_g = means(g_ad, y_axis, ensemble_average)[:, np.newaxis]
+    #print(np.round(mean_g, 3))
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         mean_part = np.nan_to_num(100 * rate / means(y_axis, y_axis, ensemble_average), posinf=100)
@@ -783,7 +788,7 @@ def absorption(initial, dielec, data=None, save=False, detailed=False, nstates=-
     lambda_b = (alphast2  - alphaopt2) * chis
 
     if initial == "s0":
-        deltae_lambda = engs - chis * alphaopt2 - (ground - chi_s0 * alphast2)
+        deltae_lambda = engs - chis * alphaopt2 #- (ground - chi_s0 * alphast2)
 
     else:
         base = fetch(data, [rf"\be_{initial}\b"])
