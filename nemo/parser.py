@@ -318,8 +318,8 @@ def pega_energias(file):
     s0_corr = s0_vac - s0_pcm
     ss_s = corr_data['ss_s'][:min_len]
     ss_t = corr_data['ss_t'][:min_len]
-    y_s = singlets_vac - singlets_pcm + s0_corr
-    y_t = triplets_vac - triplets_pcm + s0_corr    
+    y_s = (singlets_vac - s0_vac) - (singlets_pcm - s0_pcm) + s0_corr
+    y_t = (triplets_vac - s0_vac) - (triplets_pcm - s0_pcm) + s0_corr    
     return singlets_vac, triplets_vac, oscs, ind_s, ind_t, ss_s, ss_t, s0_vac, s0_corr, y_s, y_t
 
 #########################################################################################

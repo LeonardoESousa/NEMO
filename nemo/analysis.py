@@ -532,7 +532,7 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
     energies = fetch(data, [f"^e_{initial[0]}"])
     
     
-    delta_emi_unsorted = energies - gamma_s * alphaopt2 - chi_s * alphast2 - (ground - chi_s0 * alphaopt2) 
+    delta_emi_unsorted = energies - gamma_s * alphast2 - chi_s * alphast2 - (ground - chi_s0 * alphaopt2) 
     constante = (
         (refractive_index**2)
         * (E_CHARGE**2)
@@ -582,16 +582,16 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
     # Intersystem Crossing Rates
 
     if "s" in initial:
-        initial_state = singlets - gamma_s * alphaopt2 - chi_s * alphast2
-        final_state = triplets - gamma_t * alphast2 - chi_t * alphaopt2
+        initial_state = singlets - chi_s * alphast2
+        final_state = triplets  - chi_t * alphaopt2
         socs_complete = fetch(data, ["^soc_s"])
-        initial_state, final_state, chi_s, chi_t, gamma_s, gamma_t, socs_complete = reorder(
-            initial_state, final_state, chi_s, chi_t, gamma_s, gamma_t, socs_complete
+        initial_state, final_state, chi_s, chi_t, socs_complete = reorder(
+            initial_state, final_state, chi_s, chi_t, socs_complete
         )
         initial_state = initial_state[:, n_state]
         socs_complete = socs_complete[:, n_state, :]
         delta = final_state - initial_state[:, np.newaxis]
-        lambda_b = (alphast2 - alphaopt2) * (chi_t - gamma_t)
+        lambda_b = (alphast2 - alphaopt2) * chi_t
         final = [
             i.split("_")[2].upper()
             for i in data.columns.values
@@ -606,16 +606,16 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
         # lambda_b = np.hstack((lambda_b,lambda_bt[:,indices]))
     elif "t" in initial:
         # Tn to Sm ISC
-        initial_state = triplets - gamma_t * alphaopt2 - chi_t * alphast2
-        final_state = singlets - gamma_s * alphast2 - chi_s * alphaopt2
+        initial_state = triplets - chi_t * alphast2
+        final_state = singlets - chi_s * alphaopt2
         socs_complete = fetch(data, ["^soc_t.*s[1-9]"])
-        initial_state, final_state, chi_t, chi_s, gamma_s, gamma_t, socs_complete = reorder(
-            initial_state, final_state, chi_t, chi_s, gamma_s, gamma_t, socs_complete
+        initial_state, final_state, chi_t, chi_s, socs_complete = reorder(
+            initial_state, final_state, chi_t, chi_s, socs_complete
         )
         initial_state = initial_state[:, n_state]
         socs_complete = socs_complete[:, n_state, :]
         delta = final_state - initial_state[:, np.newaxis]
-        lambda_b = (alphast2 - alphaopt2) * (chi_s - gamma_s)
+        lambda_b = (alphast2 - alphaopt2) * chi_s
         final = [
             i.split("_")[2].upper()
             for i in data.columns.values
