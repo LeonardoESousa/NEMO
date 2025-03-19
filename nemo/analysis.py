@@ -810,16 +810,16 @@ def absorption(initial, dielec, data=None, save=False, detailed=False, nstates=-
     chis = chis[:, num:]
     gammas = gammas[:, num:]
     
-    lambda_b = (alphast2  - alphaopt2) * (chis - gammas)
+    lambda_b = (alphast2  - alphaopt2) * chis
 
     if initial == "s0":
         deltae_lambda = engs - gammas * alphast2 - chis * alphaopt2 - (ground - chi_s0 * alphast2)
 
     else:
         base = fetch(data, [rf"\be_{initial}\b"])
-        chi_i = chis[:,0]
-        gamma_i = gammas[:,0]
-        deltae_lambda = (engs - gammas * alphast2 - chis * alphaopt2) - (base - gamma_i[:,np.newaxis] * alphaopt2 - chi_i[:,np.newaxis] * alphast2 )
+        chi_i = fetch(data, [rf"\bchi_{initial}\b"])
+        gamma_i = fetch(data, [rf"\bgamma_{initial}\b"])
+        deltae_lambda = (engs - gammas * alphast2 - chis * alphaopt2) - (base - gamma_i[:,np.newaxis] * alphast2 - chi_i[:,np.newaxis] * alphast2 )
         
 
     # Sorting states by energy
