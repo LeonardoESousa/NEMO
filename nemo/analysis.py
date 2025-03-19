@@ -79,6 +79,8 @@ def analysis(files, n_state, get_energies):
             ss_t,
             e_s0,
             ground_pol,
+            y_s,
+            y_t,
         ) = get_energies("Geometries/" + file)
         singlets = np.array([singlets[:n_state]])
         triplets = np.array([triplets[:n_state]])
@@ -87,6 +89,8 @@ def analysis(files, n_state, get_energies):
         ss_t = np.array([ss_t[:n_state]])
         ind_s = np.array([ind_s[:n_state]])
         ind_t = np.array([ind_t[:n_state]])
+        y_s = np.array([y_s][:n_state])
+        y_t = np.array([y_t][:n_state])
         s0 = np.array([e_s0])
         ground_pol = np.array([ground_pol])
         try:
@@ -97,6 +101,8 @@ def analysis(files, n_state, get_energies):
             total_ss_t = np.vstack((total_ss_t, ss_t))
             total_ind_s = np.vstack((total_ind_s, ind_s))
             total_ind_t = np.vstack((total_ind_t, ind_t))
+            total_y_s = np.vstack((total_y_s, y_s))
+            total_y_t = np.vstack((total_y_t, y_t))
             total_s0 = np.vstack((total_s0, s0))
             total_ground_pol = np.append(total_ground_pol, ground_pol)
         except NameError:
@@ -107,6 +113,8 @@ def analysis(files, n_state, get_energies):
             total_ss_t = ss_t
             total_ind_s = ind_s
             total_ind_t = ind_t
+            total_y_s = y_s
+            total_y_t = y_t
             total_s0 = s0
             total_ground_pol = ground_pol
         numbers.append(int(file.split("-")[1]))
@@ -122,6 +130,8 @@ def analysis(files, n_state, get_energies):
         total_ground_pol,
         total_ind_s,
         total_ind_t,
+        total_y_s,
+        total_y_t,
     )
 
 
@@ -220,11 +230,16 @@ def gather_data(initial, save=True):
     e_s0,
     ground_pol,
     ind_s,
-    ind_t
+    ind_t,
+    y_s,
+    y_t,
         ) = analysis(files, total_states, get_energies[calculation_type])
     ss_s = ss_s/alphaopt1
     ss_t = ss_t/alphaopt1
+    y_s = y_s/alphast1
+    y_t = y_t/alphast1
     ground_pol = ground_pol/alphast1
+    
     #start dataframe with numbers as geometry column
     data = pd.DataFrame(numbers, columns=["geometry"])
 
@@ -240,6 +255,12 @@ def gather_data(initial, save=True):
     for i in range(ss_t.shape[1]):
         data[f"chi_t{i+1}"] = ss_t[:, i]
         formats[f"chi_t{i+1}"] = "{:.4f}"
+    for i in range(y_s.shape[1]):
+        data[f"gamma_s{i+1}"] = y_s[:, i]
+        formats[f"gamma_s{i+1}"] = "{:.4f}"
+    for i in range(y_t.shape[1]):
+        data[f"gamma_t{i+1}"] = y_t[:, i]
+        formats[f"gamma_t{i+1}"] = "{:.4f}"     
 
     data["e_g"] = e_s0
     formats["e_g"] = "{:.4f}"
@@ -493,7 +514,9 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
     #excited state susceptibilities
     chi_s = fetch(data, ["^chi_s(?!0)"])
     chi_t = fetch(data, ["^chi_t"])
-    
+    gamma_s = fetch(data, ["^gamma_s"])
+    gamma_t = fetch(data, ["^gamma_t"])
+
     #ground state susceptibility
     chi_s0 = data['chi_s0'].to_numpy()
     #fix dimension of chi_s0
@@ -509,7 +532,7 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
     energies = fetch(data, [f"^e_{initial[0]}"])
     
     
-    delta_emi_unsorted = energies - chi_s * alphast2 #- (ground - chi_s0 * alphaopt2) 
+    delta_emi_unsorted = energies - gamma_s * alphaopt2 - chi_s * alphast2 - (ground - chi_s0 * alphaopt2) 
     constante = (
         (refractive_index**2)
         * (E_CHARGE**2)
@@ -559,16 +582,16 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
     # Intersystem Crossing Rates
 
     if "s" in initial:
-        initial_state = singlets - chi_s * alphast2
-        final_state = triplets - chi_t * alphaopt2
+        initial_state = singlets - gamma_s * alphaopt2 - chi_s * alphast2
+        final_state = triplets - gamma_t * alphast2 - chi_t * alphaopt2
         socs_complete = fetch(data, ["^soc_s"])
-        initial_state, final_state, chi_s, chi_t, socs_complete = reorder(
-            initial_state, final_state, chi_s, chi_t, socs_complete
+        initial_state, final_state, chi_s, chi_t, gamma_s, gamma_t, socs_complete = reorder(
+            initial_state, final_state, chi_s, chi_t, gamma_s, gamma_t, socs_complete
         )
         initial_state = initial_state[:, n_state]
         socs_complete = socs_complete[:, n_state, :]
         delta = final_state - initial_state[:, np.newaxis]
-        lambda_b = (alphast2 - alphaopt2) * chi_t
+        lambda_b = (alphast2 - alphaopt2) * (chi_t - gamma_t)
         final = [
             i.split("_")[2].upper()
             for i in data.columns.values
@@ -583,16 +606,16 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
         # lambda_b = np.hstack((lambda_b,lambda_bt[:,indices]))
     elif "t" in initial:
         # Tn to Sm ISC
-        initial_state = triplets - chi_t * alphast2
-        final_state = singlets - chi_s * alphaopt2
+        initial_state = triplets - gamma_t * alphaopt2 - chi_t * alphast2
+        final_state = singlets - gamma_s * alphast2 - chi_s * alphaopt2
         socs_complete = fetch(data, ["^soc_t.*s[1-9]"])
-        initial_state, final_state, chi_t, chi_s, socs_complete = reorder(
-            initial_state, final_state, chi_t, chi_s, socs_complete
+        initial_state, final_state, chi_t, chi_s, gamma_s, gamma_t, socs_complete = reorder(
+            initial_state, final_state, chi_t, chi_s, gamma_s, gamma_t, socs_complete
         )
         initial_state = initial_state[:, n_state]
         socs_complete = socs_complete[:, n_state, :]
         delta = final_state - initial_state[:, np.newaxis]
-        lambda_b = (alphast2 - alphaopt2) * chi_s
+        lambda_b = (alphast2 - alphaopt2) * (chi_s - gamma_s)
         final = [
             i.split("_")[2].upper()
             for i in data.columns.values
@@ -771,6 +794,7 @@ def absorption(initial, dielec, data=None, save=False, detailed=False, nstates=-
     
     #excited state susceptibilities
     chis = fetch(data, [f"^chi_{spin}(?!0)"])
+    gammas = fetch(data, [f"^gamma_{spin}"])
 
     #oscillator strengths
     oscs = fetch(data, ["^osc_"])
@@ -784,16 +808,18 @@ def absorption(initial, dielec, data=None, save=False, detailed=False, nstates=-
     
     engs = engs[:, num:]
     chis = chis[:, num:]
+    gammas = gammas[:, num:]
     
-    lambda_b = (alphast2  - alphaopt2) * chis
+    lambda_b = (alphast2  - alphaopt2) * (chis - gammas)
 
     if initial == "s0":
-        deltae_lambda = engs - chis * alphaopt2 #- (ground - chi_s0 * alphast2)
+        deltae_lambda = engs - gammas * alphast2 - chis * alphaopt2 - (ground - chi_s0 * alphast2)
 
     else:
         base = fetch(data, [rf"\be_{initial}\b"])
         chi_i = chis[:,0]
-        deltae_lambda = (engs - chis * alphaopt2) - (base - chi_i[:,np.newaxis] * alphast2 )
+        gamma_i = gammas[:,0]
+        deltae_lambda = (engs - gammas * alphast2 - chis * alphaopt2) - (base - gamma_i[:,np.newaxis] * alphaopt2 - chi_i[:,np.newaxis] * alphast2 )
         
 
     # Sorting states by energy
