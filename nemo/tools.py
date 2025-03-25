@@ -435,7 +435,7 @@ def susceptibility_check(file, tuning=False):
     else:
         chi_symbol = '\u03C7(eV)'
         # Print header with aligned columns
-        print(fr"{'State':<6} {'E_vac(eV)':<12} {chi_symbol:<10} {"Y":<10}")
+        print(fr"{'State':<6} {'E_vac(eV)':<12} {chi_symbol:<10} {'Y(eV)':<10}")
         
         print(f"S{0:<5} {0:<12.3f} {chi_g:<10.3f} {0:<10.3f}")
 

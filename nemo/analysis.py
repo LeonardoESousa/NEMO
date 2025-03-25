@@ -798,6 +798,7 @@ def absorption(initial, dielec, data=None, save=False, detailed=False, nstates=-
 
     #oscillator strengths
     oscs = fetch(data, ["^osc_"])
+    print('OSCS', oscs.shape)
 
     constante = (
         (np.pi * (E_CHARGE**2) * HBAR_EV)
@@ -820,7 +821,7 @@ def absorption(initial, dielec, data=None, save=False, detailed=False, nstates=-
         chi_i = fetch(data, [rf"\bchi_{initial}\b"])
         gamma_i = fetch(data, [rf"\bgamma_{initial}\b"])
         deltae_lambda = (engs - gammas * alphast2 - chis * alphaopt2) - (base - gamma_i * alphast2 - chi_i * alphast2 )
-        print(base.shape, gamma_i.shape, chi_i.shape, deltae_lambda.shape)
+        print(base.shape, gamma_i.shape, chi_i.shape, deltae_lambda.shape, oscs.shape)
 
     # Sorting states by energy
     deltae_lambda, oscs, lambda_b = sorting_parameters(
