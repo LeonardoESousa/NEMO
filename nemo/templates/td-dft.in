@@ -2,6 +2,7 @@
 cis_n_roots             {num_ex}
 cis_singlets            true
 cis_triplets            true
+STS_MOM                 true
 MAX_CIS_CYCLES          200
 MAX_SCF_CYCLES          200
 $end
@@ -24,7 +25,6 @@ cis_n_roots             {num_ex}
 cis_singlets            true
 cis_triplets            true
 calc_soc                {soc}
-STS_MOM                 true
 CIS_RELAXED_DENSITY     TRUE
 solvent_method          PCM
 MAX_CIS_CYCLES          200
