@@ -620,6 +620,7 @@ def pega_oscs(files, indices, initial):
                 if frase in line:
                     oscs = []
                     dip = True
+                    check = False
                 elif dip and "--" not in line:
                     if 'States' not in line:
                         check = True

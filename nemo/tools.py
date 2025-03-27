@@ -535,7 +535,7 @@ class Watcher:
                                 self.done.append(input_file)
                                 self.files.remove(input_file)
                                 break
-                        elif "fatal error" in line:
+                        elif "fatal error" in line or "Q-Chem error" in line:
                             self.error.append(input_file)
                             self.files.remove(input_file)
                             break
