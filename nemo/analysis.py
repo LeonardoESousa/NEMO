@@ -237,8 +237,8 @@ def gather_data(initial, save=True):
     ss_s = ss_s/alphaopt1
     ss_t = ss_t/alphaopt1
     chi_s0 = ground_pol/alphast1
-    gamma_s = chi_s0 - y_s/alphast1
-    gamma_t = chi_s0 - y_t/alphast1
+    gamma_s = chi_s0[:, np.newaxis] - y_s/alphast1
+    gamma_t = chi_s0[:, np.newaxis] - y_t/alphast1
     
     #start dataframe with numbers as geometry column
     data = pd.DataFrame(numbers, columns=["geometry"])
@@ -388,10 +388,11 @@ def export_results(data, emission, dielec):
 #######################################################################################
 
 
-def reorder(initial_state, final_state, ss_i, ss_f, socs):
+def reorder(initial_state, final_state, ss_i, ss_f, gamma_i, gamma_f, socs):
     argsort = np.argsort(initial_state, axis=1)
     initial_state = np.take_along_axis(initial_state, argsort, axis=1)
     ss_i = np.take_along_axis(ss_i, argsort, axis=1)
+    gamma_i = np.take_along_axis(gamma_i, argsort, axis=1)
     corredor = int(np.sqrt(socs.shape[1]))
     socs_complete = socs.reshape((socs.shape[0], corredor, corredor))
     for j in range(socs_complete.shape[1]):
@@ -401,11 +402,12 @@ def reorder(initial_state, final_state, ss_i, ss_f, socs):
     argsort = np.argsort(final_state, axis=1)
     final_state = np.take_along_axis(final_state, argsort, axis=1)
     ss_f = np.take_along_axis(ss_f, argsort, axis=1)
+    gamma_f = np.take_along_axis(gamma_f, argsort, axis=1)
     for j in range(socs_complete.shape[1]):
         socs_complete[:, :, j] = np.take_along_axis(
             socs_complete[:, :, j], argsort, axis=1
         )
-    return initial_state, final_state, ss_i, ss_f, socs_complete
+    return initial_state, final_state, ss_i, ss_f, gamma_i, gamma_f, socs_complete
 
 
 def fix_absent_soc(data):
@@ -609,8 +611,8 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
         initial_state = triplets - chi_t * alphast2 + gamma_t * alphaopt2
         final_state = singlets - chi_s * alphaopt2 + gamma_s * alphast2
         socs_complete = fetch(data, ["^soc_t.*s[1-9]"])
-        initial_state, final_state, chi_t, chi_s, gamma_s, gamma_t, socs_complete = reorder(
-            initial_state, final_state, chi_t, chi_s, gamma_s, gamma_t, socs_complete
+        initial_state, final_state, chi_t, chi_s, gamma_t, gamma_s, socs_complete = reorder(
+            initial_state, final_state, chi_t, chi_s, gamma_t, gamma_s, socs_complete
         )
         initial_state = initial_state[:, n_state]
         socs_complete = socs_complete[:, n_state, :]
