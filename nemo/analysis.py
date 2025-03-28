@@ -237,8 +237,8 @@ def gather_data(initial, save=True):
     ss_s = ss_s/alphaopt1
     ss_t = ss_t/alphaopt1
     chi_s0 = ground_pol/alphast1
-    gamma_s = chi_s0[:, np.newaxis] - y_s/alphast1
-    gamma_t = chi_s0[:, np.newaxis] - y_t/alphast1
+    gamma_s = y_s/alphast1
+    gamma_t = y_t/alphast1
     
     #start dataframe with numbers as geometry column
     data = pd.DataFrame(numbers, columns=["geometry"])
@@ -542,11 +542,13 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
     if "t" in initial:
         constante *= 1 / 3
         delta_emi_unsorted = energies - gamma_t * alphaopt2 - chi_t * alphast2 - (ground - chi_s0 * alphaopt2)
+        #reorganization energy
+        lambda_be = (alphast2 - alphaopt2) * (chi_s0 + gamma_t)
     else:
         delta_emi_unsorted = energies - gamma_s * alphaopt2 - chi_s * alphast2 - (ground - chi_s0 * alphaopt2)
+        #reorganization energy
+        lambda_be = (alphast2 - alphaopt2) * (chi_s0 + gamma_s)
     
-    #reorganization energy
-    lambda_be = (alphast2 - alphaopt2) * (chi_s0 + gamma_s)
     #make dimensions match
     lambda_be = np.repeat(lambda_be, energies.shape[1], axis=1)
 
