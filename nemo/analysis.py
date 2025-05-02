@@ -507,7 +507,7 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
     eps, refractive_index = dielec[0], dielec[1]
     alphast2 = nemo.tools.get_alpha(eps)
     alphaopt2 = nemo.tools.get_alpha(refractive_index**2)
-    alphamix2 = (refractive_index**2 -1)/(eps - 1)
+    alphamix2 = (refractive_index**2 -1)/(eps + 1)
     
     #excited state energies
     singlets = fetch(data, ["^e_s"])
@@ -780,7 +780,7 @@ def absorption(initial, dielec, data=None, save=False, detailed=False, nstates=-
     eps, refractive_index = dielec[0], dielec[1]
     alphast2 = nemo.tools.get_alpha(eps)
     alphaopt2 = nemo.tools.get_alpha(refractive_index**2)
-    alphamix2 = (refractive_index**2 -1)/(eps - 1)
+    alphamix2 = (refractive_index**2 -1)/(eps + 1)
 
     initial = initial.lower()
     spin = initial[0]
