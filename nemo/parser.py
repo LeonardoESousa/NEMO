@@ -1,4 +1,5 @@
 import sys
+import re
 import numpy as np
 
 ##SOME CONSTANTS##############################################
@@ -184,7 +185,7 @@ def pega_modos(G, freqlog):
 
 def parse_block(block, collect_corrections=False):
     """
-    Parses a calculation block from a quantum chemistry log file.
+    Parses a calculation block from a quantum chemistry log file, including composition.
 
     Parameters:
         block (str): The text block corresponding to one calculation.
@@ -192,7 +193,7 @@ def parse_block(block, collect_corrections=False):
 
     Returns:
         dict: Contains excited-state energies, spins, oscillator strengths, state indices,
-              corrections, and total energies.
+              corrections, total energies, and composition.
     """
     data = {
         'energies': [],
@@ -201,10 +202,12 @@ def parse_block(block, collect_corrections=False):
         'indices': [],
         'correction': [],
         'correction2': [],
-        'total_energy': []
+        'total_energy': [],
+        'composition': [],
     }
-    exc = False  # Flag to indicate that we are within an excited state section.
+    exc = False  # Flag for excited state section.
     corr = False # Flag for PCM correction section.
+    current_comp = None  # To hold composition dict for each state.
 
     for line in block.splitlines():
         # Start a new excited state section.
@@ -213,26 +216,47 @@ def parse_block(block, collect_corrections=False):
             data['spins'] = []
             data['oscillator'] = []
             data['indices'] = []
+            data['composition'] = []
             exc = True
         elif exc:
             if "Excited state" in line:
+                # Save previous state's composition before starting a new one
+                if current_comp is not None:
+                    data['composition'].append(current_comp)
+                current_comp = {}  # Start a new composition dict
+
                 parts = line.split()
                 state_index = int(parts[2].replace(":", ""))
                 data['indices'].append(state_index)
+
             elif "Total energy for state" in line:
-                # Multiply by conversion factor to eV immediately.
                 energy_val = float(line.split()[-2]) * 27.21139
                 data['energies'].append(energy_val)
+
             elif "Multiplicity" in line:
                 data['spins'].append(line.split()[-1])
+
             elif "Strength" in line:
                 osc_val = float(line.split()[-1])
                 data['oscillator'].append(osc_val)
-            # End of the excited state section.
+
+            elif re.match(r'\s*X:\s*D\(', line):
+                # Composition line: parse D, V, amplitude
+                match = re.search(r'D\(\s*(\d+)\)\s*-->\s*V\(\s*(\d+)\)\s*amplitude\s*=\s*([-\d\.Ee]+)', line)
+                if match:
+                    d_idx = int(match.group(1))
+                    v_idx = int(match.group(2))
+                    amp = float(match.group(3))
+                    current_comp[(d_idx, v_idx)] = amp
+
             elif "---------------------------------------------------" in line and len(data['energies']) > 0:
+                # End of excited state section: append last composition
+                if current_comp is not None:
+                    data['composition'].append(current_comp)
+                    current_comp = None
                 exc = False
 
-        # PCM correction information.
+        # PCM correction info
         if collect_corrections:
             if "Excited-state properties with   relaxed density" in line:
                 corr = True
@@ -246,11 +270,16 @@ def parse_block(block, collect_corrections=False):
                 if "------------------------ END OF SUMMARY -----------------------" in line:
                     corr = False
 
-        # Total energy in the final basis set.
+        # Total energy in final basis set
         if "Total energy" in line and "=" in line:
             parts = line.split()
             data['total_energy'].append(float(parts[-1]) * 27.21139)
-            
+
+    # If the last state's composition wasn't added yet
+    if current_comp is not None:
+        data['composition'].append(current_comp)
+
+    # Postprocessing
     spins = np.array(data['spins'])
     singlet_idx = np.where(spins == "Singlet")[0]
     triplet_idx = np.where(spins == "Triplet")[0]
@@ -259,12 +288,58 @@ def parse_block(block, collect_corrections=False):
     data['singlets'] = np.array(data['energies'])[singlet_idx]
     data['triplets'] = np.array(data['energies'])[triplet_idx]
     data['osc_singlets'] = np.array(data['oscillator'])[singlet_idx]
+    data['comp_singlets'] = np.array(data['composition'])[singlet_idx]
+    data['comp_triplets'] = np.array(data['composition'])[triplet_idx]
+    del data['composition']
     if collect_corrections:
         data['ss_s'] = np.array(data['correction'])[singlet_idx] + np.array(data['correction2'])[singlet_idx]
         data['ss_t'] = np.array(data['correction'])[triplet_idx] + np.array(data['correction2'])[triplet_idx]
     data['len'] = len(data['energies']) // 2
-    
+
     return data
+
+
+def compute_similarity(comp1, comp2):
+    """
+    Compute cosine similarity between two compositions (dict of (D,V): amplitude).
+    Only overlapping keys are compared.
+    """
+    keys = set(comp1.keys()) & set(comp2.keys())
+    if not keys:
+        return 0.0
+    v1 = np.array([comp1[k] for k in keys])**2
+    v2 = np.array([comp2[k] for k in keys])**2
+    return np.dot(v1, v2)
+
+def match_compositions(comp_singlets_1, comp_singlets_2):
+    """
+    Matches each state in comp_singlets_1 to a unique state in comp_singlets_2
+    by highest composition similarity (greedy one-to-one match, always assigns).
+
+    Parameters:
+        comp_singlets_1: array/list of dicts for case 1
+        comp_singlets_2: array/list of dicts for case 2
+
+    Returns:
+        list of indices: index i gives index in comp_singlets_2 matching state i in comp_singlets_1
+    """
+    available = list(range(len(comp_singlets_1)))  # indices of available states in comp_singlets_2
+    match_indices = []
+
+    for comp1 in comp_singlets_1:
+        best_idx = available[0]  # fallback: pick first available
+        best_sim = -1
+        for j in available:
+            sim = compute_similarity(comp1, comp_singlets_2[j])
+            #print(f"Comparing {comp2} with {comp_singlets_1[j]}: similarity = {sim}")
+            if sim > best_sim:
+                best_sim = sim
+                best_idx = j
+        match_indices.append(best_idx)
+        available.remove(best_idx)
+
+    return match_indices
+
 
 def pega_energias(file):
     """
@@ -303,21 +378,24 @@ def pega_energias(file):
     # Parse the vacuum (first) and PCM-corrected (second) calculation blocks.
     vac_data = parse_block(blocks[0], collect_corrections=False)
     corr_data = parse_block(blocks[1], collect_corrections=True)
-
     min_len = min(vac_data['len'], corr_data['len'])
-     
+    match_singlets = match_compositions(vac_data['comp_singlets'][:min_len], corr_data['comp_singlets'][:min_len])
+    match_triplets = match_compositions(vac_data['comp_triplets'][:min_len], corr_data['comp_triplets'][:min_len])
+    
+    
     singlets_vac = vac_data['singlets'][:min_len]
     triplets_vac = vac_data['triplets'][:min_len]
-    singlets_pcm = corr_data['singlets'][:min_len]
-    triplets_pcm = corr_data['triplets'][:min_len]
+    singlets_pcm = corr_data['singlets'][match_singlets][:min_len]
+    triplets_pcm = corr_data['triplets'][match_triplets][:min_len]
+    
     oscs = vac_data['osc_singlets'][:min_len]
-    ind_s = corr_data['ind_s'][:min_len]
-    ind_t = corr_data['ind_t'][:min_len]
+    ind_s = vac_data['ind_s'][:min_len]
+    ind_t = vac_data['ind_t'][:min_len]
     s0_vac = vac_data['total_energy'][0]
     s0_pcm = corr_data['total_energy'][0]
     s0_corr = s0_vac - s0_pcm
-    ss_s = corr_data['ss_s'][:min_len]
-    ss_t = corr_data['ss_t'][:min_len]
+    ss_s = corr_data['ss_s'][match_singlets][:min_len]
+    ss_t = corr_data['ss_t'][match_triplets][:min_len]
     y_s = (singlets_vac - s0_vac) - (singlets_pcm - s0_pcm)
     y_t = (triplets_vac - s0_vac) - (triplets_pcm - s0_pcm)
     y_s[y_s < 0] = 0
