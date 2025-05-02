@@ -237,8 +237,8 @@ def gather_data(initial, save=True):
     ss_s = ss_s/alphaopt1
     ss_t = ss_t/alphaopt1
     chi_s0 = ground_pol/alphast1
-    gamma_s = y_s/alphast1
-    gamma_t = y_t/alphast1
+    gamma_s = y_s * (eps_i+1)/(nr_i**2 -1)
+    gamma_t = y_t * (eps_i+1)/(nr_i**2 -1)
     
     #start dataframe with numbers as geometry column
     data = pd.DataFrame(numbers, columns=["geometry"])
@@ -507,12 +507,12 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
     eps, refractive_index = dielec[0], dielec[1]
     alphast2 = nemo.tools.get_alpha(eps)
     alphaopt2 = nemo.tools.get_alpha(refractive_index**2)
+    alphamix2 = (refractive_index**2 -1)/(eps - 1)
     
     #excited state energies
     singlets = fetch(data, ["^e_s"])
     triplets = fetch(data, ["^e_t"])
-    ground = fetch(data, ["^e_g"])
-
+    
     #excited state susceptibilities
     chi_s = fetch(data, ["^chi_s(?!0)"])
     chi_t = fetch(data, ["^chi_t"])
@@ -541,9 +541,9 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
     )
     if "t" in initial:
         constante *= 1 / 3
-        delta_emi_unsorted = (energies - ground) - chi_t * alphast2 + gamma_t * alphaopt2 
+        delta_emi_unsorted = energies - chi_t * alphast2 - gamma_t * alphamix2 
     else:
-        delta_emi_unsorted = (energies - ground) - chi_s * alphast2 + gamma_s * alphaopt2 
+        delta_emi_unsorted = energies - chi_s * alphast2 - gamma_s * alphamix2 
     #reorganization energy
     lambda_be = (alphast2 - alphaopt2) * chi_s0    
     #make dimensions match
@@ -583,8 +583,8 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
     # Intersystem Crossing Rates
 
     if "s" in initial:
-        initial_state = singlets - chi_s * alphast2 + gamma_s * alphaopt2 
-        final_state = triplets - chi_t * alphaopt2  + gamma_t * alphast2
+        initial_state = singlets - chi_s * alphast2 - gamma_s * alphamix2 
+        final_state = triplets - chi_t * alphaopt2  + gamma_t * alphamix2
         socs_complete = fetch(data, ["^soc_s"])
         initial_state, final_state, chi_s, chi_t, gamma_s, gamma_t, socs_complete = reorder(
             initial_state, final_state, chi_s, chi_t, gamma_s, gamma_t, socs_complete
@@ -592,7 +592,7 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
         initial_state = initial_state[:, n_state]
         socs_complete = socs_complete[:, n_state, :]
         delta = final_state - initial_state[:, np.newaxis]
-        lambda_b = (alphast2 - alphaopt2) * ( chi_t + gamma_t ) 
+        lambda_b = (alphast2 - alphaopt2) * chi_t + 2 * gamma_t * alphamix2 
         final = [
             i.split("_")[2].upper()
             for i in data.columns.values
@@ -607,8 +607,8 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
         # lambda_b = np.hstack((lambda_b,lambda_bt[:,indices]))
     elif "t" in initial:
         # Tn to Sm ISC
-        initial_state = triplets - chi_t * alphast2 + gamma_t * alphaopt2
-        final_state = singlets - chi_s * alphaopt2 + gamma_s * alphast2
+        initial_state = triplets - chi_t * alphast2 - gamma_t * alphamix2
+        final_state = singlets - chi_s * alphaopt2 + gamma_s * alphamix2
         socs_complete = fetch(data, ["^soc_t.*s[1-9]"])
         initial_state, final_state, chi_t, chi_s, gamma_t, gamma_s, socs_complete = reorder(
             initial_state, final_state, chi_t, chi_s, gamma_t, gamma_s, socs_complete
@@ -616,7 +616,7 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
         initial_state = initial_state[:, n_state]
         socs_complete = socs_complete[:, n_state, :]
         delta = final_state - initial_state[:, np.newaxis]
-        lambda_b = (alphast2 - alphaopt2) * (chi_s + gamma_s)
+        lambda_b = (alphast2 - alphaopt2) * chi_s + 2 * gamma_s * alphamix2
         final = [
             i.split("_")[2].upper()
             for i in data.columns.values
@@ -780,7 +780,8 @@ def absorption(initial, dielec, data=None, save=False, detailed=False, nstates=-
     eps, refractive_index = dielec[0], dielec[1]
     alphast2 = nemo.tools.get_alpha(eps)
     alphaopt2 = nemo.tools.get_alpha(refractive_index**2)
-    
+    alphamix2 = (refractive_index**2 -1)/(eps - 1)
+
     initial = initial.lower()
     spin = initial[0]
     num = int(initial[1:])
@@ -791,7 +792,6 @@ def absorption(initial, dielec, data=None, save=False, detailed=False, nstates=-
     #ground state susceptibility
     chi_s0 = data['chi_s0'].to_numpy()
     chi_s0 = chi_s0[:, np.newaxis]
-    ground = fetch(data, ["^e_g"])
     
     #excited state susceptibilities
     chis = fetch(data, [f"^chi_{spin}(?!0)"])
@@ -811,17 +811,17 @@ def absorption(initial, dielec, data=None, save=False, detailed=False, nstates=-
     chis = chis[:, num:]
     gammas = gammas[:, num:]
     
-    lambda_b = (alphast2  - alphaopt2) * (chis + gammas)
+    lambda_b = (alphast2  - alphaopt2) * chis + 2 * gammas * alphamix2
 
     if initial == "s0":
-        deltae_lambda = (engs - ground) - gammas * alphast2 - chis * alphaopt2 
+        deltae_lambda = engs - chis * alphaopt2 + gammas * alphamix2 
 
     else:
         base = fetch(data, [rf"\be_{initial}\b"])
         chi_i = fetch(data, [rf"\bchi_{initial}\b"])
         gamma_i = fetch(data, [rf"\bgamma_{initial}\b"])
-        initial_state = base - chi_i * alphast2 + gamma_i * alphaopt2
-        final_state = engs - chis * alphaopt2 + gammas * alphast2
+        initial_state = base - chi_i * alphast2 - gamma_i * alphamix2
+        final_state = engs - chis * alphaopt2 + gammas * alphamix2
         deltae_lambda = final_state - initial_state
 
     # Sorting states by energy

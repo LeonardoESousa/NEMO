@@ -415,7 +415,7 @@ def fetch_nr(file):
 
 def susceptibility_check(file, tuning=False):
     # Fetch energy levels and other data
-    es, et, _, _, _, ss_s, ss_t, e_g, ss_g, y_s, y_t = nemo.parser.pega_energias(file)
+    s_vac, t_vac, _, _, _, ss_s, ss_t, e_g, ss_g, y_s, y_t = nemo.parser.pega_energias(file)
     
     eps, nr = fetch_nr(file)
     
@@ -425,13 +425,12 @@ def susceptibility_check(file, tuning=False):
     chi_t = ss_t / alpha_opt
     alpha_st = (eps - 1) / (eps + 1)
     chi_g = ss_g / alpha_st
-    y_s = y_s / alpha_st
-    y_t = y_t / alpha_st
-    s_vac = es - e_g
-    t_vac = et - e_g
-
+    alpha_mix = (nr**2 -1) / (eps + 1)
+    y_s = y_s / alpha_mix
+    y_t = y_t / alpha_mix
+    
     if tuning:
-        return es[0], chi_s[0]
+        return s_vac[0], chi_s[0]
     else:
         chi_symbol = '\u03C7(eV)'
         # Print header with aligned columns

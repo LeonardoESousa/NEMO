@@ -229,8 +229,8 @@ def parse_block(block, collect_corrections=False):
                 state_index = int(parts[2].replace(":", ""))
                 data['indices'].append(state_index)
 
-            elif "Total energy for state" in line:
-                energy_val = float(line.split()[-2]) * 27.21139
+            elif "excitation energy (eV)" in line:
+                energy_val = float(line.split()[-1])
                 data['energies'].append(energy_val)
 
             elif "Multiplicity" in line:
@@ -396,10 +396,8 @@ def pega_energias(file):
     s0_corr = s0_vac - s0_pcm
     ss_s = corr_data['ss_s'][match_singlets][:min_len]
     ss_t = corr_data['ss_t'][match_triplets][:min_len]
-    y_s = (singlets_vac - s0_vac) - (singlets_pcm - s0_pcm)
-    y_t = (triplets_vac - s0_vac) - (triplets_pcm - s0_pcm)
-    y_s[y_s < 0] = 0
-    y_t[y_t < 0] = 0  
+    y_s = (singlets_pcm - singlets_vac)
+    y_t = (triplets_pcm - triplets_vac)
     return singlets_vac, triplets_vac, oscs, ind_s, ind_t, ss_s, ss_t, s0_vac, s0_corr, y_s, y_t
 
 #########################################################################################
