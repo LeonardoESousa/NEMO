@@ -549,11 +549,11 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
     )
     if "t" in initial:
         constante *= 1 / 3
-        delta_emi_unsorted = -1 * delta_neq(0, energies, gamma_s0, gamma_t, gamma_s0, chi_t, alphaopt2, alphast2) 
+        delta_emi_unsorted = -1 * delta_neq(0, energies, gamma_s0, gamma_t, 0, chi_t, alphaopt2, alphast2) 
         #reorganization energy
         lambda_be = lambda_solvent(gamma_s0, alphaopt2, alphast2)
     elif "s" in initial:    
-        delta_emi_unsorted = -1 * delta_neq(0, energies, gamma_s0, gamma_s, gamma_s0, chi_s, alphaopt2, alphast2)
+        delta_emi_unsorted = -1 * delta_neq(0, energies, gamma_s0, gamma_s, 0, chi_s, alphaopt2, alphast2)
         #reorganization energy
         lambda_be = lambda_solvent(gamma_s0, alphaopt2, alphast2)
     #make dimensions match
@@ -823,7 +823,7 @@ def absorption(initial, dielec, data=None, save=False, detailed=False, nstates=-
     lambda_b = lambda_solvent(chis, alphaopt2, alphast2)
 
     if initial == "s0":
-        deltae_lambda = delta_neq(engs, 0, gammas, gamma_s0, chis, gamma_s0, alphaopt2, alphast2) 
+        deltae_lambda = delta_neq(engs, 0, gammas, gamma_s0, chis, 0, alphaopt2, alphast2) 
 
     else:
         base = fetch(data, [rf"\be_{initial}\b"])

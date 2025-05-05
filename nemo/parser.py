@@ -392,7 +392,7 @@ def pega_energias(file):
     ind_t = vac_data['ind_t'][:min_len]
     s0_vac = vac_data['total_energy'][0]
     s0_pcm = corr_data['total_energy'][0]
-    s0_corr = (s0_vac - s0_pcm)/2
+    s0_corr = s0_vac - s0_pcm
     ss_s = corr_data['ss_s'][match_singlets][:min_len]
     ss_t = corr_data['ss_t'][match_triplets][:min_len]
     y_s = (singlets_vac - singlets_pcm) + s0_corr 
