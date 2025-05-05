@@ -551,11 +551,11 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
         constante *= 1 / 3
         delta_emi_unsorted = -1 * delta_neq(0, energies, gamma_s0, gamma_t, 0, chi_t, alphaopt2, alphast2) 
         #reorganization energy
-        lambda_be = lambda_solvent(gamma_s0, alphaopt2, alphast2)
+        lambda_be = lambda_solvent(chi_t, alphaopt2, alphast2)
     elif "s" in initial:    
         delta_emi_unsorted = -1 * delta_neq(0, energies, gamma_s0, gamma_s, 0, chi_s, alphaopt2, alphast2)
         #reorganization energy
-        lambda_be = lambda_solvent(gamma_s0, alphaopt2, alphast2)
+        lambda_be = lambda_solvent(chi_s, alphaopt2, alphast2)
     #make dimensions match
     lambda_be = np.repeat(lambda_be, energies.shape[1], axis=1)
 
