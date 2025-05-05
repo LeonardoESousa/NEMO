@@ -501,12 +501,8 @@ def delta_neq(e_f, e_i, gamma_f, gamma_i, chi_f, chi_i, alphaopt, alphast):
     delta = e_f - e_i + (gamma_i - gamma_f) * alphast - chi_f * alphaopt + chi_i * alphast
     return delta
 
-def delta_eq(e_f, e_i, gamma_f, gamma_i, chi_f, chi_i, alphaopt, alphast):
-    delta = e_f - e_i + (gamma_i + gamma_f) * alphaopt - 2 * gamma_f * alphast - chi_f * alphast + chi_i * alphaopt
-    return delta
-
-def lambda_solvent(chi_f, chi_i, gamma_f, gamma_i, alphaopt, alphast):
-    lambda_b =  (chi_f + chi_i + gamma_i + gamma_f) * (alphast - alphaopt)
+def lambda_solvent(chi_f, alphaopt, alphast):
+    lambda_b = chi_f * (alphast - alphaopt)
     return lambda_b
 
 ###CALCULATES ISC AND EMISSION RATES & SPECTRA#########################################
@@ -553,16 +549,15 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
     )
     if "t" in initial:
         constante *= 1 / 3
-        
-        delta_emi_unsorted = delta_eq(energies, 0, gamma_s0, gamma_t, 0, chi_t, alphaopt2, alphast2) 
+        delta_emi_unsorted = -1 * delta_neq(0, energies, gamma_s0, gamma_t, 0, chi_t, alphaopt2, alphast2) 
         #reorganization energy
-        lambda_be = lambda_solvent(0, chi_t, gamma_s0, gamma_t, alphaopt2, alphast2)
-    else:
-        delta_emi_unsorted = delta_eq(energies, 0, gamma_s0, gamma_s, 0, chi_s, alphaopt2, alphast2)
+        lambda_be = lambda_solvent(gamma_s0, alphaopt2, alphast2)
+    elif "s" in initial:    
+        delta_emi_unsorted = -1 * delta_neq(0, energies, gamma_s0, gamma_s, 0, chi_s, alphaopt2, alphast2)
         #reorganization energy
-        lambda_be = lambda_solvent(0, chi_s, gamma_s0, gamma_s, alphaopt2, alphast2)
+        lambda_be = lambda_solvent(gamma_s0, alphaopt2, alphast2)
     #make dimensions match
-    #lambda_be = np.repeat(lambda_be, energies.shape[1], axis=1)
+    lambda_be = np.repeat(lambda_be, energies.shape[1], axis=1)
 
     oscs = fetch(data, ["^osce_"])
     delta_emi, oscs, lambda_be = sorting_parameters(delta_emi_unsorted, oscs, lambda_be)
@@ -607,7 +602,7 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
         initial_state = initial_state[:, n_state]
         socs_complete = socs_complete[:, n_state, :]
         delta = final_state - initial_state[:, np.newaxis]
-        lambda_b = lambda_solvent(chi_t, chi_s, gamma_t, gamma_s, alphaopt2, alphast2) 
+        lambda_b = lambda_solvent(chi_t, alphaopt2, alphast2) 
         final = [
             i.split("_")[2].upper()
             for i in data.columns.values
@@ -631,7 +626,7 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
         initial_state = initial_state[:, n_state]
         socs_complete = socs_complete[:, n_state, :]
         delta = final_state - initial_state[:, np.newaxis]
-        lambda_b = lambda_solvent(chi_s, chi_t, gamma_s, gamma_t, alphaopt2, alphast2)
+        lambda_b = lambda_solvent(chi_s, alphaopt2, alphast2)
         final = [
             i.split("_")[2].upper()
             for i in data.columns.values
@@ -825,7 +820,7 @@ def absorption(initial, dielec, data=None, save=False, detailed=False, nstates=-
     chis = chis[:, num:]
     gammas = gammas[:, num:]
     
-    lambda_b = lambda_solvent(chis, 0, gammas, gamma_s0, alphaopt2, alphast2)
+    lambda_b = lambda_solvent(chis, alphaopt2, alphast2)
 
     if initial == "s0":
         deltae_lambda = delta_neq(engs, 0, gammas, gamma_s0, chis, 0, alphaopt2, alphast2) 
