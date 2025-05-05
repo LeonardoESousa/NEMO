@@ -435,7 +435,7 @@ def susceptibility_check(file, tuning=False):
         # Print header with aligned columns
         print(fr"{'State':<6} {'E_vac(eV)':<12} {chi_symbol:<10} {'Y(eV)':<10}")
         
-        print(f"S{0:<5} {0:<12.3f} {0:<10.3f} {y_g:<10.3f}")
+        print(f"S{0:<5} {0:<12.3f} {y_g:<10.3f} {y_g:<10.3f}")
 
         # Print singlet states
         for i, (e, chi, y) in enumerate(zip(s_vac, chi_s, y_s), start=1):
