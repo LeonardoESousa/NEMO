@@ -218,10 +218,6 @@ def parse_block(block, collect_corrections=False):
             data['indices'] = []
             data['composition'] = []
             exc = True
-        elif "Dielectric" in line and "Optical" not in line:
-            data['epsilon'] = float(line.split()[-1])
-        elif "OpticalDielectric" in line:
-            data['optical'] = float(line.split()[-1])    
         elif exc:
             if "Excited state" in line:
                 # Save previous state's composition before starting a new one
@@ -399,12 +395,10 @@ def pega_energias(file):
     s0_corr = s0_vac - s0_pcm
     ss_s = corr_data['ss_s'][match_singlets][:min_len]
     ss_t = corr_data['ss_t'][match_triplets][:min_len]
-    y_s = (singlets_vac - singlets_pcm) + s0_corr * (corr_data['epsilon'] -1)/(corr_data['epsilon'] + 1)
-    y_t = (triplets_vac - triplets_pcm) + s0_corr * (corr_data['epsilon'] -1)/(corr_data['epsilon'] + 1)
+    y_s = (singlets_vac - singlets_pcm) + s0_corr 
+    y_t = (triplets_vac - triplets_pcm) + s0_corr 
     y_s[y_s < 0] = 0
     y_t[y_t < 0] = 0
-    ss_s = ss_s + y_s
-    ss_t = ss_t + y_t
     return singlets_vac, triplets_vac, oscs, ind_s, ind_t, ss_s, ss_t, s0_vac, s0_corr, y_s, y_t
 
 #########################################################################################
