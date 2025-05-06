@@ -265,7 +265,7 @@ def setup_ensemble():
         num_ex = int(num_ex)
     except ValueError:
         nemo.parser.fatal_error("This must be a number! Better luck next time!")
-    abs_only = input("Are you interested in absorption spectra ONLY? (y or n)\n")
+    abs_only = input("Are you interested in absorption/fluorescence spectra ONLY? (y or n)\n")
     if abs_only.lower() == "y":
         print(
             ("Ok, calculations will only be suitable for absorption "
