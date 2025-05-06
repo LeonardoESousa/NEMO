@@ -293,7 +293,7 @@ def parse_block(block, collect_corrections=False):
     if collect_corrections:
         data['ss_s'] = np.array(data['correction'])[singlet_idx] + np.array(data['correction2'])[singlet_idx]
         data['ss_t'] = np.array(data['correction'])[triplet_idx] + np.array(data['correction2'])[triplet_idx]
-    data['len'] = len(data['energies']) // 2
+    data['len'] = len(data['singlets'])
 
     return data
 
@@ -330,7 +330,6 @@ def match_compositions(comp_singlets_1, comp_singlets_2):
         best_sim = -1
         for j in available:
             sim = compute_similarity(comp1, comp_singlets_2[j])
-            #print(f"Comparing {comp2} with {comp_singlets_1[j]}: similarity = {sim}")
             if sim > best_sim:
                 best_sim = sim
                 best_idx = j
