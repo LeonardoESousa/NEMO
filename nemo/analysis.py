@@ -423,6 +423,19 @@ def fix_absent_soc(data):
                 data[f"soc_{singlet}_{triplet}"] = 0
     return data
 
+def fix_absent_triplets(data):
+    columns = data.columns.values
+    # check if at least one column contains t_
+    if any("t_" in i for i in columns):
+        return data
+    else:
+        singlets = [i.split("_")[1] for i in columns if "e_s" in i and "osc" not in i]
+        for singlet in singlets:
+            data[f"e_t{singlet[1:]}"] = 0
+            data[f"chi_t{singlet[1:]}"] = 0
+            data[f"gamma_t{singlet[1:]}"] = 0
+    return data
+
 
 def x_values(mean, std):
     left = max(np.min(mean - 2 * std), 0.01)
@@ -516,6 +529,9 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
     alphast2 = nemo.tools.get_alpha(eps)
     alphaopt2 = nemo.tools.get_alpha(refractive_index**2)
     
+    data = fix_absent_triplets(data)
+    data = fix_absent_soc(data)
+
     #excited state energies
     singlets = fetch(data, ["^e_s"])
     triplets = fetch(data, ["^e_t"])
@@ -534,8 +550,6 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
 
     n_state = int(initial[1:]) - 1
     initial = initial.lower()
-
-    data = fix_absent_soc(data)
 
     # Emission Calculations
 
