@@ -157,6 +157,21 @@ def main():
     parser.add_argument('-c', '--check', type=str, help="Run susceptibility check on the specified file.")
 
     parser.add_argument('-g', '--geom', type=str, help="Gets geometry from a log file.")    
+
+    parser.add_argument(
+    '-o', '--one',
+    nargs=4,
+    type=str,
+    metavar=('dielectric', 'refractive_index', 'n_states', 'spectrum_only'),
+    help=(
+        "Run calculations for the optimized structure. "
+        "Provide four values in this order:\n"
+        "1. Static dielectric constant (float)\n"
+        "2. Refractive index (float)\n"
+        "3. Number of excited states (integer)\n"
+        "4. Spectrum only? (y/n)"
+    )
+    )
     # Parse arguments
     args = parser.parse_args()
     
@@ -165,6 +180,10 @@ def main():
         nemo.tools.susceptibility_check(args.check)
         sys.exit(0)
 
+    elif args.one:
+        nemo.tools.setup_single_molecule_ensemble(args.one)
+            
+    
     elif args.geom:
         try:
             geometry, atomos = nemo.parser.pega_geom(args.geom)
