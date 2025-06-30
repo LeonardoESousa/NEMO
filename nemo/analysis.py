@@ -814,7 +814,7 @@ def absorption(initial, dielec, data=None, save=False, detailed=False, nstates=-
     
     #excited state susceptibilities
     chis = fetch(data, [f"^chi_{spin}(?!0)"])
-    gammas = fetch(data, [f"^gamma_{spin}"])
+    gammas = fetch(data, [f"^gamma_{spin}(?!0)"])
 
     #oscillator strengths
     oscs = fetch(data, ["^osc_"])
