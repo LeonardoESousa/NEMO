@@ -264,8 +264,8 @@ def gather_data(initial, save=True):
 
     data["e_g"] = e_s0
     formats["e_g"] = "{:.4f}"
-    data["chi_s0"] = chi_s0
-    formats["chi_s0"] = "{:.4f}"
+    data["gamma_s0"] = chi_s0
+    formats["gamma_s0"] = "{:.4f}"
         
     if "s" in initial.lower():        
         
@@ -510,10 +510,6 @@ def breakdown_emi(chi_s, chi_t, delta_emi, l_total, individual, labels):
     return breakdown
 
 
-def delta_neq(e_f, e_i, gamma_f, gamma_i, chi_f, chi_i, alphaopt, alphast):
-    delta = e_f - e_i + (gamma_i - gamma_f) * alphast - chi_f * alphaopt + chi_i * alphast
-    return delta
-
 def lambda_solvent(chi_f, alphaopt, alphast):
     lambda_b = chi_f * (alphast - alphaopt)
     return lambda_b
@@ -539,12 +535,12 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
     #excited state susceptibilities
     chi_s = fetch(data, ["^chi_s(?!0)"])
     chi_t = fetch(data, ["^chi_t"])
-    gamma_s = fetch(data, ["^gamma_s"])
+    gamma_s = fetch(data, ["^gamma_s(?!0)"])
     gamma_t = fetch(data, ["^gamma_t"])
 
     #ground state susceptibility
-    gamma_s0 = data['chi_s0'].to_numpy()
-    #fix dimension of chi_s0
+    gamma_s0 = data['gamma_s0'].to_numpy()
+    #fix dimension of gamma_s0
     gamma_s0 = gamma_s0[:, np.newaxis]
 
 
@@ -563,15 +559,13 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
     )
     if "t" in initial:
         constante *= 1 / 3
-        gamma_s0 = gamma_s0 - chi_t/2
-        delta_emi_unsorted = -1 * delta_neq(0, energies, gamma_s0, gamma_t, chi_t/2, chi_t, alphaopt2, alphast2) 
+        delta_emi_unsorted =  energies - (gamma_t - gamma_s0 + chi_t) * alphast2 - chi_t * (alphast2 - alphaopt2) 
         #reorganization energy
-        lambda_be = lambda_solvent(chi_t/2, alphaopt2, alphast2)
+        lambda_be = lambda_solvent(chi_t, alphaopt2, alphast2)
     elif "s" in initial:    
-        gamma_s0 = gamma_s0 - chi_s/2
-        delta_emi_unsorted = -1 * delta_neq(0, energies, gamma_s0, gamma_s, chi_s/2, chi_s, alphaopt2, alphast2)
+        delta_emi_unsorted =  energies - (gamma_s - gamma_s0 + chi_s) * alphast2 - chi_s * (alphast2 - alphaopt2) 
         #reorganization energy
-        lambda_be = lambda_solvent(chi_s/2, alphaopt2, alphast2)
+        lambda_be = lambda_solvent(chi_s, alphaopt2, alphast2)
     #make dimensions match
     lambda_be = np.repeat(lambda_be, energies.shape[1], axis=1)
 
@@ -610,7 +604,7 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
 
     if "s" in initial:
         initial_state = singlets - (chi_s + gamma_s) * alphast2  
-        final_state = triplets - gamma_s * alphast2  - chi_t * alphaopt2 
+        final_state = triplets - gamma_t * alphast2  - chi_t * alphaopt2 
         socs_complete = fetch(data, ["^soc_s"])
         initial_state, final_state, chi_s, chi_t, gamma_s, gamma_t, socs_complete = reorder(
             initial_state, final_state, chi_s, chi_t, gamma_s, gamma_t, socs_complete
@@ -634,7 +628,7 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
     elif "t" in initial:
         # Tn to Sm ISC
         initial_state = triplets - (chi_t + gamma_t) * alphast2 
-        final_state = singlets - gamma_t * alphast2 - chi_s * alphaopt2
+        final_state = singlets - gamma_s * alphast2 - chi_s * alphaopt2
         socs_complete = fetch(data, ["^soc_t.*s[1-9]"])
         initial_state, final_state, chi_t, chi_s, gamma_t, gamma_s, socs_complete = reorder(
             initial_state, final_state, chi_t, chi_s, gamma_t, gamma_s, socs_complete
@@ -815,7 +809,7 @@ def absorption(initial, dielec, data=None, save=False, detailed=False, nstates=-
     engs = fetch(data, [f"^e_{spin}"])
 
     #ground state susceptibility
-    gamma_s0 = data['chi_s0'].to_numpy()
+    gamma_s0 = data['gamma_s0'].to_numpy()
     gamma_s0 = gamma_s0[:, np.newaxis]
     
     #excited state susceptibilities
@@ -839,7 +833,7 @@ def absorption(initial, dielec, data=None, save=False, detailed=False, nstates=-
     lambda_b = lambda_solvent(chis, alphaopt2, alphast2)
 
     if initial == "s0":
-        deltae_lambda = delta_neq(engs, 0, gammas, gamma_s0, chis, 0, alphaopt2, alphast2) 
+        deltae_lambda =   engs + (gamma_s0 - gammas) * alphast2 - chis * alphaopt2 
 
     else:
         base = fetch(data, [rf"\be_{initial}\b"])
