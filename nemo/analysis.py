@@ -236,7 +236,7 @@ def gather_data(initial, save=True):
         ) = analysis(files, total_states, get_energies[calculation_type])
     ss_s = ss_s/alphaopt1
     ss_t = ss_t/alphaopt1
-    chi_s0 = ground_pol/alphast1
+    gamma_s0 = ground_pol/alphast1
     gamma_s = y_s/alphast1 
     gamma_t = y_t/alphast1
     
@@ -262,9 +262,7 @@ def gather_data(initial, save=True):
         data[f"gamma_t{i+1}"] = gamma_t[:, i]
         formats[f"gamma_t{i+1}"] = "{:.4f}"     
 
-    data["e_g"] = e_s0
-    formats["e_g"] = "{:.4f}"
-    data["gamma_s0"] = chi_s0
+    data["gamma_s0"] = gamma_s0
     formats["gamma_s0"] = "{:.4f}"
         
     if "s" in initial.lower():        
@@ -438,8 +436,8 @@ def fix_absent_triplets(data):
 
 
 def x_values(mean, std):
-    left = max(np.min(mean - 2 * std), 0.01)
-    right = np.max(mean + 2 * std)
+    left = max(np.min(mean - 3.5 * std), 0.01)
+    right = np.max(mean + 3.5 * std)
     x_axis = np.linspace(left, right, int((right - left) / 0.01))
     return x_axis
 

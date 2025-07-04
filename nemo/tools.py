@@ -293,7 +293,8 @@ def setup_ensemble():
 
 
 def setup_single_molecule_ensemble(params):
-    static, refrac, num_ex, abs_only = params
+    static, refrac = 2.38, 1.49
+    num_ex, abs_only = params
     freqlog = fetch_file("frequency", [".out", ".log"])
     print(f"Frequency log file: {freqlog}")
     with open(freqlog, "r", encoding="utf-8") as frequency_file:
@@ -303,45 +304,23 @@ def setup_single_molecule_ensemble(params):
             else:
                 gaussian = False
             break
+    template = fetch_file("QChem template", [".in"])
     if gaussian:
-        template = fetch_file("QChem template", [".in"])
         charge_multiplicity = lx.parser.get_cm(freqlog)
         rem, _, extra = nemo.parser.busca_input(template)
         geom, atomos = lx.parser.pega_geom(freqlog)
     else:
-        template = fetch_file("QChem template", [".in"])
         rem, _, extra = nemo.parser.busca_input(template)
         _, charge_multiplicity, _ = nemo.parser.busca_input(freqlog)
         geom, atomos = nemo.parser.pega_geom(freqlog)
-    print(f"QChem template file: {template}")
-    print("The configurations to be used are:\n")
     rem += extra + "\n"
-    print(rem)
-    try:
-        static = float(static)
-        refrac = float(refrac)
-    except ValueError:
-        nemo.parser.fatal_error(
-            "Dielectric constant and refractive index must be numbers!"
-        )
-    check_dielectric(static,refrac)
-    print(f"{num_ex} excited states will be calculated.")
-    print(f"Static dielectric constant: {static}")
-    print(f"Refractive index: {refrac}")
     try:
         num_ex = int(num_ex)
     except ValueError:
-        nemo.parser.fatal_error("This must be a number! Better luck next time!")
+        nemo.parser.fatal_error("Number of states must be a number! Better luck next time!")
     if abs_only.lower() == "y":
-        print(
-            ("Calculations will only be suitable for absorption "
-             "or fluorescence spectrum simulations.\n")
-        )
         header = add_header(rem, num_ex, 'false', static, refrac, charge_multiplicity) 
     else:
-        print(
-            "Calculations will be suitable for all spectra and ISC rate estimates.\n"
-        )
         header = add_header(rem, num_ex, 'true', static, refrac, charge_multiplicity)
     header = header.split("#GGG#")
     bottom = header[1]

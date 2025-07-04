@@ -165,11 +165,9 @@ def main():
     metavar=('dielectric', 'refractive_index', 'n_states', 'spectrum_only'),
     help=(
         "Run calculations for the optimized structure. "
-        "Provide four values in this order:\n"
-        "1. Static dielectric constant (float)\n"
-        "2. Refractive index (float)\n"
-        "3. Number of excited states (integer)\n"
-        "4. Spectrum only? (y/n)"
+        "Provide two values in this order:\n"
+        "1. Number of excited states (integer)\n"
+        "2. Spectrum only? (y/n)"
     )
     )
     # Parse arguments
