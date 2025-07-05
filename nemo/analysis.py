@@ -323,10 +323,6 @@ def gather_data(initial, save=True):
     formats["ensemble"] = "{:s}"
     data["kbT"] = kbt
     formats["kbT"] = "{:.4f}"
-    data["nr"] = nr_i
-    formats["nr"] = "{:.3f}"
-    data["eps"] = eps_i
-    formats["eps"] = "{:.3f}"
     # make these the first columns
     cols = data.columns.tolist()
     cols = cols[-4:] + cols[:-4]
@@ -882,8 +878,6 @@ class Ensemble(object):
     def __init__(self, file, name=''):
         data = pd.read_csv(file)
         initial = data['ensemble'][0]
-        self.eps = data['eps'][0]
-        self.nr = data['nr'][0]
         self.data = data
         self.initial = initial
         self.name = name

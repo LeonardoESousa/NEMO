@@ -47,7 +47,7 @@ def interface():
     print("\t7 - Gather ensemble data only")
     print("EXTRA FEATURES:")
     print(
-        "\t9 - Perform tuning of long range corrected functional (Gaussian 09/16 only)"
+        "\t8 - Perform tuning of long range corrected functional (Gaussian 09/16 only)"
     )
     print('\n')
     nemo.tools.check_for_updates('nemophoto')
