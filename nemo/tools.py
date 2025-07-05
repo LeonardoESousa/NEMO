@@ -10,8 +10,6 @@ import numpy as np
 import pandas as pd
 from scipy.stats import norm
 from joblib import Parallel, delayed
-import lx.tools
-import lx.parser
 import nemo.parser
 
 LIGHT_SPEED = nemo.parser.LIGHT_SPEED
@@ -23,6 +21,138 @@ MASS_E = nemo.parser.MASS_E
 EPSILON_0 = nemo.parser.EPSILON_0
 
 ###############################################################
+
+def distance_matrix(geom):
+    matrix = np.zeros((1, np.shape(geom)[0]))
+    for ind in range(np.shape(geom)[0]):
+        distances = geom - geom[ind, :]
+        distances = np.sqrt(np.sum(np.square(distances), axis=1))
+        matrix = np.vstack((matrix, distances[np.newaxis, :]))
+    matrix = matrix[1:, :]
+    return matrix
+
+
+def adjacency(geom, atoms):
+    covalent_radii = {
+        '1': 0.31,
+        'H': 0.31,
+        '2': 0.28,
+        'He': 0.28,
+        '3': 1.28,
+        'Li': 1.28,
+        '4': 0.96,
+        'Be': 0.96,
+        '5': 0.84,
+        'B': 0.84,
+        '6': 0.76,
+        'C': 0.76,
+        '7': 0.71,
+        'N': 0.71,
+        '8': 0.66,
+        'O': 0.66,
+        '9': 0.57,
+        'F': 0.57,
+        '10': 0.58,
+        'Ne': 0.58,
+        '11': 1.66,
+        'Na': 1.66,
+        '12': 1.41,
+        'Mg': 1.41,
+        '13': 1.21,
+        'Al': 1.21,
+        '14': 1.11,
+        'Si': 1.11,
+        '15': 1.07,
+        'P': 1.07,
+        '16': 1.05,
+        'S': 1.05,
+        '17': 1.02,
+        'Cl': 1.02,
+        '18': 1.06,
+        'Ar': 1.06,
+        '19': 2.03,
+        'K': 2.03,
+        '20': 1.76,
+        'Ca': 1.76,
+        '21': 1.7,
+        'Sc': 1.7,
+        '22': 1.6,
+        'Ti': 1.6,
+        '23': 1.53,
+        'V': 1.53,
+        '24': 1.39,
+        'Cr': 1.39,
+        '25': 1.61,
+        'Mn': 1.61,
+        '26': 1.52,
+        'Fe': 1.52,
+        '27': 1.50,
+        'Co': 1.50,
+        '28': 1.24,
+        'Ni': 1.24,
+        '29': 1.32,
+        'Cu': 1.32,
+        '30': 1.22,
+        'Zn': 1.22,
+        '31': 1.22,
+        'Ga': 1.22,
+        '32': 1.2,
+        'Ge': 1.2,
+        '33': 1.19,
+        'As': 1.19,
+        '34': 1.20,
+        'Se': 1.20,
+        '35': 1.20,
+        'Br': 1.20,
+        '36': 1.16,
+        'Kr': 1.16,
+        '37': 2.2,
+        'Rb': 2.2,
+        '38': 1.95,
+        'Sr': 1.95,
+        '39': 1.9,
+        'Y': 1.9,
+        '40': 1.75,
+        'Zr': 1.75,
+        '41': 1.64,
+        'Nb': 1.64,
+        '42': 1.54,
+        'Mo': 1.54,
+        '43': 1.47,
+        'Tc': 1.47,
+        '44': 1.46,
+        'Ru': 1.46,
+        '45': 1.42,
+        'Rh': 1.42,
+        '46': 1.39,
+        'Pd': 1.39,
+        '47': 1.45,
+        'Ag': 1.45,
+        '48': 1.44,
+        'Cd': 1.44,
+        '49': 1.42,
+        'In': 1.42,
+        '50': 1.39,
+        'Sn': 1.39,
+        '51': 1.39,
+        'Sb': 1.39,
+        '52': 1.38,
+        'Te': 1.38,
+        '53': 1.39,
+        'I': 1.39,
+        '54': 1.4,
+        'Xe': 1.4,
+    }
+    dist_matrix = distance_matrix(geom)
+    adj_matrix = np.zeros(np.shape(dist_matrix))
+    # connectivity matrix
+    for i in range(np.shape(dist_matrix)[0]):
+        for j in range(i, np.shape(dist_matrix)[1]):
+            r_e = (covalent_radii[atoms[i]] + covalent_radii[atoms[j]]) + 0.4
+            if 0.8 < dist_matrix[i, j] < r_e:
+                adj_matrix[i, j] = adj_matrix[j, i] = 1
+    return adj_matrix
+
 
 ##WRITES ATOMS AND XYZ COORDS TO FILE##########################
 def write_input(atomos, geometry, header, bottom, file):
@@ -60,7 +190,7 @@ def sample_single_geometry(args):
         qs = [norm(scale=scale, loc=0).rvs(size=1) for scale in scales]
         qs = np.array(qs)
         start_geom += np.sum(qs.reshape(1, 1, -1) * normal_coord, axis=2)
-        new = lx.tools.adjacency(start_geom, atomos)
+        new = adjacency(start_geom, atomos)
         if 0.5 * np.sum(np.abs(old - new)) < 1 or not warning:
             ok = True
             return (start_geom, qs.T, rejected_geoms)
@@ -69,7 +199,7 @@ def sample_single_geometry(args):
 
 def sample_geometries(freqlog, num_geoms, temp, limit=np.inf, warning=True, show_progress=False):
     geom, atomos = nemo.parser.pega_geom(freqlog)
-    old = lx.tools.adjacency(geom, atomos)
+    old = adjacency(geom, atomos)
     freqs, masses = nemo.parser.pega_freq(freqlog)
     normal_coord = nemo.parser.pega_modos(geom, freqlog)
 
@@ -79,10 +209,13 @@ def sample_geometries(freqlog, num_geoms, temp, limit=np.inf, warning=True, show
         freqs = freqs[mask]
         masses = masses[mask]
         normal_coord = normal_coord[:, :, mask]
-
+    if temp == 0:
+        temp_factor = 1.0
+    else:    
+        temp_factor = np.tanh(HBAR_EV * freqs / (2 * BOLTZ_EV * temp))
+    
     scales = 1e10 * np.sqrt(
-        HBAR_J / (2 * masses * freqs * np.tanh(HBAR_EV * freqs / (2 * BOLTZ_EV * temp)))
-    )
+        HBAR_J / (2 * masses * freqs * temp_factor))
 
     args = [(geom, atomos, old, scales, normal_coord, warning) for _ in range(num_geoms)]
 
@@ -226,26 +359,29 @@ def add_header(rem, num_ex, soc, static, refrac, cm):
         )
     return header
 
+def single_molecule_ensemble(atomos, geom, header, bottom):
+    try:
+        os.mkdir("Geometries")
+    except FileExistsError:
+        pass
+    nemo.tools.write_input(
+        atomos,
+        geom,
+        header,
+        bottom,
+        f"Geometries/Geometry-1-.com",
+    )
+    print("\n\nOptimized molecule calculation created in the Geometries folder.")
+    print("\n\nDone! Ready to run.")
+
 
 def setup_ensemble():
     freqlog = fetch_file("frequency", [".out", ".log"])
     print(f"\n\nFrequency log file: {freqlog}")
-    with open(freqlog, "r", encoding="utf-8") as frequency_file:
-        for line in frequency_file:
-            if "Entering Gaussian System" in line:
-                gaussian = True
-            else:
-                gaussian = False
-            break
-    if gaussian:
-        print("You are using a Gaussian log file.")
-        template = fetch_file("QChem template", [".in"])
-        charge_multiplicity = lx.parser.get_cm(freqlog)
-        rem, _, extra = nemo.parser.busca_input(template)
-    else:
-        template = fetch_file("QChem template", [".in"])
-        rem, _, extra = nemo.parser.busca_input(template)
-        _, charge_multiplicity, _ = nemo.parser.busca_input(freqlog)
+    template = fetch_file("QChem template", [".in"])
+    charge_multiplicity = nemo.parser.get_cm(freqlog)
+    rem, _, extra = nemo.parser.busca_input(template)
+    geom, atomos = nemo.parser.pega_geom(freqlog)
     print(f"QChem template file: {template}")
     print("\nThe configurations to be used are:\n")
     rem += extra + "\n"
@@ -282,65 +418,14 @@ def setup_ensemble():
     header = header[0]
     
     num_geoms = int(input("How many geometries to be sampled?\n"))
-    temperature = float(input("Temperature in Kelvin?\n"))
-    if temperature <= 0:
-        nemo.parser.fatal_error("Have you heard about absolute zero? Goodbye!")
-    if gaussian:
-        lx.tools.make_ensemble(freqlog, num_geoms, temperature, header, bottom)
+    if num_geoms == 1:
+        single_molecule_ensemble(atomos, geom, header, bottom)
     else:
+        temperature = float(input("Temperature in Kelvin?\n"))
+        if temperature < 0:
+            nemo.parser.fatal_error("Have you heard about absolute zero? Goodbye!")
         make_ensemble(freqlog, num_geoms, temperature, header, bottom)
-
-
-
-def setup_single_molecule_ensemble(params):
-    static, refrac = 2.38, 1.49
-    num_ex, abs_only = params
-    freqlog = fetch_file("frequency", [".out", ".log"])
-    print(f"Frequency log file: {freqlog}")
-    with open(freqlog, "r", encoding="utf-8") as frequency_file:
-        for line in frequency_file:
-            if "Entering Gaussian System" in line:
-                gaussian = True
-            else:
-                gaussian = False
-            break
-    template = fetch_file("QChem template", [".in"])
-    if gaussian:
-        charge_multiplicity = lx.parser.get_cm(freqlog)
-        rem, _, extra = nemo.parser.busca_input(template)
-        geom, atomos = lx.parser.pega_geom(freqlog)
-    else:
-        rem, _, extra = nemo.parser.busca_input(template)
-        _, charge_multiplicity, _ = nemo.parser.busca_input(freqlog)
-        geom, atomos = nemo.parser.pega_geom(freqlog)
-    rem += extra + "\n"
-    try:
-        num_ex = int(num_ex)
-    except ValueError:
-        nemo.parser.fatal_error("Number of states must be a number! Better luck next time!")
-    if abs_only.lower() == "y":
-        header = add_header(rem, num_ex, 'false', static, refrac, charge_multiplicity) 
-    else:
-        header = add_header(rem, num_ex, 'true', static, refrac, charge_multiplicity)
-    header = header.split("#GGG#")
-    bottom = header[1]
-    header = header[0]
-    
-    try:
-        os.mkdir("Geometries")
-    except FileExistsError:
-        pass
-    nemo.tools.write_input(
-        atomos,
-        geom,
-        header,
-        bottom,
-        f"Geometries/Geometry-1-.com",
-    )
-    print("\n\nDone! Ready to run.")
-###############################################################
-    
-    
+        
 
 ##NORMALIZED GAUSSIAN##########################################
 def gauss(x_value, mean, std):

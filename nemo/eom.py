@@ -81,6 +81,8 @@ def pega_energias(file):
         ind_t = ind_t[order_t]
         #double_s = double_s[order_s]
         #double_t = double_t[order_t]
+        y_s = np.zeros(len(singlets))
+        y_t = np.zeros(len(triplets))
         return (
             singlets,
             triplets,
@@ -90,8 +92,10 @@ def pega_energias(file):
             ss_s,
             ss_t,
             (sol_int - total_free) * 27.2114,
+            y_s,
+            y_t,
         )
-
+    
 #########################################################################################
 
 ##GETS SOC BETWEEN Sn STATE AND TRIPLETS#################################################

@@ -13,6 +13,20 @@ BOLTZ_EV = 8.6173303e-5  # eV/K
 AMU = 1.660539040e-27  # kg
 ###############################################################
 
+def check_software(freqlog):
+    """
+    Checks if the frequency log file is from Gaussian or Q-Chem.
+    Returns True if it is a Gaussian log file, False otherwise.
+    """
+    with open(freqlog, "r", encoding="utf-8") as freq_file:
+        content = freq_file.read()
+        if "Entering Gaussian System" in content:
+            return 'Gaussian'
+        elif "Q-Chem" in content:
+            return 'QChem'
+        else:
+            fatal_error("Unknown log file format! Goodbye!")
+
 
 ##ERROR FUNCTION###############################################
 def fatal_error(msg):
@@ -83,9 +97,33 @@ def busca_input(freqlog):
 
 ###############################################################
 
+##GETS FREQUENCIES AND REDUCED MASSES##########################
+def pega_freq_gaussian(freqlog):
+    freqs, masses = [], []
+    with open(freqlog, "r",encoding='utf-8') as f:
+        for line in f:
+            if "Frequencies -- " in line:
+                line = line.split()
+                for j in range(2, len(line)):
+                    freqs.append(float(line[j]))
+            elif "Red. masses --" in line:
+                line = line.split()
+                for j in range(3, len(line)):
+                    masses.append(float(line[j]))
+            elif "Thermochemistry" in line:
+                break
+    if len(freqs) == 0 or len(masses) == 0:
+        fatal_error(
+            "No frequencies or reduced masses found. Check your frequency file. Goodbye."
+        )
+    # conversion in angular frequency
+    freqs = np.array(freqs) * (LIGHT_SPEED * 100 * 2 * np.pi)
+    # conversion from amu to kg
+    masses = np.asarray(masses) * AMU
+    return freqs, masses
 
 ##GETS FREQUENCIES AND REDUCED MASSES##########################
-def pega_freq(freqlog):
+def pega_freq_qchem(freqlog):
     freqs, masses = [], []
     with open(freqlog, "r", encoding="utf-8") as freq_file:
         for line in freq_file:
@@ -107,12 +145,163 @@ def pega_freq(freqlog):
     masses = np.asarray(masses) * AMU
     return freqs, masses
 
+def pega_freq(freqlog):
+    software = check_software(freqlog)
+    if software == 'Gaussian':
+        return pega_freq_gaussian(freqlog)
+    elif software == 'QChem':
+        return pega_freq_qchem(freqlog)
+
+
+###############################################################
+
+##GETS INPUT PARAMS FROM LOG FILES#############################
+def get_input_params(freqlog):
+    nproc, mem, header = "", "", ""
+    with open(freqlog, "r",encoding='utf-8') as f:
+        search = False
+        for line in f:
+            if "%nproc" in line.lower():
+                line = line.split("=")
+                nproc = line[-1].replace("\n", "")
+            elif "%mem" in line.lower():
+                line = line.split("=")
+                mem = line[-1].replace("\n", "")
+            elif "#" in line and not search and header == "":
+                search = True
+                header += line.lstrip().replace("\n", "")
+            elif search and "----------" not in line:
+                header += line.lstrip().replace("\n", "")
+            elif search and "----------" in line:
+                search = False
+                break
+    return nproc, mem, header
+
 
 ###############################################################
 
 
-##GETS ATOMS AND LAST GEOMETRY IN FILE#########################
+##CHECKS FREQ FILES############################################
+def double_check_gaussian(freqlog):
+    freqs, _ = pega_freq(freqlog)
+    if np.any(freqs < 0):
+        fatal_error(
+            "Imaginary frequencies detected. Check your frequency file. Goodbye."
+        )
+    _, _, header = get_input_params(freqlog)
+    header = header.lower()
+    optfreqissue = False
+    stationary = False
+    if "opt" in header and "freq" in header and "iop(" in header:
+        optfreqissue = True
+    with open(freqlog, "r",encoding='utf-8') as f:
+        for line in f:
+            if "Stationary point found" in line:
+                stationary = True
+            elif all(s in line for s in ["Item", "Value", "Threshold", "Converged?"]):
+                stationary = False
+    if not stationary:
+        print("*" * 50)
+        print("WARNING: Non-optimized parameters detected in your frequency file.")
+        print(
+            "Even though the frequencies may be all real, your structure is still not fully optimized."
+        )
+        print("This may lead to inaccurate results.")
+        if optfreqissue:
+            print(
+                "In your case, this may be due to running an opt freq calculation using a single input file and IOP options."
+            )
+            print(
+                "Gaussian does not carry the IOP options to the frequency calculation when using a single input file."
+            )
+            print(
+                "To avoid this issue, run the optimization and frequency calculations separately."
+            )
+        else:
+            print("To learn more about this issue, check https://gaussian.com/faq3/ .")
+        print("Proceed at your own risk.")
+        print("*" * 50)
+        print("\n")
+###############################################################
+
+def double_check(freqlog):
+    software = check_software(freqlog)
+    if software == 'Gaussian':
+        double_check_gaussian(freqlog)
+    elif software == 'QChem':
+        # Q-Chem does not have the same issues as Gaussian, so no checks are needed.
+        pass
+
+##FETCHES CHARGE AND MULTIPLICITY FROM G16#####################
+def get_cm_gaussian(freqlog):
+    with open(freqlog, "r",encoding='utf-8') as f:
+        for line in f:
+            if "Charge" in line and "Multiplicity" in line:
+                line = line.split()
+                charge = line[2]
+                mult = line[5]
+                break
+    return charge + " " + mult
+###############################################################
+
+def get_cm_qchem(freqlog):
+    _, cm, _ = busca_input(freqlog)
+    return cm
+
+def get_cm(freqlog):
+    software = check_software(freqlog)
+    if software == 'Gaussian':
+        return get_cm_gaussian(freqlog)
+    elif software == 'QChem':
+        return get_cm_qchem(freqlog)
+
+
 def pega_geom(freqlog):
+    software = check_software(freqlog)
+    if software == 'Gaussian':
+            return pega_geom_gaussian(freqlog)
+    elif software == 'QChem':
+            return pega_geom_qchem(freqlog)  
+
+def pega_geom_gaussian(freqlog):
+    if ".log" in freqlog:
+        busca = " orientation:"
+        fetch = False
+        with open(freqlog, "r",encoding='utf-8') as f:
+            for line in f:
+                if busca in line and "Dipole" not in line:
+                    geom = np.zeros((1, 3))
+                    atomos = []
+                    fetch = True
+                elif fetch:
+                    line = line.split()
+                    try:
+                        float(line[0])
+                        NG = []
+                        for j in range(3, len(line)):
+                            NG.append(float(line[j]))
+                        atomos.append(line[1])
+                        geom = np.vstack((geom, NG))
+                    except ValueError:
+                        if len(atomos) > 0:
+                            fetch = False
+    else:
+        geom = np.zeros((1, 3))
+        atomos = []
+        with open(freqlog, "r",encoding='utf-8') as f:
+            for line in f:
+                line = line.split()
+                try:
+                    vetor = np.array([float(line[1]), float(line[2]), float(line[3])])
+                    atomos.append(line[0])
+                    geom = np.vstack((geom, vetor))
+                except (IndexError, ValueError):
+                    pass
+    geom = geom[1:, :]
+    return geom, atomos
+
+##GETS ATOMS AND LAST GEOMETRY IN FILE#########################
+def pega_geom_qchem(freqlog):
     if ".out" in freqlog or ".log" in freqlog:
         start = False
         n_value = 0
@@ -158,7 +347,76 @@ def pega_geom(freqlog):
 ###############################################################
 
 
-def pega_modos(G, freqlog):
+##GETS NORMAL COORDINATES IN HIGH PRECISION####################
+def pega_modosHP(G, freqlog):
+    F, _ = pega_freq(freqlog)
+    num_atoms = np.shape(G)[0]
+    normal_modes = np.zeros((num_atoms, 3, len(F))) + np.nan
+    mode = 0
+    fetch = False
+    with open(freqlog, "r",encoding='utf-8') as f:
+        for line in f:
+            if "Coord Atom Element:" in line:
+                fetch = True
+            elif fetch:
+                line = line.split()
+                if len(line) < 6 or "Harmonic" in line[0]:
+                    fetch = False
+                    mode += 5
+                else:
+                    coord = int(line[0]) - 1
+                    atom = int(line[1]) - 1
+                    for j in range(3, len(line)):
+                        normal_modes[atom, coord, mode + j - 3] = float(line[j])
+    return normal_modes
+
+
+###############################################################
+
+
+##GETS NORMAL COORDINATES IN REGULAR PRECISION#################
+def pega_modosLP(G, freqlog):
+    F, _ = pega_freq(freqlog)
+    num_atoms = np.shape(G)[0]
+    normal_modes = np.zeros((num_atoms, 3, len(F))) + np.nan
+    mode = 0
+    fetch = False
+    with open(freqlog, "r",encoding='utf-8') as f:
+        for line in f:
+            if "Atom  AN      X      Y      Z" in line:
+                fetch = True
+            elif fetch:
+                line = line.split()
+                if len(line) < 5:
+                    fetch = False
+                    mode += 3
+                else:
+                    atom = int(line[0]) - 1
+                    for j in range(2, len(line)):
+                        normal_modes[atom, (j - 2) % 3, mode + (j - 2) // 3] = float(
+                            line[j]
+                        )
+    return normal_modes
+
+
+###############################################################
+
+
+##DETECTS WHETHER HIGH PRECISION IS USED#######################
+def pega_modos_gaussian(geom, freqlog):
+    x = "LP"
+    with open(freqlog, "r",encoding='utf-8') as f:
+        for line in f:
+            if "Coord Atom Element:" in line:
+                x = "HP"
+                break
+    if x == "LP":
+        return pega_modosLP(geom, freqlog)
+    else:
+        return pega_modosHP(geom, freqlog)
+
+
+def pega_modos_qchem(G, freqlog):
     freqs, _ = pega_freq(freqlog)
     num_atoms = np.shape(G)[0]
     normal_modes = np.zeros((num_atoms, 3, len(freqs))) + np.nan
@@ -182,6 +440,14 @@ def pega_modos(G, freqlog):
                         )
                     atom += 1
     return normal_modes
+
+def pega_modos(G, freqlog):
+    software = check_software(freqlog)
+    if software == 'Gaussian':
+        return pega_modos_gaussian(G, freqlog)
+    elif software == 'QChem':
+        return pega_modos_qchem(G, freqlog)
+
 
 def parse_block(block, collect_corrections=False):
     """
@@ -805,3 +1071,5 @@ def soc_t1(file, mqn, n_triplet, ind_s):
     indice = np.argsort(ind_s)
     socs = socs[indice, :]
     return socs * 0.12398 / 1000
+
+

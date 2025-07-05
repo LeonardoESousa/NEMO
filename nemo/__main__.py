@@ -45,10 +45,6 @@ def interface():
     print("\t6 - Estimate rates and compute emission spectrum")
     print("ENSEMBLE DATA:")
     print("\t7 - Gather ensemble data only")
-    print("EXCITON ANALYSIS:")
-    print(
-        "\t8 - Estimate Förster radius, fluorescence lifetime and exciton diffusion lengths"
-    )
     print("EXTRA FEATURES:")
     print(
         "\t9 - Perform tuning of long range corrected functional (Gaussian 09/16 only)"
@@ -137,8 +133,6 @@ def interface():
         for state in states:
             gather_data(state, save=True)
     elif operation == "8":
-        lx.tools.ld()
-    elif operation == "9":
         lx.tools.omega_tuning()
     else:
         nemo.tools.empirical_tuning()
@@ -158,29 +152,13 @@ def main():
 
     parser.add_argument('-g', '--geom', type=str, help="Gets geometry from a log file.")    
 
-    parser.add_argument(
-    '-o', '--one',
-    nargs=4,
-    type=str,
-    metavar=('dielectric', 'refractive_index', 'n_states', 'spectrum_only'),
-    help=(
-        "Run calculations for the optimized structure. "
-        "Provide two values in this order:\n"
-        "1. Number of excited states (integer)\n"
-        "2. Spectrum only? (y/n)"
-    )
-    )
     # Parse arguments
     args = parser.parse_args()
     
     # If `-c` is provided, call the susceptibility_check function
     if args.check:
         nemo.tools.susceptibility_check(args.check)
-        sys.exit(0)
-
-    elif args.one:
-        nemo.tools.setup_single_molecule_ensemble(args.one)
-            
+        sys.exit(0)        
     
     elif args.geom:
         try:
