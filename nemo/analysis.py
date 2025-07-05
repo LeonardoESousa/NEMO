@@ -80,15 +80,15 @@ def analysis(files, n_state, get_energies):
             y_s,
             y_t,
         ) = get_energies("Geometries/" + file)
-        singlets = np.array([singlets[:n_state]])
-        triplets = np.array([triplets[:n_state]])
-        oscs = np.array([oscs[:n_state]])
-        ss_s = np.array([ss_s[:n_state]])
-        ss_t = np.array([ss_t[:n_state]])
-        ind_s = np.array([ind_s[:n_state]])
-        ind_t = np.array([ind_t[:n_state]])
-        y_s = np.array([y_s][:n_state])
-        y_t = np.array([y_t][:n_state])
+        singlets = singlets[:n_state]
+        triplets = triplets[:n_state]
+        oscs = oscs[:n_state]
+        ss_s = ss_s[:n_state]
+        ss_t = ss_t[:n_state]
+        ind_s = ind_s[:n_state]
+        ind_t = ind_t[:n_state]
+        y_s = y_s[:n_state]
+        y_t = y_t[:n_state]
         ground_pol = np.array([ground_pol])
         try:
             total_singlets = np.vstack((total_singlets, singlets))
