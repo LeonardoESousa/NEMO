@@ -370,12 +370,14 @@ def pega_energias(file):
 
     # Split the file into two calculation blocks.
     blocks = content.split("Have a nice day")
-    if len(blocks) < 2:
-        raise ValueError("Log file does not contain two calculations as expected.")
-
-    # Parse the vacuum (first) and PCM-corrected (second) calculation blocks.
-    vac_data = parse_block(blocks[0], collect_corrections=False)
-    corr_data = parse_block(blocks[1], collect_corrections=True)
+    if len(blocks) < 3: # Only one calculation
+        vac_data = parse_block(blocks[0], collect_corrections=False)
+        corr_data = parse_block(blocks[0], collect_corrections=True)
+    else: # Two calculations
+        # Parse the vacuum (first) and PCM-corrected (second) calculation blocks.
+        vac_data = parse_block(blocks[0], collect_corrections=False)
+        corr_data = parse_block(blocks[1], collect_corrections=True)
+    
     min_len = min(vac_data['len'], corr_data['len'])
     match_singlets = match_compositions(vac_data['comp_singlets'][:min_len], corr_data['comp_singlets'][:min_len])
     match_triplets = match_compositions(vac_data['comp_triplets'][:min_len], corr_data['comp_triplets'][:min_len])
@@ -398,7 +400,7 @@ def pega_energias(file):
     y_t = (triplets_vac - triplets_pcm) + s0_corr 
     y_s[y_s < 0] = 0
     y_t[y_t < 0] = 0
-    return singlets_vac, triplets_vac, oscs, ind_s, ind_t, ss_s, ss_t, s0_vac, s0_corr, y_s, y_t
+    return singlets_vac, triplets_vac, oscs, ind_s, ind_t, ss_s, ss_t, s0_corr, y_s, y_t
 
 #########################################################################################
 
@@ -638,7 +640,7 @@ def moment(file, ess, ets, e_s0, dipss, dipts, n_triplet, ind_s, ind_t):
     moments = np.sum(moments) * (conversion**2)
     return moments
 
-def phosph_osc(file, n_state, ind_s, ind_t, singlets, triplets, e_s0): 
+def phosph_osc(file, n_state, ind_s, ind_t, singlets, triplets, e_s0=0): 
     zero = ["0"]
     zero.extend(ind_s)
     total_moments = []

@@ -465,7 +465,7 @@ def fetch_nr(file):
 
 def susceptibility_check(file, tuning=False):
     # Fetch energy levels and other data
-    s_vac, t_vac, _, _, _, ss_s, ss_t, e_g, ss_g, y_s, y_t = nemo.parser.pega_energias(file)
+    s_vac, t_vac, _, _, _, ss_s, ss_t, ss_g, y_s, y_t = nemo.parser.pega_energias(file)
     
     eps, nr = fetch_nr(file)
     

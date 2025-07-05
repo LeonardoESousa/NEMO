@@ -44,7 +44,7 @@ def read_cis(file):
 #########################################################################################
 
 
-def get_osc_phosph(files, singlets, triplets, e_s0, n_state, ind_s, ind_t, phosph_osc):
+def get_osc_phosph(files, singlets, triplets, n_state, ind_s, ind_t, phosph_osc):
     # removed correction from phosph_osc calculation
     eng_singlets = singlets  # - (alphast2/alphaopt1)*Ss_s
     eng_triplets = triplets  # - (alphast2/alphaopt1)*Ss_t
@@ -56,7 +56,6 @@ def get_osc_phosph(files, singlets, triplets, e_s0, n_state, ind_s, ind_t, phosp
             ind_t[j, :],
             eng_singlets[j, :],
             eng_triplets[j, :],
-            e_s0[j],
         )
         try:
             osc_strengths = np.vstack((osc_strengths, tos))
@@ -77,7 +76,6 @@ def analysis(files, n_state, get_energies):
             ind_t,
             ss_s,
             ss_t,
-            e_s0,
             ground_pol,
             y_s,
             y_t,
@@ -91,7 +89,6 @@ def analysis(files, n_state, get_energies):
         ind_t = np.array([ind_t[:n_state]])
         y_s = np.array([y_s][:n_state])
         y_t = np.array([y_t][:n_state])
-        s0 = np.array([e_s0])
         ground_pol = np.array([ground_pol])
         try:
             total_singlets = np.vstack((total_singlets, singlets))
@@ -103,7 +100,6 @@ def analysis(files, n_state, get_energies):
             total_ind_t = np.vstack((total_ind_t, ind_t))
             total_y_s = np.vstack((total_y_s, y_s))
             total_y_t = np.vstack((total_y_t, y_t))
-            total_s0 = np.vstack((total_s0, s0))
             total_ground_pol = np.append(total_ground_pol, ground_pol)
         except NameError:
             total_singlets = singlets
@@ -115,7 +111,6 @@ def analysis(files, n_state, get_energies):
             total_ind_t = ind_t
             total_y_s = y_s
             total_y_t = y_t
-            total_s0 = s0
             total_ground_pol = ground_pol
         numbers.append(int(file.split("-")[1]))
     numbers = np.array(numbers)[:, np.newaxis]
@@ -126,7 +121,6 @@ def analysis(files, n_state, get_energies):
         total_oscs,
         total_ss_s,
         total_ss_t,
-        total_s0,
         total_ground_pol,
         total_ind_s,
         total_ind_t,
@@ -227,7 +221,6 @@ def gather_data(initial, save=True):
     oscs,
     ss_s,
     ss_t,
-    e_s0,
     ground_pol,
     ind_s,
     ind_t,
@@ -293,7 +286,7 @@ def gather_data(initial, save=True):
             pass
     else:
         
-        oscs = get_osc_phosph(files, singlets, triplets, e_s0, total_states, ind_s, ind_t, get_phosph_osc[calculation_type])
+        oscs = get_osc_phosph(files, singlets, triplets, total_states, ind_s, ind_t, get_phosph_osc[calculation_type])
         
         for i in range(oscs.shape[1]):
             data[f"osce_t{n_state+1+i}"] = oscs[:, i]
