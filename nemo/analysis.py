@@ -80,15 +80,15 @@ def analysis(files, n_state, get_energies):
             y_s,
             y_t,
         ) = get_energies("Geometries/" + file)
-        singlets = singlets[:n_state]
-        triplets = triplets[:n_state]
-        oscs = oscs[:n_state]
-        ss_s = ss_s[:n_state]
-        ss_t = ss_t[:n_state]
-        ind_s = ind_s[:n_state]
-        ind_t = ind_t[:n_state]
-        y_s = y_s[:n_state]
-        y_t = y_t[:n_state]
+        singlets = np.array([singlets[:n_state]])
+        triplets = np.array([triplets[:n_state]])
+        oscs = np.array([oscs[:n_state]])
+        ss_s = np.array([ss_s[:n_state]])
+        ss_t = np.array([ss_t[:n_state]])
+        ind_s = np.array([ind_s[:n_state]])
+        ind_t = np.array([ind_t[:n_state]])
+        y_s = np.array([y_s[:n_state]])
+        y_t = np.array([y_t[:n_state]])
         ground_pol = np.array([ground_pol])
         try:
             total_singlets = np.vstack((total_singlets, singlets))
@@ -465,12 +465,13 @@ def total_reorganization_energy(lambda_b, kbt):
 
 
 def rate_and_uncertainty(y_axis):
-    number_geoms = y_axis.shape[0]
-    mean_y = np.sum(y_axis, axis=0) / number_geoms
-    error = np.sqrt(
-        np.sum((y_axis - mean_y) ** 2, axis=0) / (number_geoms * (number_geoms - 1))
-    )
-    return mean_y, error
+    with np.errstate(invalid='ignore'):
+        number_geoms = y_axis.shape[0]
+        mean_y = np.sum(y_axis, axis=0) / number_geoms
+        error = np.sqrt(
+            np.sum((y_axis - mean_y) ** 2, axis=0) / (number_geoms * (number_geoms - 1))
+        )
+    return mean_y, np.nan_to_num(error, nan=0.0)
 
 
 def select_columns(nstate, *args):
@@ -571,6 +572,7 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
     mean_y, error = rate_and_uncertainty(y_axis)
     emi_rate = np.mean(espectro, axis=0) / HBAR_EV
     emi_error = np.sqrt(np.sum((espectro /HBAR_EV - emi_rate) ** 2, axis=0) / (number_geoms * (number_geoms - 1)))
+    emi_error = np.nan_to_num(emi_error, nan=0.0)
     gap_emi = means(delta_emi, espectro, ensemble_average)
     mean_sigma_emi = means(l_total, espectro, ensemble_average)
     mean_part_emi = (100 / number_geoms) / means(
