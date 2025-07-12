@@ -413,7 +413,7 @@ def fix_absent_soc(data):
 def fix_absent_triplets(data):
     columns = data.columns.values
     # check if at least one column contains t_
-    if any("t_" in i for i in columns):
+    if any("e_t" in i for i in columns):
         return data
     else:
         singlets = [i.split("_")[1] for i in columns if "e_s" in i and "osc" not in i]
