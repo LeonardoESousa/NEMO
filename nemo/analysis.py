@@ -465,7 +465,7 @@ def total_reorganization_energy(lambda_b, kbt):
 
 
 def rate_and_uncertainty(y_axis):
-    with np.errstate(invalid='ignore'):
+    with np.errstate(invalid='ignore', divide='ignore'):
         number_geoms = y_axis.shape[0]
         mean_y = np.sum(y_axis, axis=0) / number_geoms
         error = np.sqrt(
@@ -571,7 +571,7 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
     number_geoms = y_axis.shape[0]
     mean_y, error = rate_and_uncertainty(y_axis)
     emi_rate = np.mean(espectro, axis=0) / HBAR_EV
-    with np.errstate(invalid='ignore'):
+    with np.errstate(invalid='ignore', divide='ignore'):
         emi_error = np.sqrt(np.sum((espectro /HBAR_EV - emi_rate) ** 2, axis=0) / (number_geoms * (number_geoms - 1)))
     emi_error = np.nan_to_num(emi_error, nan=0.0)
     gap_emi = means(delta_emi, espectro, ensemble_average)
