@@ -1,4 +1,3 @@
-import sys
 import numpy as np
 import nemo.parser
 
@@ -8,11 +7,93 @@ MASS_E      = nemo.parser.MASS_E # kg
 E_CHARGE    = nemo.parser.E_CHARGE # C
 ###############################################################
 
+
+def extract_chi(filename):
+    dipole_singlets = []
+    dipole_triplets = []
+    ground_dipole = None
+    molecular_volume = None
+
+    # Conversion constants
+    AU_TO_DEBYE = 2.541746
+    DEBYE2_PER_ANG3_TO_EV = 0.20819434
+
+    try:
+        with open(filename, 'r') as file:
+            lines = file.readlines()
+
+        # Parse state blocks
+        current_section = None
+        for line in lines:
+            lower = line.lower()
+            if "singlet states" in lower:
+                current_section = "singlet"
+                continue
+            elif "triplet states" in lower:
+                current_section = "triplet"
+                continue
+
+            if "Dipole moment (a.u.):" in line:
+                parts = line.strip().split()
+                if len(parts) >= 4:
+                    try:
+                        dipole_au = float(parts[3])
+                        dipole_debye = dipole_au * AU_TO_DEBYE
+                        if current_section == "singlet":
+                            dipole_singlets.append(dipole_debye)
+                        elif current_section == "triplet":
+                            dipole_triplets.append(dipole_debye)
+                    except ValueError:
+                        print("Could not convert to float:", parts[3])
+
+        # Extract ground-state dipole in Debye
+        for i in range(len(lines)):
+            if "Dipole Moment (Debye)" in lines[i]:
+                for j in range(i + 1, min(i + 5, len(lines))):
+                    if "Tot" in lines[j]:
+                        try:
+                            ground_dipole = float(lines[j].strip().split()[-1])
+                        except (ValueError, IndexError):
+                            print("Error parsing ground dipole")
+                        break
+                break
+
+        # Extract molecular volume
+        for line in lines:
+            if "Molecular Surface Area" in line:
+                try:
+                    surface_area = float(line.strip().split()[-2])
+                    molecular_volume = (surface_area ** 1.5) / (6 * np.sqrt(np.pi))
+                except:
+                    print("Error extracting or computing volume from surface area.")
+                break
+
+        # Validation
+        if ground_dipole is None or molecular_volume is None:
+            print("Missing ground dipole or volume.")
+            return [], []
+
+        # Compute χ values in eV
+        chi_singlets = [0.5 * ((mu - ground_dipole) ** 2) / molecular_volume * DEBYE2_PER_ANG3_TO_EV
+                        for mu in dipole_singlets]
+        chi_triplets = [0.5 * ((mu - ground_dipole) ** 2) / molecular_volume * DEBYE2_PER_ANG3_TO_EV
+                        for mu in dipole_triplets]
+
+        return chi_singlets, chi_triplets
+
+    except FileNotFoundError:
+        print(f"File not found: {filename}")
+        return [], []
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        return [], []
+
+
+
 ##GETS ENERGIES, OSCS, AND INDICES FOR Sn AND Tn STATES##################################
 def pega_energias(file):
     with open(file, "r", encoding="utf-8") as log_file:
         fetch_osc = False
-        correction, correction2 = [], []
         energies, spins, oscs, ind, double = [], [], [], [], []
         spin = 'Singlet'
         for line in log_file:
@@ -39,18 +120,13 @@ def pega_energias(file):
                 fetch_osc = False
             elif "Total energy in the final basis set" in line:
                 line = line.split()
-        correction, correction2 = np.zeros(len(energies)), np.zeros(len(energies))      #pega_correction(file, len(energies)/2)
         singlets = np.array(
             [energies[i] for i in range(len(energies)) if spins[i] == "Singlet"]
         )
         #double_s = np.array([double[i] for i in range(len(double)) if spins[i] == "Singlet"])
-        ss_s = np.array(
-            [
-                correction[i] + correction2[i]
-                for i in range(len(correction))
-                if spins[i] == "Singlet"
-            ]
-        )
+        ss_s, ss_t = extract_chi(file)
+        ss_s = np.array(ss_s)
+        ss_t = np.array(ss_t)
         ind_s = np.array([ind[i] for i in range(len(ind)) if spins[i] == "Singlet"])
         oscs = np.array(
             [oscs[i] for i in range(len(energies)) if spins[i] == "Singlet"]
@@ -59,13 +135,6 @@ def pega_energias(file):
             [energies[i] for i in range(len(energies)) if spins[i] == "Triplet"]
         )
         #double_t = np.array([double[i] for i in range(len(double)) if spins[i] == "Triplet"])
-        ss_t = np.array(
-            [
-                correction[i] + correction2[i]
-                for i in range(len(correction))
-                if spins[i] == "Triplet"
-            ]
-        )
         ind_t = np.array([ind[i] for i in range(len(ind)) if spins[i] == "Triplet"])
 
         oscs = np.array([x for _, x in zip(singlets, oscs)])
@@ -79,6 +148,8 @@ def pega_energias(file):
         oscs = oscs[order_s]
         ind_s = ind_s[order_s]
         ind_t = ind_t[order_t]
+        ss_s = ss_s[order_s]
+        ss_t = ss_t[order_t]
         #double_s = double_s[order_s]
         #double_t = double_t[order_t]
         y_s = np.zeros(len(singlets))

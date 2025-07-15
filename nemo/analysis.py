@@ -325,7 +325,7 @@ def gather_data(initial, save=True):
     formats["kbT"] = "{:.4f}"
     # make these the first columns
     cols = data.columns.tolist()
-    cols = cols[-4:] + cols[:-4]
+    cols = cols[-2:] + cols[:-2]
     data = data[cols]
     if save:
         # Create a temporary copy of the DataFrame
