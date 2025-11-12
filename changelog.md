@@ -1,3 +1,10 @@
+## Version 1.3.2
+
+1 - Updated Ensemble class giving option to generate spectra in terms of wavelength rather than energy.
+
+2 - Updated Ensemble class giving option to report molar extinction coefficients rather than cross-sections when computing absorption spectra.
+
+
 ## Version 1.3.1
 
 1 - Bug fixes.
