@@ -895,22 +895,34 @@ class Ensemble(object):
         )
         return results
 
-    def emission(self, dielec):
+    def emission(self, dielec, wavelength=False):
         _, emi = rates(self.initial, dielec, self.data, ensemble_average=False, detailed=False)
+        if wavelength:
+            emi = self.emi2wavelength(emi)
         return emi
 
-    def complete_emi(self, dielec, ensemble_average=False):
+    def complete_emi(self, dielec, ensemble_average=False, wavelength=False):
         results, emi, breakdown = rates(self.initial, dielec, self.data, ensemble_average=ensemble_average, detailed=True)
+        if wavelength:
+            emi = self.emi2wavelength(emi)
         breakdown.insert(0, 'Geometry', self.data['geometry'].astype(int))
         return results, emi, breakdown
 
-    def complete_abs(self, dielec, nstates=-1):
+    def complete_abs(self, dielec, nstates=-1, wavelength=False, extinction=False):
         abs_spec, breakdown = absorption(self.initial, dielec, self.data, nstates=nstates, save=False, detailed=True)
+        if wavelength:
+            abs_spec = self.abs2wavelength(abs_spec)
+        if extinction:
+            abs_spec = self.abs2extinction(abs_spec)
         breakdown.insert(0, 'Geometry', self.data['geometry'].astype(int))
         return abs_spec, breakdown
 
-    def absorption(self, dielec, nstates=-1):
+    def absorption(self, dielec, nstates=-1, wavelength=False, extinction=False):
         abs_spec = absorption(self.initial, dielec, data=self.data, nstates=nstates, save=False, detailed=False)
+        if wavelength:
+            abs_spec = self.abs2wavelength(abs_spec)
+        if extinction:
+            abs_spec = self.abs2extinction(abs_spec)
         return abs_spec
 
     def breakdown(self, dielec):
@@ -927,3 +939,24 @@ class Ensemble(object):
             export_results(results, emi, dielec)
         elif mode == 'abs':
             _ = absorption(self.initial, dielec, data=self.data, save=True, detailed=False)
+
+    def emi2wavelength(self, emi):
+        emi_energy = emi['Energy'].to_numpy()
+        emi['Energy'] = 1239.84193 / emi_energy
+        emi['Diffrate'] = emi['Diffrate'] * (1239.84193 / (emi_energy ** 2))
+        emi['Error'] = emi['Error'] * (1239.84193 / (emi_energy ** 2))
+        return emi
+    
+    def abs2wavelength(self, abs_spec):
+        abs_energy = abs_spec['Energy'].to_numpy()
+        abs_spec['Energy'] = 1239.84193 / abs_energy
+        return abs_spec
+
+    def abs2extinction(self, abs_spec):
+        # Convert cross section (A^2) to molar extinction coefficient (M^-1 cm^-1)
+        NA = 6.02214076e23  # Avogadro's number
+        abs_spec_ext = abs_spec.copy()
+        for col in abs_spec_ext.columns:
+            if col != 'Energy':
+                abs_spec_ext[col] = abs_spec_ext[col] * (1e-16) * NA / (1000 * np.log(10))
+        return abs_spec_ext
