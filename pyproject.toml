@@ -8,7 +8,7 @@ dynamic = ["version"]
 description = "Absorption, fluorescence, phosphorescence spectrum simulations and ISC rate calculations."
 readme = "README.md"
 requires-python = ">=3.6"
-license = "MIT"
+license = { file =  "LICENSE"}
 authors = [{ name = "Leonardo Evaristo de Sousa", email = "ledso@dtu.dk" }]
 urls = { Homepage = "https://github.com/LeonardoESousa/NEMO" }
 
