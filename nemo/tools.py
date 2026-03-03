@@ -9,9 +9,8 @@ from subprocess import Popen
 import numpy as np
 import pandas as pd
 from scipy.stats import norm
+from scipy.special import wofz
 from joblib import Parallel, delayed
-import lx.tools
-import lx.parser
 import nemo.parser
 
 LIGHT_SPEED = nemo.parser.LIGHT_SPEED
@@ -23,6 +22,138 @@ MASS_E = nemo.parser.MASS_E
 EPSILON_0 = nemo.parser.EPSILON_0
 
 ###############################################################
+
+def distance_matrix(geom):
+    matrix = np.zeros((1, np.shape(geom)[0]))
+    for ind in range(np.shape(geom)[0]):
+        distances = geom - geom[ind, :]
+        distances = np.sqrt(np.sum(np.square(distances), axis=1))
+        matrix = np.vstack((matrix, distances[np.newaxis, :]))
+    matrix = matrix[1:, :]
+    return matrix
+
+
+def adjacency(geom, atoms):
+    covalent_radii = {
+        '1': 0.31,
+        'H': 0.31,
+        '2': 0.28,
+        'He': 0.28,
+        '3': 1.28,
+        'Li': 1.28,
+        '4': 0.96,
+        'Be': 0.96,
+        '5': 0.84,
+        'B': 0.84,
+        '6': 0.76,
+        'C': 0.76,
+        '7': 0.71,
+        'N': 0.71,
+        '8': 0.66,
+        'O': 0.66,
+        '9': 0.57,
+        'F': 0.57,
+        '10': 0.58,
+        'Ne': 0.58,
+        '11': 1.66,
+        'Na': 1.66,
+        '12': 1.41,
+        'Mg': 1.41,
+        '13': 1.21,
+        'Al': 1.21,
+        '14': 1.11,
+        'Si': 1.11,
+        '15': 1.07,
+        'P': 1.07,
+        '16': 1.05,
+        'S': 1.05,
+        '17': 1.02,
+        'Cl': 1.02,
+        '18': 1.06,
+        'Ar': 1.06,
+        '19': 2.03,
+        'K': 2.03,
+        '20': 1.76,
+        'Ca': 1.76,
+        '21': 1.7,
+        'Sc': 1.7,
+        '22': 1.6,
+        'Ti': 1.6,
+        '23': 1.53,
+        'V': 1.53,
+        '24': 1.39,
+        'Cr': 1.39,
+        '25': 1.61,
+        'Mn': 1.61,
+        '26': 1.52,
+        'Fe': 1.52,
+        '27': 1.50,
+        'Co': 1.50,
+        '28': 1.24,
+        'Ni': 1.24,
+        '29': 1.32,
+        'Cu': 1.32,
+        '30': 1.22,
+        'Zn': 1.22,
+        '31': 1.22,
+        'Ga': 1.22,
+        '32': 1.2,
+        'Ge': 1.2,
+        '33': 1.19,
+        'As': 1.19,
+        '34': 1.20,
+        'Se': 1.20,
+        '35': 1.20,
+        'Br': 1.20,
+        '36': 1.16,
+        'Kr': 1.16,
+        '37': 2.2,
+        'Rb': 2.2,
+        '38': 1.95,
+        'Sr': 1.95,
+        '39': 1.9,
+        'Y': 1.9,
+        '40': 1.75,
+        'Zr': 1.75,
+        '41': 1.64,
+        'Nb': 1.64,
+        '42': 1.54,
+        'Mo': 1.54,
+        '43': 1.47,
+        'Tc': 1.47,
+        '44': 1.46,
+        'Ru': 1.46,
+        '45': 1.42,
+        'Rh': 1.42,
+        '46': 1.39,
+        'Pd': 1.39,
+        '47': 1.45,
+        'Ag': 1.45,
+        '48': 1.44,
+        'Cd': 1.44,
+        '49': 1.42,
+        'In': 1.42,
+        '50': 1.39,
+        'Sn': 1.39,
+        '51': 1.39,
+        'Sb': 1.39,
+        '52': 1.38,
+        'Te': 1.38,
+        '53': 1.39,
+        'I': 1.39,
+        '54': 1.4,
+        'Xe': 1.4,
+    }
+    dist_matrix = distance_matrix(geom)
+    adj_matrix = np.zeros(np.shape(dist_matrix))
+    # connectivity matrix
+    for i in range(np.shape(dist_matrix)[0]):
+        for j in range(i, np.shape(dist_matrix)[1]):
+            r_e = (covalent_radii[atoms[i]] + covalent_radii[atoms[j]]) + 0.4
+            if 0.8 < dist_matrix[i, j] < r_e:
+                adj_matrix[i, j] = adj_matrix[j, i] = 1
+    return adj_matrix
+
 
 ##WRITES ATOMS AND XYZ COORDS TO FILE##########################
 def write_input(atomos, geometry, header, bottom, file):
@@ -54,13 +185,13 @@ def sample_single_geometry(args):
     geom, atomos, old, scales, normal_coord, warning = args
     rejected_geoms = 0
     ok = False
-    
+
     while not ok:
         start_geom = geom.copy()
         qs = [norm(scale=scale, loc=0).rvs(size=1) for scale in scales]
         qs = np.array(qs)
         start_geom += np.sum(qs.reshape(1, 1, -1) * normal_coord, axis=2)
-        new = lx.tools.adjacency(start_geom, atomos)
+        new = adjacency(start_geom, atomos)
         if 0.5 * np.sum(np.abs(old - new)) < 1 or not warning:
             ok = True
             return (start_geom, qs.T, rejected_geoms)
@@ -69,7 +200,7 @@ def sample_single_geometry(args):
 
 def sample_geometries(freqlog, num_geoms, temp, limit=np.inf, warning=True, show_progress=False):
     geom, atomos = nemo.parser.pega_geom(freqlog)
-    old = lx.tools.adjacency(geom, atomos)
+    old = adjacency(geom, atomos)
     freqs, masses = nemo.parser.pega_freq(freqlog)
     normal_coord = nemo.parser.pega_modos(geom, freqlog)
 
@@ -79,10 +210,13 @@ def sample_geometries(freqlog, num_geoms, temp, limit=np.inf, warning=True, show
         freqs = freqs[mask]
         masses = masses[mask]
         normal_coord = normal_coord[:, :, mask]
+    if temp == 0:
+        temp_factor = 1.0
+    else:
+        temp_factor = np.tanh(HBAR_EV * freqs / (2 * BOLTZ_EV * temp))
 
     scales = 1e10 * np.sqrt(
-        HBAR_J / (2 * masses * freqs * np.tanh(HBAR_EV * freqs / (2 * BOLTZ_EV * temp)))
-    )
+        HBAR_J / (2 * masses * freqs * temp_factor))
 
     args = [(geom, atomos, old, scales, normal_coord, warning) for _ in range(num_geoms)]
 
@@ -161,97 +295,96 @@ def check_dielectric(eps,nr):
     if eps < 1 or nr**2 > eps:
         nemo.parser.fatal_error("Dielectric constant must be higher than 1 and the refractive index squared must be lower than the static dielectric constant! Goodbye!")
 
-def add_header(rem, num_ex, soc, static, refrac):
+
+def add_header(rem, num_ex, soc, static, refrac, cm):
+    """
+    Generates a Q-Chem input header by reading a template file and substituting placeholders.
+
+    Parameters:
+    rem (str): The $rem section from the Q-Chem input.
+    num_ex (int): Number of excited states.
+    static (float): Solvent's static dielectric constant.
+    refrac (float): Solvent's refractive index.
+    cm (str, optional): Charge and multiplicity information. Defaults to "{cm}".
+    geometry (str, optional): Molecular geometry. Defaults to "{geometry}".
+
+    Returns:
+    str: The formatted Q-Chem input header.
+    """
+
+    def load_template(method):
+        """Loads the Q-Chem template file."""
+        template_dir = os.path.join(os.path.dirname(__file__), "templates")
+        template_file = os.path.join(template_dir, f"{method}.in")
+
+        if not os.path.exists(template_file):
+            raise FileNotFoundError(f"Template file not found: {template_file}")
+
+        with open(template_file, "r", encoding="utf-8") as f:
+            return f.read()
+
+    def extract_basic_rem(rem):
+        """Extracts relevant information from the rem section and removes $end."""
+        return rem.replace("$end", "").strip()
+
     rem = rem.lower().strip()
     method = rem.split()
     try:
         method = method[method.index('method')+1]
     except ValueError:
         method = 'td-dft'
+
+    # Extract relevant part of rem
+    basic_rem = extract_basic_rem(rem)
+
+
     if method == 'eom-ccsd':
-        header =(f"$rem\n"
-            f"ee_singlets             {num_ex}\n"
-            f"ee_triplets             {num_ex}\n"
-            f"cc_trans_prop           2\n"
-            f"calc_soc                {soc}\n"
-            f"solvent_method          PCM\n"
-            f"EOM_DAVIDSON_MAXVECTORS 300\n"
-            f"EOM_DAVIDSON_MAX_ITER 300\n"
-            f"$end\n"
-            f"\n"
-            f"$trans_prop\n"
-            f"state_list\n"
-            f"ref\n"
-            f"ee_singlets 0 0\n"
-            f"end_list\n"
-            f"calc dipole linmom soc opdm_norm\n\n"
-            f"state_list\n"
-            f"ref\n"
-            f"ee_triplets 0 0\n"
-            f"end_list\n"
-            f"calc dipole linmom soc opdm_norm\n\n"
-            f"state_list\n"
-            f"ee_singlets 0 0\n"
-            f"ee_singlets 0 0\n"
-            f"end_list\n"
-            f"calc dipole linmom opdm_norm\n\n"
-            f"state_list\n"
-            f"ee_singlets 0 0\n"
-            f"ee_triplets 0 0\n"
-            f"end_list\n"
-            f"calc dipole linmom soc opdm_norm\n\n"
-            f"state_list\n"
-            f"ee_triplets 0 0\n"
-            f"ee_triplets 0 0\n"
-            f"end_list\n"
-            f"calc dipole linmom  opdm_norm\n"
-            f"$end\n")
- 
+        template = load_template('eom-ccsd')
+        header = template.format(
+            num_ex=num_ex,
+            stat=static,
+            optic=refrac**2,
+            basic=basic_rem,
+            cm=cm,
+            soc=soc
+        )
     else:
-        header =(f"$rem\n"
-            f"cis_n_roots             {num_ex}\n"
-            f"cis_singlets            true\n"
-            f"cis_triplets            true\n"
-            f"calc_soc                {soc}\n"
-            f"STS_MOM                 true\n"
-            f"CIS_RELAXED_DENSITY     TRUE\n"
-            f"solvent_method          PCM\n"
-            f"MAX_CIS_CYCLES          200\n"
-            f"MAX_SCF_CYCLES          200\n"
-            f"$end\n")
-    header += ("\n$pcm\n"
-            "theory                  IEFPCM\n"
-            "ChargeSeparation        Marcus\n"
-            "StateSpecific           Perturb\n"
-            "$end\n")
-    header += (f"\n$solvent\n"
-            f"Dielectric              {static}\n"
-            f"OpticalDielectric       {refrac**2}\n"
-            f"$end\n\n")   
-    #remove $end from rem
-    rem = rem.replace("$end", "")
-    header = header.replace("$rem", rem)
-    return header    
+        template = load_template('ic_td-dft')
+        header = template.format(
+            num_ex=num_ex,
+            stat=static,
+            optic=refrac**2,
+            basic=basic_rem,
+            cm=cm,
+            soc=soc,
+            cis_der=num_ex +1,
+            state_couplings=" ".join([str(i) for i in range(num_ex+1)])
+        )
+    return header
+
+def single_molecule_ensemble(atomos, geom, header, bottom):
+    try:
+        os.mkdir("Geometries")
+    except FileExistsError:
+        pass
+    nemo.tools.write_input(
+        atomos,
+        geom,
+        header,
+        bottom,
+        f"Geometries/Geometry-1-.com",
+    )
+    print("\n\nOptimized molecule calculation created in the Geometries folder.")
+    print("\n\nDone! Ready to run.")
+
 
 def setup_ensemble():
     freqlog = fetch_file("frequency", [".out", ".log"])
     print(f"\n\nFrequency log file: {freqlog}")
-    with open(freqlog, "r", encoding="utf-8") as frequency_file:
-        for line in frequency_file:
-            if "Entering Gaussian System" in line:
-                gaussian = True
-            else:
-                gaussian = False
-            break
-    if gaussian:
-        print("You are using a Gaussian log file.")
-        template = fetch_file("QChem template", [".in"])
-        charge_multiplicity = lx.parser.get_cm(freqlog)
-        rem, _, extra = nemo.parser.busca_input(template)
-    else:
-        template = fetch_file("QChem template", [".in"])
-        rem, _, extra = nemo.parser.busca_input(template)
-        _, charge_multiplicity, _ = nemo.parser.busca_input(freqlog)
+    template = fetch_file("QChem template", [".in"])
+    charge_multiplicity = nemo.parser.get_cm(freqlog)
+    rem, _, extra = nemo.parser.busca_input(template)
+    geom, atomos = nemo.parser.pega_geom(freqlog)
     print(f"QChem template file: {template}")
     print("\nThe configurations to be used are:\n")
     rem += extra + "\n"
@@ -271,28 +404,30 @@ def setup_ensemble():
         num_ex = int(num_ex)
     except ValueError:
         nemo.parser.fatal_error("This must be a number! Better luck next time!")
-    abs_only = input("Are you interested in absorption spectra ONLY? (y or n)\n")
+    abs_only = input("Are you interested in absorption/fluorescence spectra ONLY? (y or n)\n")
     if abs_only.lower() == "y":
         print(
             ("Ok, calculations will only be suitable for absorption "
              "or fluorescence spectrum simulations!\n")
         )
-        header = add_header(rem, num_ex, 'false', static, refrac) 
+        header = add_header(rem, num_ex, 'false', static, refrac, charge_multiplicity)
     else:
         print(
             "Ok, calculations will be suitable for all spectra and ISC rate estimates!\n"
         )
-        header = add_header(rem, num_ex, 'true', static, refrac)
-    header += f"$molecule\n{charge_multiplicity}\n"
-    num_geoms = int(input("How many geometries to be sampled?\n"))
-    temperature = float(input("Temperature in Kelvin?\n"))
-    if temperature <= 0:
-        nemo.parser.fatal_error("Have you heard about absolute zero? Goodbye!")
-    if gaussian:
-        lx.tools.make_ensemble(freqlog, num_geoms, temperature, header, "$end\n")
-    else:
-        make_ensemble(freqlog, num_geoms, temperature, header, "$end\n")
+        header = add_header(rem, num_ex, 'true', static, refrac, charge_multiplicity)
+    header = header.split("#GGG#")
+    bottom = header[1]
+    header = header[0]
 
+    num_geoms = int(input("How many geometries to be sampled?\n"))
+    if num_geoms == 1:
+        single_molecule_ensemble(atomos, geom, header, bottom)
+    else:
+        temperature = float(input("Temperature in Kelvin?\n"))
+        if temperature < 0:
+            nemo.parser.fatal_error("Have you heard about absolute zero? Goodbye!")
+        make_ensemble(freqlog, num_geoms, temperature, header, bottom)
 
 
 ##NORMALIZED GAUSSIAN##########################################
@@ -302,6 +437,48 @@ def gauss(x_value, mean, std):
 
 
 ###############################################################
+
+##NORMALIZED LORENTZIAN##########################################
+def lorentz(x_value, mean, gamma):
+    y_value = (gamma / np.pi) / ((x_value - mean)**2 + gamma**2)
+    return y_value
+
+##Voigt FUNCTION#############################################
+
+def voigt(x, sigma, gamma, eps=0.0):
+    """
+    Vectorized Voigt profile.
+    If sigma <= eps, returns the Lorentzian limit gamma / (pi*(x^2 + gamma^2)).
+
+    x, sigma, gamma: scalars or arrays (broadcastable to common shape)
+    eps: threshold for treating sigma as zero (use small value like 1e-14 if desired)
+    """
+    x, sigma, gamma = np.broadcast_arrays(x, sigma, gamma)
+
+    out = np.empty_like(x, dtype=float)
+
+    # Where sigma is effectively zero -> Lorentzian
+    mask0 = sigma <= eps
+    if np.any(mask0):
+        out[mask0] = gamma[mask0] / (np.pi * (x[mask0]**2 + gamma[mask0]**2))
+
+    # Where sigma is nonzero -> Voigt via wofz
+    mask = ~mask0
+    if np.any(mask):
+        z = (x[mask] + 1j * gamma[mask]) / (np.sqrt(2) * sigma[mask])
+        out[mask] = np.real(wofz(z)) / (np.sqrt(2*np.pi) * sigma[mask])
+
+    return out
+#############################################################
+
+#fake voigt to test gaussian
+def avoigt(x,sigma,gamma):
+    sigma = np.sqrt(sigma**2 + gamma**2)
+    #normalized gaussian
+    gauss = (1 / (np.sqrt(2 * np.pi) * sigma)) * np.exp(-0.5 * (x / sigma) ** 2)
+    return gauss
+
+
 
 
 ##COMPUTES AVG TRANSITION DIPOLE MOMENT########################
@@ -414,32 +591,40 @@ def fetch_nr(file):
                 epsilon = float(line.split()[1])
             if refractive_index is not None and epsilon is not None:
                 return epsilon, refractive_index
-    return epsilon, refractive_index        
+    return epsilon, refractive_index
 
 def susceptibility_check(file, tuning=False):
     # Fetch energy levels and other data
-    es, et, _, _, _, ss_s, ss_t, _ = nemo.parser.pega_energias(file)
-    _, nr = fetch_nr(file)
-    
+    s_vac, t_vac, _, _, _, ss_s, ss_t, ss_g, y_s, y_t = nemo.parser.pega_energias(file)
+
+    eps, nr = fetch_nr(file)
+
     # Calculate alpha and susceptibility chi values
-    alpha = (nr**2 - 1) / (nr**2 + 1)
-    chi_s = ss_s / alpha
-    chi_t = ss_t / alpha
-    
+    alpha_opt = (nr**2 - 1) / (nr**2 + 1)
+    chi_s = ss_s / alpha_opt
+    chi_t = ss_t / alpha_opt
+    alpha_st = (eps - 1) / (eps + 1)
+    y_g = ss_g / alpha_st
+    y_s = y_s / alpha_st
+    y_t = y_t / alpha_st
+
     if tuning:
-        return es[0], chi_s[0]
+        return s_vac[0], chi_s[0]
     else:
         chi_symbol = '\u03C7(eV)'
+        gamma_symbol = '\u03B3(eV)'
         # Print header with aligned columns
-        print(fr"{'State':<6} {'E_vac(eV)':<12} {chi_symbol:<10}")
-        
+        print(fr"{'State':<6} {'E_vac(eV)':<12} {chi_symbol:<10} {gamma_symbol:<10}")
+
+        print(f"S{0:<5} {0:<12.3f} {0:<10.3f} {y_g:<10.3f}")
+
         # Print singlet states
-        for i, (e, chi) in enumerate(zip(es, chi_s), start=1):
-            print(f"S{i:<5} {e:<12.3f} {chi:<10.3f}")
+        for i, (e, chi, y) in enumerate(zip(s_vac, chi_s, y_s), start=1):
+            print(f"S{i:<5} {e:<12.3f} {chi:<10.3f} {y:<10.3f}")
 
         # Print triplet states
-        for i, (e, chi) in enumerate(zip(et, chi_t), start=1):
-            print(f"T{i:<5} {e:<12.3f} {chi:<10.3f}")
+        for i, (e, chi, y) in enumerate(zip(t_vac, chi_t, y_t), start=1):
+            print(f"T{i:<5} {e:<12.3f} {chi:<10.3f} {y:<10.3f}")
 
 
 
@@ -506,23 +691,41 @@ class Watcher:
     def check(self):
         list_to_check = self.files.copy()
         for input_file in list_to_check:
+            input_file_path = f"{self.folder}/{input_file}"
+
             try:
-                with open(self.folder + "/" + input_file + ".log", "r",encoding="utf-8") as log_file:
+                # Count "@@@" present in the input file
+                with open(f"{input_file_path}.com", "r", encoding="utf-8") as inp_file:
+                    num_triple_at = sum(line.count("@@@") for line in inp_file)
+
+                # Now check the corresponding log file
+                log_file_path = f"{input_file_path}.log"
+                with open(log_file_path, "r", encoding="utf-8") as log_file:
+                    have_a_nice_day_count = 0
+
                     for line in log_file:
                         if "Have a nice day" in line:
-                            self.done.append(input_file)
-                            del self.files[self.files.index(input_file)]
-                            break
-                        elif "fatal error" in line:
+                            have_a_nice_day_count += 1
+                            if have_a_nice_day_count == num_triple_at +1:#not has_triple_at and have_a_nice_day_count == 1:
+                                self.done.append(input_file)
+                                self.files.remove(input_file)
+                                break
+                            #elif has_triple_at and have_a_nice_day_count == 2:
+                            #    self.done.append(input_file)
+                            #    self.files.remove(input_file)
+                            #    break
+                        elif "fatal error" in line or "Q-Chem error" in line:
                             self.error.append(input_file)
-                            del self.files[self.files.index(input_file)]
+                            self.files.remove(input_file)
                             break
                         elif "failed standard" in line:
                             self.license_error.append(input_file)
-                            del self.files[self.files.index(input_file)]
+                            self.files.remove(input_file)
                             break
+
             except FileNotFoundError:
                 pass
+
 
     def report(self):
         self.check()
@@ -585,7 +788,7 @@ class Watcher:
                 self.check()
                 concluded = self.done + self.error + self.license_error
                 self.running = [elem for elem in self.running if elem not in concluded]
-                keep = self.keep_going(num)    
+                keep = self.keep_going(num)
 
     def hold_watch(self):
         while len(self.files) > 0:
@@ -603,7 +806,7 @@ def check_for_updates(package_name):
     try:
         # Get the currently installed version
         installed_version = pkg_resources.get_distribution(package_name).version
-        
+
         # Fetch the latest version from PyPI
         response = requests.get(f'https://pypi.org/pypi/{package_name}/json')
         response.raise_for_status()
@@ -630,7 +833,7 @@ def empirical_tuning():
         if "basis" in line.lower():
             basis = line.split()[-1]
         if  'mem_total' in line.lower():
-            mem = line.split()[-1]   
+            mem = line.split()[-1]
     omega1 = "0.1"
     passo = "0.025"
     relax = 'yes'
@@ -658,7 +861,7 @@ def empirical_tuning():
     nproc = input("Number of threads for each calculation\n")
     e_exp = input("Experimental vacuum energy and uncertainty in eV? (space separated)\n")
     chi_exp = input("Experimental susceptibility and uncertainty in eV? (space separated)?\n")
-    
+
     with open("limit.lx", "w",encoding="utf-8") as f:
         f.write("10")
     subprocess.Popen(
@@ -681,3 +884,26 @@ def empirical_tuning():
     )
 
 ###############################################################
+
+
+###### IC RATE ##########
+def V_to_vec(data_V):
+    shape=(int(data_V["geometry"].max()),
+           int(data_V["mode"].max())
+           )
+    v=np.zeros(shape)
+    v[data_V["geometry"]-1, data_V["mode"]-1] = data_V["V"]
+    return v
+
+def B_to_vec(data_dc, lower, higher):
+    data_dc[['initial_state', 'final_state']] = data_dc[['initial_state', 'final_state']].astype(int)
+    shape=(int(data_dc["initial_state"].max())+1,
+           int(data_dc["final_state"].max())+1,
+           int(data_dc["geometry"].max()),
+           int(data_dc["mode"].max())
+           )
+    b_matrix=np.zeros(shape)
+    b_matrix[data_dc["initial_state"], data_dc["final_state"], data_dc["geometry"]-1, data_dc["mode"]-1] = data_dc["B"]
+    b=b_matrix[lower][higher]
+    return b
+
