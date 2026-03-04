@@ -7,6 +7,7 @@ import pandas as pd
 import nemo.tools
 import nemo.parser
 import nemo.eom
+from itertools import combinations
 
 # pylint: disable=unbalanced-tuple-unpacking
 
@@ -20,37 +21,10 @@ EPSILON_0 = nemo.parser.EPSILON_0
 
 
 ##RETURNS LIST OF LOG FILES WITH NORMAL TERMINATION######################################
-def check_normal(files):
-    normal, abnormal = [], []
-    add = False
-    for file in files:
-        with open("Geometries/" + file, "r", encoding="utf-8") as log_file:
-            for line in log_file:
-                #if (
-                #    "TDDFT/TDA Excitation Energies" in line
-                #    or "TDDFT Excitation Energies" in line
-                #):
-                #    exc = True
-                #elif "Excited state" in line and exc:
-                #    eng = float(line.split()[7])
-                #    if eng < 0:
-                #        add = False
-                #        abnormal.append(file)
-                #    else:
-                #        add = True
-                #    exc = False
-                if "Have a nice day" in line:# and add:
-                    normal.append(file)
-    if len(abnormal) > 0:
-        print(f"Warning! Negative transition energies detected in {len(abnormal)} files:")
-        for file in abnormal:
-            print(file)
-        print("They will not be considered in the analysis")
-    return normal
-
-
-#########################################################################################
-
+def check_normal(folder):
+    watcher = nemo.tools.Watcher(folder)
+    watcher.check()
+    return [i+'.log' for i in watcher.done]
 
 #########################################################################################
 
@@ -104,6 +78,8 @@ def analysis(files, n_state, get_energies):
             ss_s,
             ss_t,
             ground_pol,
+            y_s,
+            y_t,
         ) = get_energies("Geometries/" + file)
         singlets = np.array([singlets[:n_state]])
         triplets = np.array([triplets[:n_state]])
@@ -112,6 +88,8 @@ def analysis(files, n_state, get_energies):
         ss_t = np.array([ss_t[:n_state]])
         ind_s = np.array([ind_s[:n_state]])
         ind_t = np.array([ind_t[:n_state]])
+        y_s = np.array([y_s[:n_state]])
+        y_t = np.array([y_t[:n_state]])
         ground_pol = np.array([ground_pol])
         try:
             total_singlets = np.vstack((total_singlets, singlets))
@@ -121,6 +99,8 @@ def analysis(files, n_state, get_energies):
             total_ss_t = np.vstack((total_ss_t, ss_t))
             total_ind_s = np.vstack((total_ind_s, ind_s))
             total_ind_t = np.vstack((total_ind_t, ind_t))
+            total_y_s = np.vstack((total_y_s, y_s))
+            total_y_t = np.vstack((total_y_t, y_t))
             total_ground_pol = np.append(total_ground_pol, ground_pol)
         except NameError:
             total_singlets = singlets
@@ -130,6 +110,8 @@ def analysis(files, n_state, get_energies):
             total_ss_t = ss_t
             total_ind_s = ind_s
             total_ind_t = ind_t
+            total_y_s = y_s
+            total_y_t = y_t
             total_ground_pol = ground_pol
         numbers.append(int(file.split("-")[1]))
     numbers = np.array(numbers)[:, np.newaxis]
@@ -143,6 +125,8 @@ def analysis(files, n_state, get_energies):
         total_ground_pol,
         total_ind_s,
         total_ind_t,
+        total_y_s,
+        total_y_t,
     )
 
 
@@ -219,136 +203,141 @@ get_oscs = {'tddft': nemo.parser.pega_oscs, 'eom-ccsd': nemo.eom.pega_oscs}
 get_avg_socs = {'tddft': nemo.parser.avg_socs, 'eom-ccsd': nemo.eom.avg_socs}
 get_phosph_osc = {'tddft': nemo.parser.phosph_osc, 'eom-ccsd': nemo.eom.phosph_osc}
 
+
 ###SAVES ENSEMBLE DATA#################################################################
 def gather_data(initial, save=True):
     formats = {}
-    files = [i for i in os.listdir("Geometries") if ".log" in i]
-    files = check_normal(files)
+    files = check_normal("Geometries")
     files = sorted(files, key=lambda pair: float(pair.split("-")[1]))
     n_state = int(initial[1:]) - 1
     eps_i, nr_i = nemo.tools.get_nr()
+    alphaopt1 = nemo.tools.get_alpha(nr_i**2)
+    alphast1 = nemo.tools.get_alpha(eps_i)
     kbt = nemo.tools.detect_sigma()
     total_states, calculation_type = read_cis(files[0])
-    if "s" in initial.lower():
-        (
-            numbers,
-            singlets,
-            triplets,
-            oscs,
-            ss_s,
-            ss_t,
-            ground_pol,
-            ind_s,
-            ind_t,
+    (
+    numbers,
+    singlets,
+    triplets,
+    oscs,
+    ss_s,
+    ss_t,
+    ground_pol,
+    ind_s,
+    ind_t,
+    y_s,
+    y_t,
         ) = analysis(files, total_states, get_energies[calculation_type])
+    ss_s = ss_s/alphaopt1
+    ss_t = ss_t/alphaopt1
+    gamma_s0 = ground_pol/alphast1
+    gamma_s = y_s/alphast1
+    gamma_t = y_t/alphast1
+
+    #start dataframe with numbers as geometry column
+    data = pd.DataFrame(numbers, columns=["geometry"])
+
+    for i in range(singlets.shape[1]):
+        data[f"e_s{i+1}"] = singlets[:, i]
+        formats[f"e_s{i+1}"] = "{:.4f}"
+    for i in range(triplets.shape[1]):
+        data[f"e_t{i+1}"] = triplets[:, i]
+        formats[f"e_t{i+1}"] = "{:.4f}"
+    for i in range(ss_s.shape[1]):
+        data[f"chi_s{i+1}"] = ss_s[:, i]
+        formats[f"chi_s{i+1}"] = "{:.4f}"
+    for i in range(ss_t.shape[1]):
+        data[f"chi_t{i+1}"] = ss_t[:, i]
+        formats[f"chi_t{i+1}"] = "{:.4f}"
+    for i in range(gamma_s.shape[1]):
+        data[f"gamma_s{i+1}"] = gamma_s[:, i]
+        formats[f"gamma_s{i+1}"] = "{:.4f}"
+    for i in range(gamma_t.shape[1]):
+        data[f"gamma_t{i+1}"] = gamma_t[:, i]
+        formats[f"gamma_t{i+1}"] = "{:.4f}"
+
+    data["gamma_s0"] = gamma_s0
+    formats["gamma_s0"] = "{:.4f}"
+
+    if "s" in initial.lower():
+
         if "s0" == initial.lower():
-            label_oscs = [f"osc_s{i+1}" for i in range(oscs.shape[1])]
-            any({formats.update({f"osc_s{i+1}": "{:.5e}"}) for i in range(oscs.shape[1])})
+            for i in range(oscs.shape[1]):
+                data[f"osc_s{i+1}"] = oscs[:, i]
+                formats[f"osc_s{i+1}"] = "{:.5e}"
+
         else:
-            label_oscs = [f"osce_s{n_state+1+i}" for i in range(oscs.shape[1])]
-            any({formats.update({f"osce_s{n_state+1+i}": "{:.5e}"}) for i in range(oscs.shape[1])})
+            for i in range(oscs.shape[1]):
+                data[f"osce_s{n_state+1+i}"] = oscs[:, i]
+                formats[f"osce_s{n_state+1+i}"] = "{:.5e}"
+
             noscs = get_oscs[calculation_type](files, ind_s, initial)
-            label_oscs.extend([f"osc_s{n_state+2+i}" for i in range(noscs.shape[1])])
-            any({formats.update({f"osc_s{n_state+2+i}": "{:.5e}"}) for i in range(noscs.shape[1])})
-            oscs = np.hstack((oscs, noscs))
+            for i in range(noscs.shape[1]):
+                data[f"osc_s{n_state+2+i}"] = noscs[:, i]
+                formats[f"osc_s{n_state+2+i}"] = "{:.5e}"
+
         try:
-            header7 = []
             for i in range(singlets.shape[1]):
                 socs_partial = get_avg_socs[calculation_type](files, "singlet", i, ind_s, ind_t)
-                header7.extend(
-                    [f"soc_s{i+1}_t{j}" for j in range(1, 1 + socs_partial.shape[1])]
-                )
-                any({formats.update({f"soc_s{i+1}_t{j}": "{:.5e}"}) for j in range(1, 1 + socs_partial.shape[1])})
-                try:
-                    socs_complete = np.hstack((socs_complete, socs_partial))
-                except NameError:
-                    socs_complete = socs_partial
+                for j in range(singlets.shape[1]):
+                    data[f"soc_s{i+1}_t{j+1}"] = socs_partial[:, j]
+                    formats[f"soc_s{i+1}_t{j+1}"] = "{:.5e}"
+
         except IndexError:
             pass
     else:
-        numbers, singlets, triplets, _, ss_s, ss_t, ground_pol, ind_s, ind_t = analysis(
-            files, total_states, get_energies[calculation_type]
-        )
+
         oscs = get_osc_phosph(files, singlets, triplets, total_states, ind_s, ind_t, get_phosph_osc[calculation_type])
-        label_oscs = [f"osce_t{n_state+1+i}" for i in range(oscs.shape[1])]
-        any({formats.update({f"osce_t{n_state+1+i}": "{:.5e}"}) for i in range(oscs.shape[1])})
+
+        for i in range(oscs.shape[1]):
+            data[f"osce_t{n_state+1+i}"] = oscs[:, i]
+            formats[f"osce_t{n_state+1+i}"] = "{:.5e}"
+
         noscs =  get_oscs[calculation_type](files, ind_t, initial)
-        oscs = np.hstack((oscs, noscs))
-        label_oscs.extend([f"osc_t{n_state+2+i}" for i in range(noscs.shape[1])])
-        any({formats.update({f"osc_t{n_state+2+i}": "{:.5e}"}) for i in range(noscs.shape[1])})
+
+        for i in range(noscs.shape[1]):
+            data[f"osc_t{n_state+2+i}"] = noscs[:, i]
+            formats[f"osc_t{n_state+2+i}"] = "{:.5e}"
+
         try:
-            header7 = []
+
             for i in range(triplets.shape[1]):
-                socs_partial = np.hstack(
-                    (
-                        get_avg_socs[calculation_type](files, "ground", i, ind_s, ind_t),
-                        get_avg_socs[calculation_type](files, "triplet", i, ind_s, ind_t),
-                        get_avg_socs[calculation_type](files, "tts", i, ind_s, ind_t),
-                    )
-                )
-                indices = [
-                    j + 1 for j in range(triplets.shape[1]) if j != i
-                ]  # Removed Tn to Tn transfers
-                header7.extend([f"soc_t{i+1}_s0"])
+
+                soc_ground = get_avg_socs[calculation_type](files, "ground", i, ind_s, ind_t)
+                soc_triplet = get_avg_socs[calculation_type](files, "triplet", i, ind_s, ind_t)
+                #soc_tts = get_avg_socs[calculation_type](files, "tts", i, ind_s, ind_t)
+
+                data[f"soc_t{i+1}_s0"] = soc_ground[:, 0]
                 formats[f"soc_t{i+1}_s0"] = "{:.5e}"
-                header7.extend(
-                    [f"soc_t{i+1}_s{j}" for j in range(1, 1 + singlets.shape[1])]
-                )
-                any({formats.update({f"soc_t{i+1}_s{j}": "{:.5e}"}) for j in range(1, 1 + singlets.shape[1])})
-                header7.extend([f"soc_t{i+1}_t{j}" for j in indices])
-                any({formats.update({f"soc_t{i+1}_t{j}": "{:.5e}"}) for j in indices})
-                try:
-                    socs_complete = np.hstack((socs_complete, socs_partial))
-                except NameError:
-                    socs_complete = socs_partial
+                for j in range(triplets.shape[1]):
+                    data[f"soc_t{i+1}_s{j+1}"] = soc_triplet[:, j]
+                    formats[f"soc_t{i+1}_s{j+1}"] = "{:.5e}"
+                    #data[f"soc_t{i+1}_t{j+1}"] = soc_tts[:, j]
+                    #formats[f"soc_t{i+1}_t{j+1}"] = "{:.5e}"
+
         except IndexError:
             pass
-    header = ["geometry"]
-    formats["geometry"] = "{:.0f}"
-    header.extend([f"e_s{i}" for i in range(1, 1 + singlets.shape[1])])
-    any({formats.update({f"e_s{i}": "{:.4f}"}) for i in range(1, 1 + singlets.shape[1])})
-    header.extend([f"e_t{i}" for i in range(1, 1 + triplets.shape[1])])
-    any({formats.update({f"e_t{i}": "{:.4f}"}) for i in range(1, 1 + triplets.shape[1])})
-    header.extend([f"d_s{i}" for i in range(1, 1 + ss_s.shape[1])])
-    any({formats.update({f"d_s{i}": "{:.4f}"}) for i in range(1, 1 + ss_s.shape[1])})
-    header.extend([f"d_t{i}" for i in range(1, 1 + ss_t.shape[1])])
-    any({formats.update({f"d_t{i}": "{:.4f}"}) for i in range(1, 1 + ss_t.shape[1])})
-    header.extend(["gp"])
-    formats["gp"] = "{:.4f}"
-    header.extend(label_oscs)
-    try:
-        header.extend(header7)
-        data = np.hstack(
-            (
-                numbers,
-                singlets,
-                triplets,
-                ss_s,
-                ss_t,
-                ground_pol[:, np.newaxis],
-                oscs,
-                socs_complete,
-            )
-        )
-    except NameError:
-        data = np.hstack(
-            (numbers, singlets, triplets, ss_s, ss_t, ground_pol[:, np.newaxis], oscs)
-        )
+
+    # Check if derivative coupling calculation was performed
+    dc_computation, states = nemo.parser.check_derivative_couplings(files[0])
+    if dc_computation:
+        _, _, h = gather_data_derivative_couplings(initial, data, save)
+        print(h.shape)
+        for i, j in combinations(states, 2):
+            data[f"IC_{i}_{j}"] = h[:, i]
+            formats[f"IC_{i}_{j}"] = "{:.5e}"
+        #header.extend([f"IC_{i}_{j}(eV)" for i, j in combinations(states, 2)])
+        #any({formats.update({f"IC_{i}_{j}(eV)": "{:.5e}"}) for i, j in combinations(states, 2)})
+        #data=np.hstack((data, h))
+
     arquivo = f"Ensemble_{initial.upper()}_.lx"
-    data = pd.DataFrame(data, columns=header)
-    # add 'ensemble', 'kbT', 'nr', 'eps' columns with constant values
-    # values are initial.upper(), kbT, nr_i, eps_i
     data["ensemble"] = initial.upper()
     formats["ensemble"] = "{:s}"
     data["kbT"] = kbt
     formats["kbT"] = "{:.4f}"
-    data["nr"] = nr_i
-    formats["nr"] = "{:.3f}"
-    data["eps"] = eps_i
-    formats["eps"] = "{:.3f}"
     # make these the first columns
     cols = data.columns.tolist()
-    cols = cols[-4:] + cols[:-4]
+    cols = cols[-2:] + cols[:-2]
     data = data[cols]
     if save:
         # Create a temporary copy of the DataFrame
@@ -358,10 +347,149 @@ def gather_data(initial, save=True):
             temp_data[column] = temp_data[column].map(fmt.format)
         temp_data.to_csv(arquivo, index=False)
     return data
-
-
 #######################################################################################
 
+
+def gather_data_derivative_couplings(initial, data=None, save=True):
+    files = check_normal("Geometries")
+    _, dc_states = nemo.parser.check_derivative_couplings(files[0])
+    ###### OBTAINS THE B PARAMETERS ########
+    formats_dc = {}
+    freq_log = nemo.tools.fetch_file("frequency", [".out", ".log"])
+    (
+        initial_state,
+        final_state,
+        geometry,
+        mode,
+        b
+    ) = nemo.parser.get_derivative_couplings(initial[1:], dc_states, files, freq_log)
+
+    arquivo_dc =f"Derivative_Couplings_{initial.upper()}_.lx"
+    data_dc = pd.DataFrame()
+    data_dc["initial_state"] = np.array(initial_state).astype(str)
+    data_dc["final_state"] = np.array(final_state).astype(str)
+    data_dc["geometry"] = geometry
+    data_dc["mode"] = mode
+    data_dc["B"] = b
+
+    formats_dc["initial_state"] = "{:s}"
+    formats_dc["final_state"] = "{:s}"
+    formats_dc["geometry"] = "{:.0f}"
+    formats_dc["mode"] = "{:.0f}"
+    formats_dc["B"] = "{:.5e}"
+    if save:
+        # Create a temporary copy of the DataFrame
+        temp_data_dc = data_dc.copy()
+        #Apply formats
+        for column, fmt in formats_dc.items():
+            if column in temp_data_dc.columns:
+                temp_data_dc[column] = temp_data_dc[column].map(fmt.format)
+        temp_data_dc.to_csv(arquivo_dc, index=False)
+
+    ###### OBTAINS THE V PARAMETERS ########
+    Mag_file = nemo.tools.fetch_file("Magnitudes", ['Magnitudes'])
+    (
+        geometry_V,
+        mode_V,
+        v
+    ) = nemo.parser.get_V(Mag_file)
+
+    formats_V = {}
+    arquivo_V =f"V_{initial.upper()}_.lx"
+    data_V = pd.DataFrame()
+    data_V["geometry"] = geometry_V
+    data_V["mode"] = mode_V
+    data_V["V"] = v
+
+    formats_V["geometry"] = "{:.0f}"
+    formats_V["mode"] = "{:.0f}"
+    formats_V["V"] = "{:.5e}"
+    if save:
+        # Create a temporary copy of the DataFrame
+        temp_data_V = data_V.copy()
+        #Apply formats
+        for column, fmt in formats_V.items():
+            if column in temp_data_V.columns:
+                temp_data_V[column] = temp_data_V[column].map(fmt.format)
+        temp_data_V.to_csv(arquivo_V, index=False)
+
+    #------------------------------------#
+    # Computes the H parameters
+    h = 0.0
+    if data is not None:
+        v = nemo.tools.V_to_vec(data_V)
+
+        # ----- Freq
+        mag_file = nemo.tools.fetch_file("Magnitudes", ['Magnitudes'])
+        data_f = pd.read_csv(mag_file)
+        freq_V = data_f.filter(regex="freq").dropna().to_numpy().flatten()
+        freq_row = freq_V[np.newaxis,:] #rad/s
+
+
+        i=0
+        for final in dc_states:
+            if final == int(initial[1]):
+                continue
+            if int(initial[1]) < final:
+                lower=int(initial[1])
+                higher=final
+            else:
+                higher=int(initial[1])
+                lower=final
+
+
+            # Compute the geometry dependent rate for the ith transition
+            # ----- Get the transition energy for the ith transition
+            e_col = fetch(data, [f"^e_{initial.lower()[0]}"])[:,i] # eV
+            e_col = e_col[:,np.newaxis]
+            e_col *= -1.0
+            # ----- Get oscillator strength for the ith transition
+            osc_col = fetch(data, [f"^osce_{initial.lower()[0]}"])[:,i] #
+            osc_col = osc_col[:,np.newaxis]
+            constante = E_CHARGE**2 / (2.0 * np.pi * HBAR_EV * MASS_E * (LIGHT_SPEED**3.0) * EPSILON_0)
+            espectro = constante * ((e_col) ** 2 ) * osc_col
+            gammas_lorentz = espectro / 2# nemo.tools.detect_sigma()# espectro / 2.0
+            i+=1
+
+
+
+            # ----_ Get the corresponding coupling for the ith transition
+            b = nemo.tools.B_to_vec(data_dc, lower, higher) # J^2
+
+            # ----- Calculate h_IC
+            # ----- Gaussian line shape
+            # argument_pos =  (e_col * HBAR_EV * freq_row)/(s**2)-(HBAR_EV * freq_row)**2/(2.0*s**2)
+            # argument_neg = -(e_col * HBAR_EV * freq_row)/(s**2)-(HBAR_EV * freq_row)**2/(2.0*s**2)
+            # term_pos= np.exp((argument_pos))
+            # term_neg= np.exp((argument_neg))
+
+            # debugging: print the arguments before exponentiation to check for overflow issues
+            # print the numpy array argument to a file
+            # np.savetxt("debug_argument_pos.csv", argument_pos, delimiter=",", fmt='%10.5f')
+            # np.savetxt("debug_argument_neg.csv", argument_neg, delimiter=",", fmt='%10.5f')
+            # print(argument_pos)
+            # np.savetxt("debug_exp_pos.csv", term_pos, delimiter=",", fmt='%10.5f')
+            # np.savetxt("debug_exp_neg.csv", term_neg, delimiter=",", fmt='%10.5f')
+            #print(term_pos)
+
+            # ------ Lorentzian line shape
+            term_pos = nemo.tools.voigt(-e_col+HBAR_EV*freq_row,0.0,gammas_lorentz) / nemo.tools.voigt(-e_col,0.0,gammas_lorentz)
+            term_neg = nemo.tools.voigt(-e_col-HBAR_EV*freq_row,0.0,gammas_lorentz) / nemo.tools.voigt(-e_col,0.0,gammas_lorentz)
+
+
+            h = b * (v * term_pos + (v + 1) * term_neg)
+            #np.savetxt("debug.csv", H, delimiter=",", fmt='%10.5f') #
+
+            # ----- sum on normal modes
+            h=np.sum(h, axis=1)[:,np.newaxis]
+
+            # ----- Add H for this transition pair
+            try:
+                total_H = np.hstack((total_H, h))
+            except NameError:
+                total_H = h
+    return data_dc, data_V, total_H / (E_CHARGE**2) # J**2 to eV**2
+#######################################################################################
 
 ###PRINTS RATES AND EMISSION SPECTRUM##################################################
 def export_results(data, emission, dielec):
@@ -398,10 +526,11 @@ def export_results(data, emission, dielec):
 #######################################################################################
 
 
-def reorder(initial_state, final_state, ss_i, ss_f, socs):
+def reorder(initial_state, final_state, ss_i, ss_f, gamma_i, gamma_f, socs):
     argsort = np.argsort(initial_state, axis=1)
     initial_state = np.take_along_axis(initial_state, argsort, axis=1)
     ss_i = np.take_along_axis(ss_i, argsort, axis=1)
+    gamma_i = np.take_along_axis(gamma_i, argsort, axis=1)
     corredor = int(np.sqrt(socs.shape[1]))
     socs_complete = socs.reshape((socs.shape[0], corredor, corredor))
     for j in range(socs_complete.shape[1]):
@@ -411,11 +540,12 @@ def reorder(initial_state, final_state, ss_i, ss_f, socs):
     argsort = np.argsort(final_state, axis=1)
     final_state = np.take_along_axis(final_state, argsort, axis=1)
     ss_f = np.take_along_axis(ss_f, argsort, axis=1)
+    gamma_f = np.take_along_axis(gamma_f, argsort, axis=1)
     for j in range(socs_complete.shape[1]):
         socs_complete[:, :, j] = np.take_along_axis(
             socs_complete[:, :, j], argsort, axis=1
         )
-    return initial_state, final_state, ss_i, ss_f, socs_complete
+    return initial_state, final_state, ss_i, ss_f, gamma_i, gamma_f, socs_complete
 
 
 def fix_absent_soc(data):
@@ -431,10 +561,23 @@ def fix_absent_soc(data):
                 data[f"soc_{singlet}_{triplet}"] = 0
     return data
 
+def fix_absent_triplets(data):
+    columns = data.columns.values
+    # check if at least one column contains t_
+    if any("e_t" in i for i in columns):
+        return data
+    else:
+        singlets = [i.split("_")[1] for i in columns if "e_s" in i and "osc" not in i]
+        for singlet in singlets:
+            data[f"e_t{singlet[1:]}"] = 0
+            data[f"chi_t{singlet[1:]}"] = 0
+            data[f"gamma_t{singlet[1:]}"] = 0
+    return data
+
 
 def x_values(mean, std):
-    left = max(np.min(mean - 2 * std), 0.01)
-    right = np.max(mean + 2 * std)
+    left = max(np.min(mean - 3.5 * std), 0.01)
+    right = np.max(mean + 3.5 * std)
     x_axis = np.linspace(left, right, int((right - left) / 0.01))
     return x_axis
 
@@ -469,16 +612,17 @@ def fetch(data, criteria_list):
 
 
 def total_reorganization_energy(lambda_b, kbt):
-    return np.sqrt(2 * lambda_b * kbt + kbt**2)
+    return np.sqrt(2 * lambda_b * kbt)
 
 
 def rate_and_uncertainty(y_axis):
-    number_geoms = y_axis.shape[0]
-    mean_y = np.sum(y_axis, axis=0) / number_geoms
-    error = np.sqrt(
-        np.sum((y_axis - mean_y) ** 2, axis=0) / (number_geoms * (number_geoms - 1))
-    )
-    return mean_y, error
+    with np.errstate(invalid='ignore', divide='ignore'):
+        number_geoms = y_axis.shape[0]
+        mean_y = np.sum(y_axis, axis=0) / number_geoms
+        error = np.sqrt(
+            np.sum((y_axis - mean_y) ** 2, axis=0) / (number_geoms * (number_geoms - 1))
+        )
+    return mean_y, np.nan_to_num(error, nan=0.0)
 
 
 def select_columns(nstate, *args):
@@ -490,12 +634,12 @@ def select_columns(nstate, *args):
     return modified
 
 
-def breakdown_emi(ss_s, ss_t, delta_emi, l_total, individual, labels, alphaopt1):
+def breakdown_emi(chi_s, chi_t, delta_emi, l_total, individual, labels):
     # make a dataframe with Ss_s and Ss_t
     breakdown = pd.DataFrame(
-        np.hstack((ss_s / alphaopt1, ss_t / alphaopt1)),
-        columns=[f"chi_s{i+1}" for i in range(ss_s.shape[1])]
-        + [f"chi_t{i+1}" for i in range(ss_t.shape[1])],
+        np.hstack((chi_s, chi_t)),
+        columns=[f"chi_s{i+1}" for i in range(chi_s.shape[1])]
+        + [f"chi_t{i+1}" for i in range(chi_t.shape[1])],
     )
     # append a columns with energies named eng
     breakdown["eng"] = delta_emi
@@ -505,35 +649,50 @@ def breakdown_emi(ss_s, ss_t, delta_emi, l_total, individual, labels, alphaopt1)
     return breakdown
 
 
+def lambda_solvent(chi_i, chi_f, alphaopt, alphast):
+    chi_t = chi_i + chi_f - 2 * np.sqrt(chi_i * chi_f)
+    lambda_b = chi_t * (alphast - alphaopt)  #chi_f * (alphast - alphaopt)
+    return lambda_b
+
+
 ###CALCULATES ISC AND EMISSION RATES & SPECTRA#########################################
 def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
     if data is None:
         data = gather_data(initial, save=True)
-        eps_i, nr_i = nemo.tools.get_nr()
         kbt = nemo.tools.detect_sigma()
     else:
-        eps_i = data["eps"][0]
-        nr_i = data["nr"][0]
         kbt = data["kbT"][0]
     eps, refractive_index = dielec[0], dielec[1]
-    alphast1 = nemo.tools.get_alpha(eps_i)
     alphast2 = nemo.tools.get_alpha(eps)
-    alphaopt1 = nemo.tools.get_alpha(nr_i**2)
     alphaopt2 = nemo.tools.get_alpha(refractive_index**2)
+
+    data = fix_absent_triplets(data)
+    data = fix_absent_soc(data)
+
+    #excited state energies
+    singlets = fetch(data, ["^e_s"])
+    triplets = fetch(data, ["^e_t"])
+
+    #excited state susceptibilities
+    chi_s = fetch(data, ["^chi_s(?!0)"])
+    chi_t = fetch(data, ["^chi_t"])
+    gamma_s = fetch(data, ["^gamma_s(?!0)"])
+    gamma_t = fetch(data, ["^gamma_t"])
+
+    #ground state susceptibility
+    gamma_s0 = data['gamma_s0'].to_numpy()
+    #fix dimension of gamma_s0
+    gamma_s0 = gamma_s0[:, np.newaxis]
+
+
     n_state = int(initial[1:]) - 1
     initial = initial.lower()
 
-    data = fix_absent_soc(data)
-
     # Emission Calculations
-    lambda_be = (alphast2 / alphast1 - alphaopt2 / alphast1) * fetch(
-        data, ["^gp"]
-    ).flatten()
-    l_total = total_reorganization_energy(lambda_be, kbt)
+
     energies = fetch(data, [f"^e_{initial[0]}"])
-    delta_emi_unsorted = energies - (alphast2 / alphaopt1) * fetch(
-        data, [f"^d_{initial[0]}"]
-    )
+
+
     constante = (
         (refractive_index**2)
         * (E_CHARGE**2)
@@ -541,19 +700,44 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
     )
     if "t" in initial:
         constante *= 1 / 3
+        eng_final = - gamma_s0 * alphast2
+        eng_initial = energies - (gamma_t + chi_t) * alphast2
+        lambda_be = lambda_solvent(chi_t, 0, alphaopt2, alphast2)
+        delta_emi_unsorted = eng_final - eng_initial + lambda_be
+        delta_emi_unsorted *= -1
+        #delta_emi_unsorted =  energies - (gamma_t - gamma_s0 + chi_t) * alphast2 - chi_t * (alphast2 - alphaopt2)
+        #reorganization energy
+        #lambda_be = lambda_solvent(chi_t, alphaopt2, alphast2)
+    elif "s" in initial:
+        eng_final = - gamma_s0 * alphast2
+        eng_initial = energies - (gamma_s + chi_s) * alphast2
+        lambda_be = lambda_solvent(chi_s, 0, alphaopt2, alphast2)
+        delta_emi_unsorted = eng_final - eng_initial + lambda_be
+        delta_emi_unsorted *= -1
+        #delta_emi_unsorted =  energies - (gamma_s - gamma_s0 + chi_s) * alphast2 - chi_s * (alphast2 - alphaopt2)
+        #reorganization energy
+        #lambda_be = lambda_solvent(chi_s, alphaopt2, alphast2)
+    #make dimensions match
+    #lambda_be = np.repeat(lambda_be, energies.shape[1], axis=1)
+
     oscs = fetch(data, ["^osce_"])
-    delta_emi, oscs, energies = sorting_parameters(delta_emi_unsorted, oscs, energies)
-    delta_emi, oscs, energies = select_columns(n_state, delta_emi, oscs, energies)
-    espectro = constante * ((delta_emi - lambda_be) ** 2) * oscs
-    tdm = nemo.tools.calc_tdm(oscs, energies, espectro)
+    delta_emi, oscs, lambda_be = sorting_parameters(delta_emi_unsorted, oscs, lambda_be)
+    delta_emi, oscs, lambda_be = select_columns(n_state, delta_emi, oscs, lambda_be)
+
+    l_total = total_reorganization_energy(lambda_be, kbt)
+    espectro = constante * (delta_emi ** 2) * oscs
+    lorentz = espectro / 2 #0.624 + np.zeros(espectro.shape) #espectro / 2.0
+    tdm = nemo.tools.calc_tdm(oscs, delta_emi, espectro)
     x_axis = x_values(delta_emi, l_total)
-    y_axis = espectro[:, np.newaxis] * nemo.tools.gauss(
-        x_axis, delta_emi[:, np.newaxis], l_total[:, np.newaxis]
+    y_axis = espectro[:, np.newaxis] * nemo.tools.voigt(
+        x_axis - delta_emi[:, np.newaxis], l_total[:, np.newaxis], lorentz[:, np.newaxis]
     )
     number_geoms = y_axis.shape[0]
     mean_y, error = rate_and_uncertainty(y_axis)
     emi_rate = np.mean(espectro, axis=0) / HBAR_EV
-    emi_error = np.sqrt(np.sum((espectro /HBAR_EV - emi_rate) ** 2, axis=0) / (number_geoms * (number_geoms - 1)))
+    with np.errstate(invalid='ignore', divide='ignore'):
+        emi_error = np.sqrt(np.sum((espectro /HBAR_EV - emi_rate) ** 2, axis=0) / (number_geoms * (number_geoms - 1)))
+    emi_error = np.nan_to_num(emi_error, nan=0.0)
     gap_emi = means(delta_emi, espectro, ensemble_average)
     mean_sigma_emi = means(l_total, espectro, ensemble_average)
     mean_part_emi = (100 / number_geoms) / means(
@@ -571,49 +755,52 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
     if data is None:
         check_number_geoms(data)
     # Intersystem Crossing Rates
-    singlets = fetch(data, ["^e_s"])
-    triplets = fetch(data, ["^e_t"])
-    ss_s = fetch(data, ["^d_s"])
-    ss_t = fetch(data, ["^d_t"])
+
     if "s" in initial:
-        initial_state = singlets - (alphast2 / alphaopt1) * ss_s
-        final_state = triplets - (alphaopt2 / alphaopt1) * ss_t
+        initial_state = singlets - (chi_s + gamma_s) * alphast2
+        final_state = triplets - (gamma_t + chi_t) * alphast2 # - chi_t * alphaopt2
         socs_complete = fetch(data, ["^soc_s"])
-        initial_state, final_state, ss_s, ss_t, socs_complete = reorder(
-            initial_state, final_state, ss_s, ss_t, socs_complete
+        initial_state, final_state, chi_s, chi_t, gamma_s, gamma_t, socs_complete = reorder(
+            initial_state, final_state, chi_s, chi_t, gamma_s, gamma_t, socs_complete
         )
         initial_state = initial_state[:, n_state]
         socs_complete = socs_complete[:, n_state, :]
-        delta = final_state - np.repeat(
-            initial_state[:, np.newaxis], final_state.shape[1], axis=1
-        )
-        lambda_b = (alphast2 / alphaopt1 - alphaopt2 / alphaopt1) * ss_t
+        lambda_b = lambda_solvent(chi_s, chi_t, alphaopt2, alphast2)
+        delta = final_state - initial_state[:, np.newaxis] + lambda_b
+        #lambda_b = lambda_solvent(chi_t, alphaopt2, alphast2)
         final = [
             i.split("_")[2].upper()
             for i in data.columns.values
             if "soc_" + initial.lower() + "_" in i
         ]
         ##FOR WHEN IC IS AVAILABLE
-        # socs_complete = np.hstack((socs_complete,0.0001*np.ones((Singlets.shape[0],Singlets.shape[1]-1))))
-        # delta_ss = Singlets + np.repeat((alphast2/alphaopt1)*Ss_s[:,n_state][:,np.newaxis] - Singlets[:,n_state][:,np.newaxis],Singlets.shape[1],axis=1) - (alphaopt2/alphaopt1)*Ss_s    #Sm (final) - Sn (initial) + lambda_b
-        # indices  = [i for i in range(Singlets.shape[1]) if i != n_state] #Removed Sn to Sn transfers
-        # delta    = np.hstack((delta,delta_ss[:,indices]))
-        # lambda_bt= (alphast2/alphaopt1 - alphaopt2/alphaopt1)*Ss_s
-        # lambda_b = np.hstack((lambda_b,lambda_bt[:,indices]))
+        h_ic = fetch(data, ["^IC_"])
+        # check if h_ic is []
+        if h_ic.size == 0:
+            h_ic =  np.zeros(singlets.shape)
+        initial_state_ic = singlets - (chi_s + gamma_s) * alphast2
+        final_state_ic = singlets - (gamma_s + chi_s) * alphast2 #- chi_s * alphaopt2
+        initial_state_ic, h_ic = sorting_parameters(initial_state_ic, h_ic)
+        initial_state_ic = initial_state_ic[:, n_state]
+        lambda_b_ic = lambda_solvent(chi_s, chi_s, alphaopt2, alphast2)
+        delta_ic = final_state_ic - initial_state_ic[:, np.newaxis] + lambda_b_ic
+        eng_to_s0 = -1 * delta_emi[:, np.newaxis]
+        delta_ic[:,n_state] = eng_to_s0[:,0]
+        #lambda_b_ic = lambda_solvent(chi_s, alphaopt2, alphast2)
+        lambda_b_ic[:,0] = lambda_be #gamma_s0[:,0] * (alphast2 - alphaopt2) #lambda_be
+        final = final + [f"S0"] + [f"S{j}" for j in range(1, 1 + singlets.shape[1]) if j != n_state+1]
     elif "t" in initial:
         # Tn to Sm ISC
-        initial_state = triplets - (alphast2 / alphaopt1) * ss_t
-        final_state = singlets - (alphaopt2 / alphaopt1) * ss_s
+        initial_state = triplets - (chi_t + gamma_t) * alphast2
+        final_state = singlets - gamma_s * alphast2 - chi_s * alphaopt2
         socs_complete = fetch(data, ["^soc_t.*s[1-9]"])
-        initial_state, final_state, ss_t, ss_s, socs_complete = reorder(
-            initial_state, final_state, ss_t, ss_s, socs_complete
+        initial_state, final_state, chi_t, chi_s, gamma_t, gamma_s, socs_complete = reorder(
+            initial_state, final_state, chi_t, chi_s, gamma_t, gamma_s, socs_complete
         )
         initial_state = initial_state[:, n_state]
         socs_complete = socs_complete[:, n_state, :]
-        delta = final_state - np.repeat(
-            initial_state[:, np.newaxis], final_state.shape[1], axis=1
-        )
-        lambda_b = (alphast2 / alphaopt1 - alphaopt2 / alphaopt1) * ss_s
+        delta = final_state - initial_state[:, np.newaxis]
+        lambda_b = lambda_solvent(chi_s, alphaopt2, alphast2)
         final = [
             i.split("_")[2].upper()
             for i in data.columns.values
@@ -638,9 +825,19 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
 
     sigma = total_reorganization_energy(lambda_b, kbt)
     y_axis = (
-        (2 * np.pi / HBAR_EV) * (socs_complete**2) * nemo.tools.gauss(delta, 0, sigma)
+        (2 * np.pi / HBAR_EV) * (socs_complete**2) * nemo.tools.voigt(-delta, sigma, lorentz[:,np.newaxis])
     )
+    #tau_D = (refractive_index**2 / eps)*1e-12
+    #g_ad = 0#np.nan_to_num((2 * np.pi * (socs_complete**2) * tau_D)/ (HBAR_EV * lambda_b))
+    #y_axis =  y_axis / (1 + g_ad)
+    sigma_ic = total_reorganization_energy(lambda_b_ic, kbt)
+    y_axis_ic = (
+        (2 * np.pi / HBAR_EV) * (h_ic) * nemo.tools.voigt(-delta_ic, sigma_ic, lorentz[:, np.newaxis])
+    )
+
     # hstack y and espectro
+    y_axis = np.hstack((y_axis, y_axis_ic))
+    sigma = np.hstack((sigma, sigma_ic))
     individual = np.hstack((espectro[:, np.newaxis], y_axis))
     number_geoms = y_axis.shape[0]
     rate, error = rate_and_uncertainty(y_axis)
@@ -658,9 +855,12 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
             ]
         ]
     )
-    mean_gap = means(delta, y_axis, ensemble_average)[:, np.newaxis]
-    mean_soc = 1000 * means(socs_complete, y_axis, ensemble_average)[:, np.newaxis]
+    mean_gap = means(np.hstack((delta,delta_ic)), y_axis, ensemble_average)[:, np.newaxis]
+    couplings = np.hstack((socs_complete, np.sqrt(h_ic)))
+    mean_soc = 1000 * means(couplings, y_axis, ensemble_average)[:, np.newaxis]
     mean_sigma = means(sigma, y_axis, ensemble_average)[:, np.newaxis]
+    #mean_g = means(g_ad, y_axis, ensemble_average)[:, np.newaxis]
+    #print(np.round(mean_g, 3))
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         mean_part = np.nan_to_num(100 * rate / means(y_axis, y_axis, ensemble_average), posinf=100)
@@ -695,7 +895,7 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
     results.insert(0, "Transition", labels)
     if detailed:
         breakdown = breakdown_emi(
-            ss_s, ss_t, delta_emi, l_total, individual, labels, alphaopt1
+            chi_s, chi_t, delta_emi, l_total, individual, labels
         )
         return results, emi, breakdown
     else:
@@ -728,7 +928,7 @@ def save_absorption_spectrum(
 
 
 def make_breakdown(
-    initial, spin, num, oscs, deltae_lambda, lambda_neq, alphaopt1, l_total
+    initial, spin, num, oscs, deltae_lambda, chis, l_total
 ):
     # concatenate oscs[:,:,0] with DE[:,:,0] and ds
     colunas = [
@@ -738,7 +938,7 @@ def make_breakdown(
     colunas += [
         f"eng_{spin}{i}" for i in range(num + 1, num + deltae_lambda.shape[1] + 1)
     ]
-    colunas += [f"chi_{spin}{i}" for i in range(num + 1, num + lambda_neq.shape[1] + 1)]
+    colunas += [f"chi_{spin}{i}" for i in range(num + 1, num + chis.shape[1] + 1)]
     colunas += [f"sigma_{spin}{i}" for i in range(num + 1, num + l_total.shape[1] + 1)]
     # concatenate oscs[:,:,0] with DE[:,:,0] and ds
     breakdown = pd.DataFrame(
@@ -746,7 +946,7 @@ def make_breakdown(
             (
                 oscs[:, :, 0],
                 deltae_lambda[:, :, 0],
-                lambda_neq / alphaopt1,
+                chis ,
                 l_total[:, :, 0],
             )
         ),
@@ -762,52 +962,62 @@ def another_dimension(nstates, *args):
         new_args.append(arg[:, :nstates, np.newaxis])
     return new_args
 
-
 ###COMPUTES ABSORPTION SPECTRA###########################################################
 def absorption(initial, dielec, data=None, save=False, detailed=False, nstates=-1):
     if data is None:
         data = gather_data(initial, save=True)
-        _, nr_i = nemo.tools.get_nr()
         kbt = nemo.tools.detect_sigma()
     else:
-        # eps_i = data["eps"][0]
-        nr_i = data["nr"][0]
         kbt = data["kbT"][0]
     eps, refractive_index = dielec[0], dielec[1]
-    # alphast1 = nemo.tools.get_alpha(eps_i)
     alphast2 = nemo.tools.get_alpha(eps)
-    alphaopt1 = nemo.tools.get_alpha(nr_i**2)
     alphaopt2 = nemo.tools.get_alpha(refractive_index**2)
+
     initial = initial.lower()
+    spin = initial[0]
+    num = int(initial[1:])
+
+    # excited state energies
+    engs = fetch(data, [f"^e_{spin}"])
+
+    #ground state susceptibility
+    gamma_s0 = data['gamma_s0'].to_numpy()
+    gamma_s0 = gamma_s0[:, np.newaxis]
+
+    #excited state susceptibilities
+    chis = fetch(data, [f"^chi_{spin}(?!0)"])
+    gammas = fetch(data, [f"^gamma_{spin}(?!0)"])
+
+    #oscillator strengths
+    oscs = fetch(data, ["^osc_"])
+
     constante = (
         (np.pi * (E_CHARGE**2) * HBAR_EV)
         / (2 * refractive_index * MASS_E * LIGHT_SPEED * EPSILON_0)
         * 1e20
     )
-    spin = initial[0]
-    num = int(initial[1:])
-    engs = fetch(data, [f"^e_{spin}"])
-    lambda_neq = fetch(data, [f"^d_{spin}"])
-    oscs = fetch(data, ["^osc_"])
+
+
     engs = engs[:, num:]
-    lambda_neq = lambda_neq[:, num:]
-    lambda_b = (alphast2 / alphaopt1 - alphaopt2 / alphaopt1) * lambda_neq
+    chis = chis[:, num:]
+    gammas = gammas[:, num:]
+
+    lambda_b = lambda_solvent(chis, alphaopt2, alphast2)
+
     if initial == "s0":
-        deltae_lambda = engs - (alphaopt2 / alphaopt1) * lambda_neq
+        deltae_lambda =   engs + (gamma_s0 - gammas) * alphast2 - chis * alphaopt2
+
     else:
         base = fetch(data, [rf"\be_{initial}\b"])
-        lambda_neq_base = fetch(data, [rf"^d_{initial}\b"])
-        deltae_lambda = (
-            engs
-            - (alphaopt2 / alphaopt1) * lambda_neq
-            - np.repeat(
-                base - (alphast2 / alphaopt1) * lambda_neq_base, engs.shape[1], axis=1
-            )
-        )
+        chi_i = fetch(data, [rf"\bchi_{initial}\b"])
+        gamma_i = fetch(data, [rf"\bgamma_{initial}\b"])
+        initial_state = base - (gamma_i + chi_i) * alphast2
+        final_state = engs - gammas * alphast2 - chis * alphaopt2
+        deltae_lambda = final_state - initial_state
 
     # Sorting states by energy
-    deltae_lambda, oscs, lambda_b, lambda_neq = sorting_parameters(
-        deltae_lambda, oscs, lambda_b, lambda_neq
+    deltae_lambda, oscs, lambda_b = sorting_parameters(
+        deltae_lambda, oscs, lambda_b
     )
     l_total = total_reorganization_energy(lambda_b, kbt)
     x_axis = x_values(deltae_lambda, l_total)
@@ -843,20 +1053,16 @@ def absorption(initial, dielec, data=None, save=False, detailed=False, nstates=-
         )
     if detailed:
         breakdown = make_breakdown(
-            initial, spin, num, constante*oscs, deltae_lambda, lambda_neq[:,:nstates], alphaopt1, l_total
+            initial, spin, num, constante*oscs, deltae_lambda, chis[:,:nstates], l_total
         )
         return abs_spec, breakdown
     return abs_spec
 
 
-#########################################################################################
-
 class Ensemble(object):
     def __init__(self, file, name=''):
         data = pd.read_csv(file)
         initial = data['ensemble'][0]
-        self.eps = data['eps'][0]
-        self.nr = data['nr'][0]
         self.data = data
         self.initial = initial
         self.name = name
@@ -922,7 +1128,7 @@ class Ensemble(object):
         emi['Diffrate'] = emi['Diffrate'] * (1239.84193 / (emi_energy ** 2))
         emi['Error'] = emi['Error'] * (1239.84193 / (emi_energy ** 2))
         return emi
-    
+
     def abs2wavelength(self, abs_spec):
         abs_energy = abs_spec['Energy'].to_numpy()
         abs_spec['Energy'] = 1239.84193 / abs_energy
