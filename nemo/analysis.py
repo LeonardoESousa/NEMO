@@ -457,12 +457,11 @@ def gather_data_derivative_couplings(initial, data=None, save=True):
             #e_col *= -1.0
             e_col = delta[:, i][:, np.newaxis] # eV
             # ----- Get oscillator strength for the ith transition
-            #osc_col = fetch(data, [f"^osce_{initial.lower()[0]}"])[:,i] #
-            #osc_col = osc_col[:,np.newaxis]
-            #constante = E_CHARGE**2 / (2.0 * np.pi * HBAR_EV * MASS_E * (LIGHT_SPEED**3.0) * EPSILON_0)
-            #espectro = constante * ((e_col) ** 2 ) * osc_col
-            #gammas_lorentz = espectro / 2.0# nemo.tools.detect_sigma()# espectro / 2.0
-            sigma = np.std(e_col, axis=0)
+            osc_col = fetch(data, [f"^osce_{initial.lower()[0]}"])[:,i] #
+            osc_col = osc_col[:,np.newaxis]
+            constante = E_CHARGE**2 / (2.0 * np.pi * HBAR_EV * MASS_E * (LIGHT_SPEED**3.0) * EPSILON_0)
+            espectro = constante * ((e_col) ** 2 ) * osc_col
+            gammas_lorentz = espectro / 2.0# nemo.tools.detect_sigma()# espectro / 2.0
             i+=1
 
 
