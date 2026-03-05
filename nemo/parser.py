@@ -1252,12 +1252,44 @@ def get_V(mag_file, files, v_option="POSITIVESemiClass"):#     'quantum'):
     v2 = []
 
     #--------------------------------------------#
+    #Exact expression
+    if v_option == "Exact":
+        print("")
+        print("Attention!")
+        print("")
+        print("Performing the Exact calculation of the V parameter.")
+        print("")
+        for geom in range(len(amplitudes)):
+            for m in range(len(amplitudes[0])):
+                geometry.append(geom+1)
+                mode.append(m+1)
+                term1 =(
+                 1.0/(2.0*np.tanh(HBAR_EV * freq_V[m] / (BOLTZ_EV * temp)))
+                 +
+                 (masses_m[m] * (freq_V[m]) * (amplitudes[geom][m]**2)) / (2.0 * HBAR_J)*(1.0 - np.tanh(HBAR_EV * freq_V[m] / (2.0 * BOLTZ_EV * temp)))**2
+                )
+                term2 =(
+                 1.0/(2.0*np.tanh(HBAR_EV * freq_V[m] / (BOLTZ_EV * temp)))
+                 +
+                 (masses_m[m] * (freq_V[m]) * (amplitudes[geom][m]**2)) / (2.0 * HBAR_J)*(1.0 - np.tanh(-HBAR_EV * freq_V[m] / (2.0 * BOLTZ_EV * temp)))**2
+                )
+                v1.append(term1)
+                v2.append(term2)
+        return(
+            geometry,
+            mode,
+            v1,
+            v2
+        )        
+
+
+    #--------------------------------------------#
     #Semi-Classical expression
     if v_option == "SemiClass":
         print("")
         print("Attention!")
         print("")
-        print("Performing the SemiClass calculation of the V paramenter.")
+        print("Performing the SemiClass calculation of the V parameter.")
         print("")
         for geom in range(len(amplitudes)):
             for m in range(len(amplitudes[0])):
@@ -1283,7 +1315,7 @@ def get_V(mag_file, files, v_option="POSITIVESemiClass"):#     'quantum'):
         print("")
         print("Attention!")
         print("")
-        print("Performing the POSITIVESemiClass calculation of the V paramenter.")
+        print("Performing the POSITIVESemiClass calculation of the V parameter.")
         print("")
         for geom in range(len(amplitudes)):
             for m in range(len(amplitudes[0])):
@@ -1314,7 +1346,7 @@ def get_V(mag_file, files, v_option="POSITIVESemiClass"):#     'quantum'):
     print("")
     print("Attention!")
     print("")
-    print("Performing the quantum statistical calculation of the V paramenter.")
+    print("Performing the quantum statistical calculation of the V parameter.")
     print("")
 
     #Quantum statistical expression
