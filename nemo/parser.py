@@ -1232,7 +1232,7 @@ def check_derivative_couplings(file):
 #########################################################################################
 
 ##COMPUTES THE V PARAMETERS #####
-def get_V(mag_file, V_option="POSITIVESemiClass"):#     'quantum'):
+def get_V(mag_file, files, v_option="POSITIVESemiClass"):#     'quantum'):
 
     temp = float(mag_file.split("_")[1].strip("K"))
 
@@ -1240,19 +1240,22 @@ def get_V(mag_file, V_option="POSITIVESemiClass"):#     'quantum'):
     freq_V = data_V.filter(regex="freq").dropna().to_numpy().flatten()
     masses_m=data_V.filter(regex="mass").dropna().to_numpy().flatten()
 
-    amplitudes=data_V.filter(regex="mode_").dropna().to_numpy()
-    amplitudes *= 1e-10 # convert to meters from angstroms
+    file_index = [int(f.split("-")[1]) for f in files]
 
+    amplitudes_old=data_V.filter(regex="mode_").dropna()
+    amplitudes = amplitudes_old.iloc[np.array(file_index)-1].to_numpy()
+    amplitudes *= 1e-10 # convert to meters from angstroms
 
     geometry = []
     mode = []
-    V = []
+    v1 = []
+    v2 = []
 
     #--------------------------------------------#
     #Semi-Classical expression
-    if V_option == "SemiClass":
+    if v_option == "SemiClass":
         print("")
-        print("Atention!")
+        print("Attention!")
         print("")
         print("Performing the SemiClass calculation of the V paramenter.")
         print("")
@@ -1260,22 +1263,25 @@ def get_V(mag_file, V_option="POSITIVESemiClass"):#     'quantum'):
             for m in range(len(amplitudes[0])):
                 geometry.append(geom+1)
                 mode.append(m+1)
-                V.append(
+                term = (
                  1.0/4.0 * (1.0/np.tanh(HBAR_EV * freq_V[m] / (2.0 * BOLTZ_EV * temp)))+
                  (masses_m[m] * (freq_V[m]) * (amplitudes[geom][m]**2)) / (2.0 * HBAR_J)
                  - 1.0/2.0
                 )
+                v1.append(term)
+                v2.append(term+1.0)
         return(
             geometry,
             mode,
-            V
+            v1,
+            v2
         )
 
     #--------------------------------------------#
     #Positive semi-classical expression
-    if V_option == "POSITIVESemiClass":
+    if v_option == "POSITIVESemiClass":
         print("")
-        print("Atention!")
+        print("Attention!")
         print("")
         print("Performing the POSITIVESemiClass calculation of the V paramenter.")
         print("")
@@ -1291,21 +1297,24 @@ def get_V(mag_file, V_option="POSITIVESemiClass"):#     'quantum'):
                 )
 
                 if term < 0.0:
-                    V.append(0.0)
+                    v1.append(0.0)
+                    v2.append(1.0)
                 else:
-                    V.append(term)
+                    v1.append(term)
+                    v2.append(term+1.0)
         return(
             geometry,
             mode,
-            V
+            v1,
+            v2
         )
 
     #--------------------------------------------#
     # If no valid option was chosen, the calculation performed is the Quantum statistical
     print("")
-    print("Atention!")
+    print("Attention!")
     print("")
-    print("Performing the quantum statiscal calculation of the V paramenter.")
+    print("Performing the quantum statistical calculation of the V paramenter.")
     print("")
 
     #Quantum statistical expression
@@ -1313,11 +1322,16 @@ def get_V(mag_file, V_option="POSITIVESemiClass"):#     'quantum'):
         for m in range(len(amplitudes[0])):
             geometry.append(geom+1)
             mode.append(m+1)
-            V.append(
+            term = (
             1.0 / (np.exp(HBAR_EV * freq_V[m] / (BOLTZ_EV * temp)) - 1.0)
             )
+
+            v1.append(term)
+            v2.append(term+1.0) 
+
     return(
         geometry,
         mode,
-        V
+        v1,
+        v2
     )

@@ -352,6 +352,7 @@ def gather_data(initial, save=True):
 
 def gather_data_derivative_couplings(initial, data=None, save=True):
     files = check_normal("Geometries")
+    files = sorted(files, key=lambda pair: float(pair.split("-")[1]))
     _, dc_states = nemo.parser.check_derivative_couplings(files[0])
     ###### OBTAINS THE B PARAMETERS ########
     formats_dc = {}
@@ -391,19 +392,22 @@ def gather_data_derivative_couplings(initial, data=None, save=True):
     (
         geometry_V,
         mode_V,
-        v
-    ) = nemo.parser.get_V(Mag_file)
+        v1,
+        v2
+    ) = nemo.parser.get_V(Mag_file, files)
 
     formats_V = {}
     arquivo_V =f"V_{initial.upper()}_.lx"
     data_V = pd.DataFrame()
     data_V["geometry"] = geometry_V
     data_V["mode"] = mode_V
-    data_V["V"] = v
+    data_V["v1"] = v1
+    data_V["v2"] = v2
 
     formats_V["geometry"] = "{:.0f}"
     formats_V["mode"] = "{:.0f}"
-    formats_V["V"] = "{:.5e}"
+    formats_V["v1"] = "{:.5e}"
+    formats_V["v2"] = "{:.5e}"
     if save:
         # Create a temporary copy of the DataFrame
         temp_data_V = data_V.copy()
@@ -417,7 +421,7 @@ def gather_data_derivative_couplings(initial, data=None, save=True):
     # Computes the H parameters
     h = 0.0
     if data is not None:
-        v = nemo.tools.V_to_vec(data_V)
+        v1, v2 = nemo.tools.V_to_vec(data_V)
 
         # ----- Freq
         mag_file = nemo.tools.fetch_file("Magnitudes", ['Magnitudes'])
@@ -448,7 +452,7 @@ def gather_data_derivative_couplings(initial, data=None, save=True):
             osc_col = osc_col[:,np.newaxis]
             constante = E_CHARGE**2 / (2.0 * np.pi * HBAR_EV * MASS_E * (LIGHT_SPEED**3.0) * EPSILON_0)
             espectro = constante * ((e_col) ** 2 ) * osc_col
-            gammas_lorentz = espectro / 2# nemo.tools.detect_sigma()# espectro / 2.0
+            gammas_lorentz = espectro / 2.0# nemo.tools.detect_sigma()# espectro / 2.0
             i+=1
 
 
@@ -477,7 +481,7 @@ def gather_data_derivative_couplings(initial, data=None, save=True):
             term_neg = nemo.tools.voigt(-e_col-HBAR_EV*freq_row,0.0,gammas_lorentz) / nemo.tools.voigt(-e_col,0.0,gammas_lorentz)
 
 
-            h = b * (v * term_pos + (v + 1) * term_neg)
+            h = b * (v1 * term_pos + v2 * term_neg)
             #np.savetxt("debug.csv", H, delimiter=",", fmt='%10.5f') #
 
             # ----- sum on normal modes
