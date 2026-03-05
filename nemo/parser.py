@@ -1240,9 +1240,11 @@ def get_V(mag_file, files, v_option="POSITIVESemiClass"):#     'quantum'):
     freq_V = data_V.filter(regex="freq").dropna().to_numpy().flatten()
     masses_m=data_V.filter(regex="mass").dropna().to_numpy().flatten()
 
-    amplitudes=data_V.filter(regex="mode_").dropna().to_numpy()
-    amplitudes *= 1e-10 # convert to meters from angstroms
+    file_index = [int(f.split("-")[1]) for f in files]
 
+    amplitudes_old=data_V.filter(regex="mode_").dropna()
+    amplitudes = amplitudes_old.iloc[np.array(file_index)-1].to_numpy()
+    amplitudes *= 1e-10 # convert to meters from angstroms
 
     geometry = []
     mode = []
@@ -1253,7 +1255,7 @@ def get_V(mag_file, files, v_option="POSITIVESemiClass"):#     'quantum'):
     #Semi-Classical expression
     if v_option == "SemiClass":
         print("")
-        print("Atention!")
+        print("Attention!")
         print("")
         print("Performing the SemiClass calculation of the V paramenter.")
         print("")
@@ -1279,7 +1281,7 @@ def get_V(mag_file, files, v_option="POSITIVESemiClass"):#     'quantum'):
     #Positive semi-classical expression
     if v_option == "POSITIVESemiClass":
         print("")
-        print("Atention!")
+        print("Attention!")
         print("")
         print("Performing the POSITIVESemiClass calculation of the V paramenter.")
         print("")
@@ -1310,9 +1312,9 @@ def get_V(mag_file, files, v_option="POSITIVESemiClass"):#     'quantum'):
     #--------------------------------------------#
     # If no valid option was chosen, the calculation performed is the Quantum statistical
     print("")
-    print("Atention!")
+    print("Attention!")
     print("")
-    print("Performing the quantum statiscal calculation of the V paramenter.")
+    print("Performing the quantum statistical calculation of the V paramenter.")
     print("")
 
     #Quantum statistical expression
