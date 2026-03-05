@@ -417,6 +417,14 @@ def gather_data_derivative_couplings(initial, data=None, save=True):
                 temp_data_V[column] = temp_data_V[column].map(fmt.format)
         temp_data_V.to_csv(arquivo_V, index=False)
 
+
+    n_state = int(initial[1:]) - 1
+    energies = fetch(data, [f"^e_{initial.lower()[0]}"])
+    delta = energies - energies[:, n_state ][:, np.newaxis]
+    #remove column corresponding to the initial state
+    delta = np.delete(delta, n_state, axis=1)
+    #add -energies[:, n_state][:, np.newaxis] as the first column
+    delta = np.hstack((-energies[:, n_state][:, np.newaxis], delta))
     #------------------------------------#
     # Computes the H parameters
     h = 0.0
@@ -444,15 +452,17 @@ def gather_data_derivative_couplings(initial, data=None, save=True):
 
             # Compute the geometry dependent rate for the ith transition
             # ----- Get the transition energy for the ith transition
-            e_col = fetch(data, [f"^e_{initial.lower()[0]}"])[:,i] # eV
-            e_col = e_col[:,np.newaxis]
-            e_col *= -1.0
+            #e_col = fetch(data, [f"^e_{initial.lower()[0]}"])[:,i] # eV
+            #e_col = e_col[:,np.newaxis]
+            #e_col *= -1.0
+            e_col = delta[:, i][:, np.newaxis] # eV
             # ----- Get oscillator strength for the ith transition
-            osc_col = fetch(data, [f"^osce_{initial.lower()[0]}"])[:,i] #
-            osc_col = osc_col[:,np.newaxis]
-            constante = E_CHARGE**2 / (2.0 * np.pi * HBAR_EV * MASS_E * (LIGHT_SPEED**3.0) * EPSILON_0)
-            espectro = constante * ((e_col) ** 2 ) * osc_col
-            gammas_lorentz = espectro / 2.0# nemo.tools.detect_sigma()# espectro / 2.0
+            #osc_col = fetch(data, [f"^osce_{initial.lower()[0]}"])[:,i] #
+            #osc_col = osc_col[:,np.newaxis]
+            #constante = E_CHARGE**2 / (2.0 * np.pi * HBAR_EV * MASS_E * (LIGHT_SPEED**3.0) * EPSILON_0)
+            #espectro = constante * ((e_col) ** 2 ) * osc_col
+            #gammas_lorentz = espectro / 2.0# nemo.tools.detect_sigma()# espectro / 2.0
+            sigma = np.std(e_col, axis=0)
             i+=1
 
 
@@ -477,13 +487,14 @@ def gather_data_derivative_couplings(initial, data=None, save=True):
             #print(term_pos)
 
             # ------ Lorentzian line shape
-            term_pos = nemo.tools.voigt(-e_col+HBAR_EV*freq_row,0.0,gammas_lorentz) / nemo.tools.voigt(-e_col,0.0,gammas_lorentz)
-            term_neg = nemo.tools.voigt(-e_col-HBAR_EV*freq_row,0.0,gammas_lorentz) / nemo.tools.voigt(-e_col,0.0,gammas_lorentz)
+            #term_pos = nemo.tools.voigt(-e_col+HBAR_EV*freq_row,0.0,gammas_lorentz) / nemo.tools.voigt(-e_col,0.0,gammas_lorentz)
+            #term_neg = nemo.tools.voigt(-e_col-HBAR_EV*freq_row,0.0,gammas_lorentz) / nemo.tools.voigt(-e_col,0.0,gammas_lorentz)
+            term_pos = nemo.tools.gauss(-e_col+HBAR_EV*freq_row,sigma) 
+            term_neg = nemo.tools.gauss(-e_col-HBAR_EV*freq_row,sigma) 
 
 
-            h = b * (v1 * term_pos + v2 * term_neg)
-            #np.savetxt("debug.csv", H, delimiter=",", fmt='%10.5f') #
-
+            h = b * (v1 * term_pos + v2 * term_neg) / nemo.tools.gauss(-e_col,sigma)
+            
             # ----- sum on normal modes
             h=np.sum(h, axis=1)[:,np.newaxis]
 
@@ -492,6 +503,7 @@ def gather_data_derivative_couplings(initial, data=None, save=True):
                 total_H = np.hstack((total_H, h))
             except NameError:
                 total_H = h
+    np.savetxt("debug.csv", total_H/ (E_CHARGE**2), delimiter=",", fmt='%10.5e') #
     return data_dc, data_V, total_H / (E_CHARGE**2) # J**2 to eV**2
 #######################################################################################
 
@@ -615,8 +627,8 @@ def fetch(data, criteria_list):
     return filtered_data
 
 
-def total_reorganization_energy(lambda_b, kbt):
-    return np.sqrt(2 * lambda_b * kbt)
+def total_reorganization_energy(lambda_b, kbt, std):
+    return np.sqrt(2 * lambda_b * kbt + std**2)
 
 
 def rate_and_uncertainty(y_axis):
@@ -709,32 +721,24 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
         lambda_be = lambda_solvent(chi_t, 0, alphaopt2, alphast2)
         delta_emi_unsorted = eng_final - eng_initial + lambda_be
         delta_emi_unsorted *= -1
-        #delta_emi_unsorted =  energies - (gamma_t - gamma_s0 + chi_t) * alphast2 - chi_t * (alphast2 - alphaopt2)
-        #reorganization energy
-        #lambda_be = lambda_solvent(chi_t, alphaopt2, alphast2)
     elif "s" in initial:
         eng_final = - gamma_s0 * alphast2
         eng_initial = energies - (gamma_s + chi_s) * alphast2
         lambda_be = lambda_solvent(chi_s, 0, alphaopt2, alphast2)
         delta_emi_unsorted = eng_final - eng_initial + lambda_be
         delta_emi_unsorted *= -1
-        #delta_emi_unsorted =  energies - (gamma_s - gamma_s0 + chi_s) * alphast2 - chi_s * (alphast2 - alphaopt2)
-        #reorganization energy
-        #lambda_be = lambda_solvent(chi_s, alphaopt2, alphast2)
-    #make dimensions match
-    #lambda_be = np.repeat(lambda_be, energies.shape[1], axis=1)
 
     oscs = fetch(data, ["^osce_"])
     delta_emi, oscs, lambda_be = sorting_parameters(delta_emi_unsorted, oscs, lambda_be)
     delta_emi, oscs, lambda_be = select_columns(n_state, delta_emi, oscs, lambda_be)
-
-    l_total = total_reorganization_energy(lambda_be, kbt)
+    sigma_int = np.std(delta_emi, axis=0)
+    l_total = total_reorganization_energy(lambda_be, kbt, sigma_int)
     espectro = constante * (delta_emi ** 2) * oscs
-    lorentz = espectro / 2 #0.624 + np.zeros(espectro.shape) #espectro / 2.0
+    
     tdm = nemo.tools.calc_tdm(oscs, delta_emi, espectro)
     x_axis = x_values(delta_emi, l_total)
-    y_axis = espectro[:, np.newaxis] * nemo.tools.voigt(
-        x_axis - delta_emi[:, np.newaxis], l_total[:, np.newaxis], lorentz[:, np.newaxis]
+    y_axis = espectro[:, np.newaxis] * nemo.tools.gauss(
+        x_axis - delta_emi[:, np.newaxis], l_total[:, np.newaxis]
     )
     number_geoms = y_axis.shape[0]
     mean_y, error = rate_and_uncertainty(y_axis)
@@ -762,7 +766,7 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
 
     if "s" in initial:
         initial_state = singlets - (chi_s + gamma_s) * alphast2
-        final_state = triplets - (gamma_t + chi_t) * alphast2 # - chi_t * alphaopt2
+        final_state = triplets - (gamma_t + chi_t) * alphast2
         socs_complete = fetch(data, ["^soc_s"])
         initial_state, final_state, chi_s, chi_t, gamma_s, gamma_t, socs_complete = reorder(
             initial_state, final_state, chi_s, chi_t, gamma_s, gamma_t, socs_complete
@@ -771,7 +775,7 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
         socs_complete = socs_complete[:, n_state, :]
         lambda_b = lambda_solvent(chi_s, chi_t, alphaopt2, alphast2)
         delta = final_state - initial_state[:, np.newaxis] + lambda_b
-        #lambda_b = lambda_solvent(chi_t, alphaopt2, alphast2)
+        sigma_int = np.std(delta, axis=0)
         final = [
             i.split("_")[2].upper()
             for i in data.columns.values
@@ -779,19 +783,21 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
         ]
         ##FOR WHEN IC IS AVAILABLE
         h_ic = fetch(data, ["^IC_"])
-        # check if h_ic is []
         if h_ic.size == 0:
             h_ic =  np.zeros(singlets.shape)
         initial_state_ic = singlets - (chi_s + gamma_s) * alphast2
-        final_state_ic = singlets - (gamma_s + chi_s) * alphast2 #- chi_s * alphaopt2
+        final_state_ic = singlets - (gamma_s + chi_s) * alphast2 
         initial_state_ic, h_ic = sorting_parameters(initial_state_ic, h_ic)
         initial_state_ic = initial_state_ic[:, n_state]
         lambda_b_ic = lambda_solvent(chi_s, chi_s, alphaopt2, alphast2)
         delta_ic = final_state_ic - initial_state_ic[:, np.newaxis] + lambda_b_ic
         eng_to_s0 = -1 * delta_emi[:, np.newaxis]
-        delta_ic[:,n_state] = eng_to_s0[:,0]
-        #lambda_b_ic = lambda_solvent(chi_s, alphaopt2, alphast2)
-        lambda_b_ic[:,0] = lambda_be #gamma_s0[:,0] * (alphast2 - alphaopt2) #lambda_be
+        #remove column corresponding to the initial state
+        delta_ic = np.delete(delta_ic, n_state, axis=1)
+        #add eng_to_s0 as the first column
+        delta_ic = np.hstack((eng_to_s0, delta_ic))
+        lambda_b_ic[:,n_state] = lambda_be 
+        sigma_int_ic = np.std(delta_ic, axis=0)
         final = final + [f"S0"] + [f"S{j}" for j in range(1, 1 + singlets.shape[1]) if j != n_state+1]
     elif "t" in initial:
         # Tn to Sm ISC
@@ -827,16 +833,16 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
         # lambda_b = np.hstack((lambda_b,lambda_bt[:,indices]))
         # final.extend([i.upper()[4:] for i in data.columns.values if 'soc_t' in i])
 
-    sigma = total_reorganization_energy(lambda_b, kbt)
+    sigma = total_reorganization_energy(lambda_b, kbt, sigma_int)
     y_axis = (
-        (2 * np.pi / HBAR_EV) * (socs_complete**2) * nemo.tools.voigt(-delta, sigma, lorentz[:,np.newaxis])
+        (2 * np.pi / HBAR_EV) * (socs_complete**2) * nemo.tools.gauss(delta, sigma)
     )
     #tau_D = (refractive_index**2 / eps)*1e-12
     #g_ad = 0#np.nan_to_num((2 * np.pi * (socs_complete**2) * tau_D)/ (HBAR_EV * lambda_b))
     #y_axis =  y_axis / (1 + g_ad)
-    sigma_ic = total_reorganization_energy(lambda_b_ic, kbt)
+    sigma_ic = total_reorganization_energy(lambda_b_ic, kbt, sigma_int_ic)
     y_axis_ic = (
-        (2 * np.pi / HBAR_EV) * (h_ic) * nemo.tools.voigt(-delta_ic, sigma_ic, lorentz[:, np.newaxis])
+        (2 * np.pi / HBAR_EV) * (h_ic) * nemo.tools.gauss(delta_ic, sigma_ic)
     )
 
     # hstack y and espectro

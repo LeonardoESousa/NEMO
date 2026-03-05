@@ -3,6 +3,7 @@
 *out
 *log
 __pycache__
-*teste*
+*test*
 build
 *egg*
+venv

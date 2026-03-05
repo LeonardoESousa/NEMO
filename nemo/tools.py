@@ -431,8 +431,8 @@ def setup_ensemble():
 
 
 ##NORMALIZED GAUSSIAN##########################################
-def gauss(x_value, mean, std):
-    y_value = (1 / (np.sqrt(2 * np.pi) * std)) * np.exp(-0.5 * ((x_value - mean) / std) ** 2)
+def gauss(mean, std):
+    y_value = (1 / (np.sqrt(2 * np.pi) * std)) * np.exp(-0.5 * ((mean) / std) ** 2)
     return y_value
 
 
@@ -470,14 +470,6 @@ def voigt(x, sigma, gamma, eps=0.0):
 
     return out
 #############################################################
-
-#fake voigt to test gaussian
-def avoigt(x,sigma,gamma):
-    sigma = np.sqrt(sigma**2 + gamma**2)
-    #normalized gaussian
-    gauss = (1 / (np.sqrt(2 * np.pi) * sigma)) * np.exp(-0.5 * (x / sigma) ** 2)
-    return gauss
-
 
 
 
