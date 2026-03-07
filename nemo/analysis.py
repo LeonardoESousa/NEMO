@@ -321,11 +321,75 @@ def gather_data(initial, save=True):
     # Check if derivative coupling calculation was performed
     dc_computation, states = nemo.parser.check_derivative_couplings(files[0])
     if dc_computation:
-        _, _, h = gather_data_derivative_couplings(initial, data, save)
-        print(h.shape)
-        for i, j in combinations(states, 2):
-            data[f"IC_{i}_{j}"] = h[:, i]
-            formats[f"IC_{i}_{j}"] = "{:.5e}"
+        ###### OBTAINS THE B PARAMETERS ########
+        formats_dc = {}
+        freq_log = nemo.tools.fetch_file("frequency", [".out", ".log"])
+        (
+            initial_state,
+            final_state,
+            geometry,
+            mode,
+            b
+        ) = nemo.parser.get_derivative_couplings(states, states, files, freq_log, debug=False)
+
+        arquivo_dc =f"Derivative_Couplings_{initial.upper()}_.lx"
+        data_dc = pd.DataFrame()
+        data_dc["initial_state"] = np.array(initial_state).astype(str)
+        data_dc["final_state"] = np.array(final_state).astype(str)
+        data_dc["geometry"] = geometry
+        data_dc["mode"] = mode
+        data_dc["B"] = b
+
+        formats_dc["initial_state"] = "{:s}"
+        formats_dc["final_state"] = "{:s}"
+        formats_dc["geometry"] = "{:.0f}"
+        formats_dc["mode"] = "{:.0f}"
+        formats_dc["B"] = "{:.5e}"
+
+        ###### OBTAINS THE V PARAMETERS ########
+        Mag_file = nemo.tools.fetch_file("Magnitudes", ['Magnitudes'])
+        (
+            geometry_V,
+            mode_V,
+            v1,
+            v2
+        ) = nemo.parser.get_V(Mag_file, files)
+
+        formats_V = {}
+        arquivo_V =f"V_{initial.upper()}_.lx"
+        data_V = pd.DataFrame()
+        data_V["geometry"] = geometry_V
+        data_V["mode"] = mode_V
+        data_V["v1"] = v1
+        data_V["v2"] = v2
+
+        formats_V["geometry"] = "{:.0f}"
+        formats_V["mode"] = "{:.0f}"
+        formats_V["v1"] = "{:.5e}"
+        formats_V["v2"] = "{:.5e}"
+        if save:
+            # Create a temporary copy of the DataFrame
+            temp_data_V = data_V.copy()
+            #Apply formats
+            for column, fmt in formats_V.items():
+                if column in temp_data_V.columns:
+                    temp_data_V[column] = temp_data_V[column].map(fmt.format)
+            temp_data_V.to_csv(arquivo_V, index=False)
+            # Create a temporary copy of the DataFrame
+            temp_data_dc = data_dc.copy()
+            #Apply formats
+            for column, fmt in formats_dc.items():
+                if column in temp_data_dc.columns:
+                    temp_data_dc[column] = temp_data_dc[column].map(fmt.format)
+            temp_data_dc.to_csv(arquivo_dc, index=False)
+
+        for i in states:
+            for j in states:
+                if i== j:
+                    continue
+                _, _, h = gather_data_derivative_couplings("s"+str(i), "s"+str(j), data, data_dc, data_V)
+                data[f"IC_{i}_{j}"] = h
+                formats[f"IC_{i}_{j}"] = "{:.5e}"
         #header.extend([f"IC_{i}_{j}(eV)" for i, j in combinations(states, 2)])
         #any({formats.update({f"IC_{i}_{j}(eV)": "{:.5e}"}) for i, j in combinations(states, 2)})
         #data=np.hstack((data, h))
@@ -350,81 +414,21 @@ def gather_data(initial, save=True):
 #######################################################################################
 
 
-def gather_data_derivative_couplings(initial, data=None, save=True):
-    files = check_normal("Geometries")
-    files = sorted(files, key=lambda pair: float(pair.split("-")[1]))
-    _, dc_states = nemo.parser.check_derivative_couplings(files[0])
-    ###### OBTAINS THE B PARAMETERS ########
-    formats_dc = {}
-    freq_log = nemo.tools.fetch_file("frequency", [".out", ".log"])
-    (
-        initial_state,
-        final_state,
-        geometry,
-        mode,
-        b
-    ) = nemo.parser.get_derivative_couplings(initial[1:], dc_states, files, freq_log)
+def gather_data_derivative_couplings(initial, final, data=None, data_dc=None, data_V=None):
 
-    arquivo_dc =f"Derivative_Couplings_{initial.upper()}_.lx"
-    data_dc = pd.DataFrame()
-    data_dc["initial_state"] = np.array(initial_state).astype(str)
-    data_dc["final_state"] = np.array(final_state).astype(str)
-    data_dc["geometry"] = geometry
-    data_dc["mode"] = mode
-    data_dc["B"] = b
-
-    formats_dc["initial_state"] = "{:s}"
-    formats_dc["final_state"] = "{:s}"
-    formats_dc["geometry"] = "{:.0f}"
-    formats_dc["mode"] = "{:.0f}"
-    formats_dc["B"] = "{:.5e}"
-    if save:
-        # Create a temporary copy of the DataFrame
-        temp_data_dc = data_dc.copy()
-        #Apply formats
-        for column, fmt in formats_dc.items():
-            if column in temp_data_dc.columns:
-                temp_data_dc[column] = temp_data_dc[column].map(fmt.format)
-        temp_data_dc.to_csv(arquivo_dc, index=False)
-
-    ###### OBTAINS THE V PARAMETERS ########
-    Mag_file = nemo.tools.fetch_file("Magnitudes", ['Magnitudes'])
-    (
-        geometry_V,
-        mode_V,
-        v1,
-        v2
-    ) = nemo.parser.get_V(Mag_file, files)
-
-    formats_V = {}
-    arquivo_V =f"V_{initial.upper()}_.lx"
-    data_V = pd.DataFrame()
-    data_V["geometry"] = geometry_V
-    data_V["mode"] = mode_V
-    data_V["v1"] = v1
-    data_V["v2"] = v2
-
-    formats_V["geometry"] = "{:.0f}"
-    formats_V["mode"] = "{:.0f}"
-    formats_V["v1"] = "{:.5e}"
-    formats_V["v2"] = "{:.5e}"
-    if save:
-        # Create a temporary copy of the DataFrame
-        temp_data_V = data_V.copy()
-        #Apply formats
-        for column, fmt in formats_V.items():
-            if column in temp_data_V.columns:
-                temp_data_V[column] = temp_data_V[column].map(fmt.format)
-        temp_data_V.to_csv(arquivo_V, index=False)
-
-
-    n_state = int(initial[1:]) - 1
-    energies = fetch(data, [f"^e_{initial.lower()[0]}"])
-    delta = energies - energies[:, n_state ][:, np.newaxis]
-    #remove column corresponding to the initial state
-    delta = np.delete(delta, n_state, axis=1)
-    #add -energies[:, n_state][:, np.newaxis] as the first column
-    delta = np.hstack((-energies[:, n_state][:, np.newaxis], delta))
+    if int(initial[1])==0:
+        energies = fetch(data, [f"^e_{initial.lower()[0]}"])
+        delta= energies
+        delta = np.hstack((np.zeros_like(energies[:, -1])[:, np.newaxis], delta)) # add a second column with the same values for the ground state
+    else:
+        n_state = int(initial[1:]) - 1
+        energies = fetch(data, [f"^e_{initial.lower()[0]}"])
+        delta = energies - energies[:, n_state ][:, np.newaxis]
+        #remove column corresponding to the initial state
+        #In gather_data, the states are never the same
+        #delta = np.delete(delta, n_state, axis=1)
+        #add -energies[:, n_state][:, np.newaxis] as the first column
+        delta = np.hstack((-energies[:, n_state][:, np.newaxis], delta))
     #------------------------------------#
     # Computes the H parameters
     h = 0.0
@@ -438,71 +442,71 @@ def gather_data_derivative_couplings(initial, data=None, save=True):
         freq_row = freq_V[np.newaxis,:] #rad/s
 
 
-        i=0
-        for final in dc_states:
-            if final == int(initial[1]):
-                continue
-            if int(initial[1]) < final:
-                lower=int(initial[1])
-                higher=final
-            else:
-                higher=int(initial[1])
-                lower=final
+        if int(initial[1]) < int(final[1]):
+            lower=int(initial[1])
+            higher=int(final[1])
+        else:
+            higher=int(initial[1])
+            lower=int(final[1])
 
 
-            # Compute the geometry dependent rate for the ith transition
-            # ----- Get the transition energy for the ith transition
-            #e_col = fetch(data, [f"^e_{initial.lower()[0]}"])[:,i] # eV
-            #e_col = e_col[:,np.newaxis]
-            #e_col *= -1.0
-            e_col = delta[:, i][:, np.newaxis] # eV
-            # ----- Get oscillator strength for the ith transition
-            #osc_col = fetch(data, [f"^osce_{initial.lower()[0]}"])[:,i] #
-            #osc_col = osc_col[:,np.newaxis]
-            #constante = E_CHARGE**2 / (2.0 * np.pi * HBAR_EV * MASS_E * (LIGHT_SPEED**3.0) * EPSILON_0)
-            #espectro = constante * ((e_col) ** 2 ) * osc_col
-            #gammas_lorentz = espectro / 2.0# nemo.tools.detect_sigma()# espectro / 2.0
-            sigma = np.std(e_col, axis=0)
-            i+=1
+        # Compute the geometry dependent rate for the ith transition
+        # ----- Get the transition energy for the ith transition
+        #e_col = fetch(data, [f"^e_{initial.lower()[0]}"])[:,i] # eV
+        #e_col = e_col[:,np.newaxis]
+        #e_col *= -1.0
+        e_col = delta[:, int(final[1])][:, np.newaxis] # eV
+        # ----- Get oscillator strength for the ith transition
+        #osc_col = fetch(data, [f"^osce_{initial.lower()[0]}"])[:,i] #
+        #osc_col = osc_col[:,np.newaxis]
+        #constante = E_CHARGE**2 / (2.0 * np.pi * HBAR_EV * MASS_E * (LIGHT_SPEED**3.0) * EPSILON_0)
+        #espectro = constante * ((e_col) ** 2 ) * osc_col
+        #gammas_lorentz = espectro / 2.0# nemo.tools.detect_sigma()# espectro / 2.0
+        sigma = np.std(e_col, axis=0)
 
 
 
-            # ----_ Get the corresponding coupling for the ith transition
-            b = nemo.tools.B_to_vec(data_dc, lower, higher) # J^2
+        # ----_ Get the corresponding coupling for the ith transition
+        b = nemo.tools.B_to_vec(data_dc, lower, higher) # J^2
+        np.savetxt(f"debug_dc.csv", b, delimiter=",", fmt='%10.5e')
 
-            # ----- Calculate h_IC
-            # ----- Gaussian line shape
-            # argument_pos =  (e_col * HBAR_EV * freq_row)/(s**2)-(HBAR_EV * freq_row)**2/(2.0*s**2)
-            # argument_neg = -(e_col * HBAR_EV * freq_row)/(s**2)-(HBAR_EV * freq_row)**2/(2.0*s**2)
-            # term_pos= np.exp((argument_pos))
-            # term_neg= np.exp((argument_neg))
+        # ----- Calculate h_IC
+        # ----- Gaussian line shape
+        # argument_pos =  (e_col * HBAR_EV * freq_row)/(s**2)-(HBAR_EV * freq_row)**2/(2.0*s**2)
+        # argument_neg = -(e_col * HBAR_EV * freq_row)/(s**2)-(HBAR_EV * freq_row)**2/(2.0*s**2)
+        # term_pos= np.exp((argument_pos))
+        # term_neg= np.exp((argument_neg))
 
-            # debugging: print the arguments before exponentiation to check for overflow issues
-            # print the numpy array argument to a file
-            # np.savetxt("debug_argument_pos.csv", argument_pos, delimiter=",", fmt='%10.5f')
-            # np.savetxt("debug_argument_neg.csv", argument_neg, delimiter=",", fmt='%10.5f')
-            # print(argument_pos)
-            # np.savetxt("debug_exp_pos.csv", term_pos, delimiter=",", fmt='%10.5f')
-            # np.savetxt("debug_exp_neg.csv", term_neg, delimiter=",", fmt='%10.5f')
-            #print(term_pos)
+        # debugging: print the arguments before exponentiation to check for overflow issues
+        # print the numpy array argument to a file
+        # np.savetxt("debug_argument_pos.csv", argument_pos, delimiter=",", fmt='%10.5f')
+        # np.savetxt("debug_argument_neg.csv", argument_neg, delimiter=",", fmt='%10.5f')
+        # print(argument_pos)
+        # np.savetxt("debug_exp_pos.csv", term_pos, delimiter=",", fmt='%10.5f')
+        # np.savetxt("debug_exp_neg.csv", term_neg, delimiter=",", fmt='%10.5f')
+        #print(term_pos)
 
-            # ------ Lorentzian line shape
-            #term_pos = nemo.tools.voigt(-e_col+HBAR_EV*freq_row,0.0,gammas_lorentz) / nemo.tools.voigt(-e_col,0.0,gammas_lorentz)
-            #term_neg = nemo.tools.voigt(-e_col-HBAR_EV*freq_row,0.0,gammas_lorentz) / nemo.tools.voigt(-e_col,0.0,gammas_lorentz)
-            term_pos = nemo.tools.gauss(-e_col+HBAR_EV*freq_row,sigma) 
-            term_neg = nemo.tools.gauss(-e_col-HBAR_EV*freq_row,sigma) 
+        # ------ Lorentzian line shape
+        #term_pos = nemo.tools.voigt(-e_col+HBAR_EV*freq_row,0.0,gammas_lorentz) / nemo.tools.voigt(-e_col,0.0,gammas_lorentz)
+        #term_neg = nemo.tools.voigt(-e_col-HBAR_EV*freq_row,0.0,gammas_lorentz) / nemo.tools.voigt(-e_col,0.0,gammas_lorentz)
+        term_pos = nemo.tools.gauss(e_col-HBAR_EV*freq_row,sigma) 
+        term_neg = nemo.tools.gauss(e_col+HBAR_EV*freq_row,sigma) 
+        print(final)
+        # np.savetxt(f"debug_exp_pos_{final}.csv", term_pos, delimiter=",", fmt='%10.5e')
+        # np.savetxt(f"debug_exp_neg_{final}.csv", term_neg, delimiter=",", fmt='%10.5e')
+        # np.savetxt(f"debug_exp_den_{final}.csv", nemo.tools.gauss(e_col,sigma), delimiter=",", fmt='%10.5e')
+        # np.savetxt(f"debug_exp_ratio_pos_{final}.csv", term_pos/nemo.tools.gauss(e_col,sigma), delimiter=",", fmt='%10.5e')
+        # np.savetxt(f"debug_exp_ratio_neg_{final}.csv", term_neg/nemo.tools.gauss(e_col,sigma), delimiter=",", fmt='%10.5e')
 
+        h = b * (v1 * term_pos + v2 * term_neg) / (nemo.tools.gauss(e_col,sigma)) # J^2
+        # ----- sum on normal modes
+        h=np.sum(h, axis=1)[:,np.newaxis]
 
-            h = b * (v1 * term_pos + v2 * term_neg) / nemo.tools.gauss(-e_col,sigma)
-            
-            # ----- sum on normal modes
-            h=np.sum(h, axis=1)[:,np.newaxis]
-
-            # ----- Add H for this transition pair
-            try:
-                total_H = np.hstack((total_H, h))
-            except NameError:
-                total_H = h
+        # ----- Add H for this transition pair
+        try:
+            total_H = np.hstack((total_H, h))
+        except NameError:
+            total_H = h
     np.savetxt("debug.csv", total_H/ (E_CHARGE**2), delimiter=",", fmt='%10.5e') #
     return data_dc, data_V, total_H / (E_CHARGE**2) # J**2 to eV**2
 #######################################################################################
@@ -782,7 +786,8 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
             if "soc_" + initial.lower() + "_" in i
         ]
         ##FOR WHEN IC IS AVAILABLE
-        h_ic = fetch(data, ["^IC_"])
+        #re for starts with IC_ but not 0 after
+        h_ic = fetch(data, ["^IC_(?!0)"])
         if h_ic.size == 0:
             h_ic =  np.zeros(singlets.shape)
         initial_state_ic = singlets - (chi_s + gamma_s) * alphast2
