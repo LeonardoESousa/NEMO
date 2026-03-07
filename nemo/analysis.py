@@ -383,10 +383,13 @@ def gather_data(initial, save=True):
                     temp_data_dc[column] = temp_data_dc[column].map(fmt.format)
             temp_data_dc.to_csv(arquivo_dc, index=False)
 
-        for i, j in combinations(states, 2):
-            _, _, h = gather_data_derivative_couplings("s"+str(i), "s"+str(j), data, data_dc, data_V)
-            data[f"IC_{i}_{j}"] = h
-            formats[f"IC_{i}_{j}"] = "{:.5e}"
+        for i in states:
+            for j in states:
+                if i== j:
+                    continue
+                _, _, h = gather_data_derivative_couplings("s"+str(i), "s"+str(j), data, data_dc, data_V)
+                data[f"IC_{i}_{j}"] = h
+                formats[f"IC_{i}_{j}"] = "{:.5e}"
         #header.extend([f"IC_{i}_{j}(eV)" for i, j in combinations(states, 2)])
         #any({formats.update({f"IC_{i}_{j}(eV)": "{:.5e}"}) for i, j in combinations(states, 2)})
         #data=np.hstack((data, h))
@@ -413,13 +416,19 @@ def gather_data(initial, save=True):
 
 def gather_data_derivative_couplings(initial, final, data=None, data_dc=None, data_V=None):
 
-    n_state = int(initial[1:]) - 1
-    energies = fetch(data, [f"^e_{initial.lower()[0]}"])
-    delta = energies - energies[:, n_state ][:, np.newaxis]
-    #remove column corresponding to the initial state
-    delta = np.delete(delta, n_state, axis=1)
-    #add -energies[:, n_state][:, np.newaxis] as the first column
-    delta = np.hstack((-energies[:, n_state][:, np.newaxis], delta))
+    if int(initial[1])==0:
+        energies = fetch(data, [f"^e_{initial.lower()[0]}"])
+        delta= energies
+        delta = np.hstack((np.zeros_like(energies[:, -1])[:, np.newaxis], delta)) # add a second column with the same values for the ground state
+    else:
+        n_state = int(initial[1:]) - 1
+        energies = fetch(data, [f"^e_{initial.lower()[0]}"])
+        delta = energies - energies[:, n_state ][:, np.newaxis]
+        #remove column corresponding to the initial state
+        #In gather_data, the states are never the same
+        #delta = np.delete(delta, n_state, axis=1)
+        #add -energies[:, n_state][:, np.newaxis] as the first column
+        delta = np.hstack((-energies[:, n_state][:, np.newaxis], delta))
     #------------------------------------#
     # Computes the H parameters
     h = 0.0
@@ -446,7 +455,7 @@ def gather_data_derivative_couplings(initial, final, data=None, data_dc=None, da
         #e_col = fetch(data, [f"^e_{initial.lower()[0]}"])[:,i] # eV
         #e_col = e_col[:,np.newaxis]
         #e_col *= -1.0
-        e_col = delta[:, int(final[1])-1][:, np.newaxis] # eV
+        e_col = delta[:, int(final[1])][:, np.newaxis] # eV
         # ----- Get oscillator strength for the ith transition
         #osc_col = fetch(data, [f"^osce_{initial.lower()[0]}"])[:,i] #
         #osc_col = osc_col[:,np.newaxis]
