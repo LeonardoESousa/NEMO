@@ -1131,17 +1131,17 @@ def transform_dR_to_dQ(normal_modes, DC_real):
     """
     A = transform_cartesian_to_normal_modes(normal_modes)
     # compute transpose of A
-    A_T = np.transpose(A)
+    # A_T = np.transpose(A)
     # compute inverse of AA_T
-    AA_T_inv = np.linalg.inv(np.dot(A, A_T))
+    #AA_T_inv = np.linalg.inv(np.dot(A, A_T))
     # compute d/dQ
-    DC_normal = np.dot(AA_T_inv, np.dot(A, DC_real.flatten()))
+    DC_normal = np.dot(A, DC_real.flatten())
     return DC_normal
 
 ######################################################################################################
 
 ## DEFINES THE B PARAMETERS FOR THE IC RATE ##########################################################
-def get_derivative_couplings(state_i, states_f, files, freqlog):
+def get_derivative_couplings(states_i, states_f, files, freqlog, debug=False):
     # get modes and frequencies
     Qchemfile=False
     with open(freqlog, 'r', encoding='utf-8') as file:
@@ -1170,34 +1170,35 @@ def get_derivative_couplings(state_i, states_f, files, freqlog):
     mode = []
     B=[]
 
-    for state_f in states_f:
+    for state_i in states_i:
+        for state_f in states_f:
 
-        if int(state_i) == int(state_f):
-            continue
-        state_1 = str(state_i)
-        state_2 = str(state_f)
-        if int(state_f) < int(state_i):
-            state_1 = str(state_f)
-            state_2 = str(state_i)
+            if int(state_i) >= int(state_f):
+                continue
+            state_1 = str(state_i)
+            state_2 = str(state_f)
 
-        for i, file in enumerate(files):
-            DC_real = pega_DC_real(
-                normal_modes,
-                "Geometries/"+str(file),
-                state_1,
-                state_2,
-            )
-            DC_normal = transform_dR_to_dQ(
-                normal_modes, DC_real
-            )
-            for k in range(len(freqs)):
-                initial_state.append(state_1)
-                final_state.append(state_2)
-                geometry.append(i+1)
-                mode.append(k+1)
-                B.append(
-                    (DC_normal[k]**2) * (HBAR_J**3) * (freqs[k]) / (2.0 * masses[k])
+            for i, file in enumerate(files):
+                DC_real = pega_DC_real(
+                    normal_modes,
+                    "Geometries/"+str(file),
+                    state_1,
+                    state_2,
                 )
+                DC_normal = transform_dR_to_dQ(
+                    normal_modes, DC_real
+                )
+                for k in range(len(freqs)):
+                    initial_state.append(state_1)
+                    final_state.append(state_2)
+                    geometry.append(i+1)
+                    mode.append(k+1)
+                    if debug:
+                        B.append(1.0)
+                    else:
+                        B.append(
+                        (DC_normal[k]**2) * (HBAR_J**3) * (freqs[k]) / (2.0 * masses[k])
+                        )
 
     return (
         initial_state,
@@ -1232,7 +1233,7 @@ def check_derivative_couplings(file):
 #########################################################################################
 
 ##COMPUTES THE V PARAMETERS #####
-def get_V(mag_file, files, v_option="POSITIVESemiClass"):#     'quantum'):
+def get_V(mag_file, files, v_option="Exact"):#     'quantum'):
 
     temp = float(mag_file.split("_")[1].strip("K"))
 
@@ -1252,12 +1253,76 @@ def get_V(mag_file, files, v_option="POSITIVESemiClass"):#     'quantum'):
     v2 = []
 
     #--------------------------------------------#
+    #Exact expression
+    if v_option == "debug":
+        print("")
+        print("Attention!")
+        print("")
+        print("Performing the debug calculation of the V parameter.")
+        print("")
+        for geom in range(len(amplitudes)):
+            for m in range(len(amplitudes[0])):
+                geometry.append(geom+1)
+                mode.append(m+1)
+                
+                term1 = 1.0
+
+                term2 = 1.0
+
+                v1.append(term1)
+                v2.append(term2)
+        return(
+            geometry,
+            mode,
+            v1,
+            v2
+        )        
+
+    #--------------------------------------------#
+    #Exact expression
+    if v_option == "Exact":
+        print("")
+        print("Attention!")
+        print("")
+        print("Performing the Exact calculation of the V parameter.")
+        print("")
+        for geom in range(len(amplitudes)):
+            for m in range(len(amplitudes[0])):
+                geometry.append(geom+1)
+                mode.append(m+1)
+                
+                betahw = HBAR_EV * freq_V[m] / (BOLTZ_EV * temp)
+                amp = (masses_m[m] * (freq_V[m]) * (amplitudes[geom][m]**2)) / (2.0 * HBAR_J)
+                
+                term1 =(
+                 1.0/(2.0*np.sinh(betahw))
+                 +
+                 amp*(1.0 - np.tanh(betahw/2.0)**2)*np.exp(-betahw)
+                )
+
+                term2 =(
+                 1.0/(2.0*np.sinh(betahw))
+                 +
+                 amp*(1.0 - np.tanh(betahw/2.0)**2)*np.exp(betahw)
+                )
+
+                v1.append(term1)
+                v2.append(term2)
+        return(
+            geometry,
+            mode,
+            v1,
+            v2
+        )        
+
+
+    #--------------------------------------------#
     #Semi-Classical expression
     if v_option == "SemiClass":
         print("")
         print("Attention!")
         print("")
-        print("Performing the SemiClass calculation of the V paramenter.")
+        print("Performing the SemiClass calculation of the V parameter.")
         print("")
         for geom in range(len(amplitudes)):
             for m in range(len(amplitudes[0])):
@@ -1283,7 +1348,7 @@ def get_V(mag_file, files, v_option="POSITIVESemiClass"):#     'quantum'):
         print("")
         print("Attention!")
         print("")
-        print("Performing the POSITIVESemiClass calculation of the V paramenter.")
+        print("Performing the POSITIVESemiClass calculation of the V parameter.")
         print("")
         for geom in range(len(amplitudes)):
             for m in range(len(amplitudes[0])):
@@ -1314,7 +1379,7 @@ def get_V(mag_file, files, v_option="POSITIVESemiClass"):#     'quantum'):
     print("")
     print("Attention!")
     print("")
-    print("Performing the quantum statistical calculation of the V paramenter.")
+    print("Performing the quantum statistical calculation of the V parameter.")
     print("")
 
     #Quantum statistical expression
