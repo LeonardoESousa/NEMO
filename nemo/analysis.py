@@ -602,13 +602,24 @@ def x_values(mean, std):
     return x_axis
 
 
-def sorting_parameters(*args):
+def sorting_parameters(*args, axis=1):
     args = list(args)
-    argsort = np.argsort(args[0], axis=1)
-    for i in range(len(args)):
-        args[i] = np.take_along_axis(args[i], argsort, axis=1)
-    return args
 
+    argsort = np.argsort(args[0], axis=axis)
+
+    for i in range(len(args)):
+        if args[i].ndim == 2:
+            args[i] = np.take_along_axis(args[i], argsort, axis=axis)
+
+        elif args[i].ndim == 3:
+            # expand argsort to match the 3rd dimension
+            indexer = np.expand_dims(argsort, axis=2)
+            args[i] = np.take_along_axis(args[i], indexer, axis=axis)
+
+        else:
+            raise ValueError("Unsupported number of dimensions")
+
+    return args
 
 def check_number_geoms(data):
     number_geoms = data.shape[0]
@@ -686,32 +697,71 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
     alphast2 = nemo.tools.get_alpha(eps)
     alphaopt2 = nemo.tools.get_alpha(refractive_index**2)
 
-    data = fix_absent_triplets(data)
-    data = fix_absent_soc(data)
+    #data = fix_absent_triplets(data)
+    #data = fix_absent_soc(data)
+
+    n_state = int(initial[1:]) - 1
+    initial = initial.lower()
 
     #excited state energies
     singlets = fetch(data, ["^e_s"])
     triplets = fetch(data, ["^e_t"])
-
+    
     #excited state susceptibilities
     chi_s = fetch(data, ["^chi_s(?!0)"])
     chi_t = fetch(data, ["^chi_t"])
     gamma_s = fetch(data, ["^gamma_s(?!0)"])
     gamma_t = fetch(data, ["^gamma_t"])
 
+    # oscillator strengths
+    oscs = fetch(data, ["^osce_"])
+    
+    #spin orbit couplings
+    if "s" in initial:
+        socs_complete = fetch(data, ["^soc_"+initial[0]])
+    else:
+        socs_complete = fetch(data, ["^soc_t.*_s[^0].*"])
+
+    #spin orbit couplings for Tn -> S0
+    socs_s0 = fetch(data, ["^soc_t.*_s0"])
+
+    #internal conversion
+    h_ic = fetch(data, ["^IC_(?!0)"])    
+
     #ground state susceptibility
     gamma_s0 = data['gamma_s0'].to_numpy()
     #fix dimension of gamma_s0
     gamma_s0 = gamma_s0[:, np.newaxis]
 
+    #check empty arrays and fill with zeros if necessary
+    if triplets.size == 0:
+        triplets = np.zeros_like(singlets)
+        chi_t = np.zeros_like(chi_s)
+        gamma_t = np.zeros_like(gamma_s)
+    if socs_complete.size == 0:
+        socs_complete = np.zeros((singlets.shape[0], singlets.shape[1]**2))
+    if h_ic.size == 0:
+        h_ic = np.zeros((singlets.shape[0], singlets.shape[1]**2))   
+    if socs_s0.size == 0:
+        socs_s0 = np.zeros_like(triplets)
 
-    n_state = int(initial[1:]) - 1
-    initial = initial.lower()
+    #reshape socs_complete to have dimensions (number of geometries, number of initial states, number of final states)
+    socs_complete = socs_complete.reshape((socs_complete.shape[0], singlets.shape[1], triplets.shape[1]))
+    h_ic = h_ic.reshape((h_ic.shape[0], singlets.shape[1], singlets.shape[1]))
 
     # Emission Calculations
 
-    energies = fetch(data, [f"^e_{initial[0]}"])
+    energies = singlets if "s" in initial else triplets
+    chis = chi_s if "s" in initial else chi_t
+    gammas = gamma_s if "s" in initial else gamma_t
 
+    initial_energy = energies - (gammas + chis) * alphast2
+    initial_energy, energies, oscs, chis, gammas, socs_complete, h_ic, socs_s0 = sorting_parameters(initial_energy, energies, oscs, chis, gammas, socs_complete, h_ic, socs_s0)
+    
+    lambda_emission = lambda_solvent(chis, 0, alphaopt2, alphast2)
+    final_energy_emission = - gamma_s0 * alphast2
+    delta_emi = final_energy_emission - initial_energy + lambda_emission    
+    delta_emi *= -1
 
     constante = (
         (refractive_index**2)
@@ -720,23 +770,23 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
     )
     if "t" in initial:
         constante *= 1 / 3
-        eng_final = - gamma_s0 * alphast2
-        eng_initial = energies - (gamma_t + chi_t) * alphast2
-        lambda_be = lambda_solvent(chi_t, 0, alphaopt2, alphast2)
-        delta_emi_unsorted = eng_final - eng_initial + lambda_be
-        delta_emi_unsorted *= -1
-    elif "s" in initial:
-        eng_final = - gamma_s0 * alphast2
-        eng_initial = energies - (gamma_s + chi_s) * alphast2
-        lambda_be = lambda_solvent(chi_s, 0, alphaopt2, alphast2)
-        delta_emi_unsorted = eng_final - eng_initial + lambda_be
-        delta_emi_unsorted *= -1
+        #eng_final = - gamma_s0 * alphast2
+        #eng_initial = energies - (gamma_t + chi_t) * alphast2
+        #lambda_be = lambda_solvent(chi_t, 0, alphaopt2, alphast2)
+        #delta_emi_unsorted = eng_final - eng_initial + lambda_be
+        #delta_emi_unsorted *= -1
+    #elif "s" in initial:
+    #    eng_final = - gamma_s0 * alphast2
+    #    eng_initial = energies - (gamma_s + chi_s) * alphast2
+    #    lambda_be = lambda_solvent(chi_s, 0, alphaopt2, alphast2)
+    #    delta_emi_unsorted = eng_final - eng_initial + lambda_be
+    #    delta_emi_unsorted *= -1
 
-    oscs = fetch(data, ["^osce_"])
-    delta_emi, oscs, lambda_be = sorting_parameters(delta_emi_unsorted, oscs, lambda_be)
-    delta_emi, oscs, lambda_be = select_columns(n_state, delta_emi, oscs, lambda_be)
+    #oscs = fetch(data, ["^osce_"])
+    #delta_emi, oscs, lambda_be = sorting_parameters(delta_emi_unsorted, oscs, lambda_be)
+    delta_emi, initial_energy, oscs, lambda_emission = select_columns(n_state, delta_emi, initial_energy, oscs, lambda_emission)
     sigma_int = np.std(delta_emi, axis=0)
-    l_total = total_reorganization_energy(lambda_be, kbt, sigma_int)
+    l_total = total_reorganization_energy(lambda_emission, kbt, sigma_int)
     espectro = constante * (delta_emi ** 2) * oscs
     
     tdm = nemo.tools.calc_tdm(oscs, delta_emi, espectro)
@@ -768,66 +818,71 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
         check_number_geoms(data)
     # Intersystem Crossing Rates
 
+    #select columns corresponding to the initial state
+    socs_complete = socs_complete[:, n_state, :]
+    h_ic = h_ic[:, n_state, :]
+    
     if "s" in initial:
-        initial_state = singlets - (chi_s + gamma_s) * alphast2
-        final_state = triplets - (gamma_t + chi_t) * alphast2
-        socs_complete = fetch(data, ["^soc_s"])
-        initial_state, final_state, chi_s, chi_t, gamma_s, gamma_t, socs_complete = reorder(
-            initial_state, final_state, chi_s, chi_t, gamma_s, gamma_t, socs_complete
-        )
-        initial_state = initial_state[:, n_state]
-        socs_complete = socs_complete[:, n_state, :]
-        lambda_b = lambda_solvent(chi_s, chi_t, alphaopt2, alphast2)
-        delta = final_state - initial_state[:, np.newaxis] + lambda_b
-        sigma_int = np.std(delta, axis=0)
+        # Sm to Tn ISC
+        final_energy_isc = triplets - (gamma_t + chi_t) * alphast2
+        final_energy_isc, triplets, chi_t, gamma_t, socs_complete = sorting_parameters(final_energy_isc, triplets, chi_t, gamma_t, socs_complete)
+        lambda_b_isc = lambda_solvent(chis, chi_t, alphaopt2, alphast2)
+        delta_isc = final_energy_isc - initial_energy[:, np.newaxis] + lambda_b_isc
+        sigma_int = np.std(delta_isc, axis=0)
         final = [
             i.split("_")[2].upper()
             for i in data.columns.values
             if "soc_" + initial.lower() + "_" in i
         ]
-        ##FOR WHEN IC IS AVAILABLE
-        h_ic = fetch(data, ["^IC_"])
-        if h_ic.size == 0:
-            h_ic =  np.zeros(singlets.shape)
-        initial_state_ic = singlets - (chi_s + gamma_s) * alphast2
-        final_state_ic = singlets - (gamma_s + chi_s) * alphast2 
-        initial_state_ic, h_ic = sorting_parameters(initial_state_ic, h_ic)
-        initial_state_ic = initial_state_ic[:, n_state]
-        lambda_b_ic = lambda_solvent(chi_s, chi_s, alphaopt2, alphast2)
-        delta_ic = final_state_ic - initial_state_ic[:, np.newaxis] + lambda_b_ic
-        eng_to_s0 = -1 * delta_emi[:, np.newaxis]
+        # Sm to Sn IC
+        final_energy_ic = singlets - (gamma_s + chi_s) * alphast2
+        final_energy_ic, singlets, chi_s, gamma_s, h_ic = sorting_parameters(final_energy_ic, singlets, chi_s, gamma_s, h_ic)
+        lambda_b_ic = lambda_solvent(chis, chi_s, alphaopt2, alphast2)
+        delta_ic = final_energy_ic - initial_energy[:, np.newaxis] + lambda_b_ic
         #remove column corresponding to the initial state
         delta_ic = np.delete(delta_ic, n_state, axis=1)
-        #add eng_to_s0 as the first column
-        delta_ic = np.hstack((eng_to_s0, delta_ic))
-        lambda_b_ic[:,n_state] = lambda_be 
+        lambda_b_ic = np.delete(lambda_b_ic, n_state, axis=1)
+        # add emission energy as the first column
+        delta_ic = np.hstack((-1 * delta_emi[:, np.newaxis], delta_ic))
+        lambda_b_ic = np.hstack((lambda_emission[:, np.newaxis], lambda_b_ic))
         sigma_int_ic = np.std(delta_ic, axis=0)
         final = final + [f"S0"] + [f"S{j}" for j in range(1, 1 + singlets.shape[1]) if j != n_state+1]
     elif "t" in initial:
         # Tn to Sm ISC
-        initial_state = triplets - (chi_t + gamma_t) * alphast2
-        final_state = singlets - gamma_s * alphast2 - chi_s * alphaopt2
-        socs_complete = fetch(data, ["^soc_t.*s[1-9]"])
-        initial_state, final_state, chi_t, chi_s, gamma_t, gamma_s, socs_complete = reorder(
-            initial_state, final_state, chi_t, chi_s, gamma_t, gamma_s, socs_complete
-        )
-        initial_state = initial_state[:, n_state]
-        socs_complete = socs_complete[:, n_state, :]
-        delta = final_state - initial_state[:, np.newaxis]
-        lambda_b = lambda_solvent(chi_s, alphaopt2, alphast2)
+        final_energy_isc = singlets - (gamma_s + chi_s) * alphast2
+        final_energy_isc, singlets, chi_s, gamma_s, socs_complete = sorting_parameters(final_energy_isc, singlets, chi_s, gamma_s, socs_complete)
+        lambda_b_isc = lambda_solvent(chis, chi_s, alphaopt2, alphast2)
+        delta_isc = final_energy_isc - initial_energy[:, np.newaxis] + lambda_b_isc
+        
+        #initial_state = triplets - (chi_t + gamma_t) * alphast2
+        #final_state = singlets - gamma_s * alphast2 - chi_s * alphaopt2
+        #socs_complete = fetch(data, ["^soc_t.*s[1-9]"])
+        #initial_state, final_state, chi_t, chi_s, gamma_t, gamma_s, socs_complete = reorder(
+        #    initial_state, final_state, chi_t, chi_s, gamma_t, gamma_s, socs_complete
+        #)
+        #initial_state = initial_state[:, n_state]
+        #socs_complete = socs_complete[:, n_state, :]
+        #delta = final_state - initial_state[:, np.newaxis]
+        #lambda_b = lambda_solvent(chi_s, alphaopt2, alphast2)
         final = [
             i.split("_")[2].upper()
             for i in data.columns.values
             if "soc_" + initial.lower() + "_" in i and i.count("t") == 1
         ]
         # Tn to S0 ISC
-        socs_s0 = fetch(data, ["^soc_t.*s0"])
-        delta_emi, socs_s0 = sorting_parameters(delta_emi_unsorted, socs_s0)
-        delta_emi = delta_emi[:, n_state]
+        #socs_s0 = fetch(data, ["^soc_t.*s0"])
         socs_s0 = socs_s0[:, n_state]
         socs_complete = np.hstack((socs_s0[:, np.newaxis], socs_complete))
-        delta = np.hstack((delta_emi[:, np.newaxis], delta))
-        lambda_b = np.hstack((lambda_be[:, np.newaxis], lambda_b))
+        delta_isc = np.hstack((-1 * delta_emi[:, np.newaxis], delta_isc))
+        lambda_b_isc = np.hstack((lambda_emission[:, np.newaxis], lambda_b_isc))
+        
+        sigma_int = np.std(delta_isc, axis=0)
+        #delta_emi, socs_s0 = sorting_parameters(delta_emi_unsorted, socs_s0)
+        #delta_emi = delta_emi[:, n_state]
+        #socs_s0 = socs_s0[:, n_state]
+        #socs_complete = np.hstack((socs_s0[:, np.newaxis], socs_complete))
+        #delta = np.hstack((delta_emi[:, np.newaxis], delta))
+        #lambda_b = np.hstack((lambda_be[:, np.newaxis], lambda_b))
         # Tn to Tm ISC
         # delta_tt = Triplets + np.repeat((alphast2/alphaopt1)*Ss_t[:,n_state][:,np.newaxis] - Triplets[:,n_state][:,np.newaxis],Triplets.shape[1],axis=1) - (alphaopt2/alphaopt1)*Ss_t    #Tm (final) - Tn (initial) + lambda_b
         # Removing Tn to Tn transfers
@@ -837,14 +892,15 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
         # lambda_b = np.hstack((lambda_b,lambda_bt[:,indices]))
         # final.extend([i.upper()[4:] for i in data.columns.values if 'soc_t' in i])
 
-    sigma = total_reorganization_energy(lambda_b, kbt, sigma_int)
+    sigma = total_reorganization_energy(lambda_b_isc, kbt, sigma_int)
     y_axis = (
-        (2 * np.pi / HBAR_EV) * (socs_complete**2) * nemo.tools.gauss(delta, sigma)
+        (2 * np.pi / HBAR_EV) * (socs_complete**2) * nemo.tools.gauss(delta_isc, sigma)
     )
     #tau_D = (refractive_index**2 / eps)*1e-12
-    #g_ad = 0#np.nan_to_num((2 * np.pi * (socs_complete**2) * tau_D)/ (HBAR_EV * lambda_b))
+    #g_ad = 0#np.nan_to_num((2 * np.pi * (socs_complete**2) * tau_D)/ (HBAR_EV * lambda_b_isc))
     #y_axis =  y_axis / (1 + g_ad)
     sigma_ic = total_reorganization_energy(lambda_b_ic, kbt, sigma_int_ic)
+    #check for 0 in sigma_ic
     y_axis_ic = (
         (2 * np.pi / HBAR_EV) * (h_ic) * nemo.tools.gauss(delta_ic, sigma_ic)
     )
@@ -869,7 +925,7 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
             ]
         ]
     )
-    mean_gap = means(np.hstack((delta,delta_ic)), y_axis, ensemble_average)[:, np.newaxis]
+    mean_gap = means(np.hstack((delta_isc,delta_ic)), y_axis, ensemble_average)[:, np.newaxis]
     couplings = np.hstack((socs_complete, np.sqrt(h_ic)))
     mean_soc = 1000 * means(couplings, y_axis, ensemble_average)[:, np.newaxis]
     mean_sigma = means(sigma, y_axis, ensemble_average)[:, np.newaxis]
