@@ -770,21 +770,9 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
     )
     if "t" in initial:
         constante *= 1 / 3
-        #eng_final = - gamma_s0 * alphast2
-        #eng_initial = energies - (gamma_t + chi_t) * alphast2
-        #lambda_be = lambda_solvent(chi_t, 0, alphaopt2, alphast2)
-        #delta_emi_unsorted = eng_final - eng_initial + lambda_be
-        #delta_emi_unsorted *= -1
-    #elif "s" in initial:
-    #    eng_final = - gamma_s0 * alphast2
-    #    eng_initial = energies - (gamma_s + chi_s) * alphast2
-    #    lambda_be = lambda_solvent(chi_s, 0, alphaopt2, alphast2)
-    #    delta_emi_unsorted = eng_final - eng_initial + lambda_be
-    #    delta_emi_unsorted *= -1
 
-    #oscs = fetch(data, ["^osce_"])
-    #delta_emi, oscs, lambda_be = sorting_parameters(delta_emi_unsorted, oscs, lambda_be)
-    delta_emi, initial_energy, oscs, lambda_emission = select_columns(n_state, delta_emi, initial_energy, oscs, lambda_emission)
+    delta_emi, initial_energy, oscs, lambda_emission, chis = select_columns(n_state, delta_emi, initial_energy, oscs, lambda_emission, chis)
+    chis = chis[:,np.newaxis]
     sigma_int = np.std(delta_emi, axis=0)
     l_total = total_reorganization_energy(lambda_emission, kbt, sigma_int)
     espectro = constante * (delta_emi ** 2) * oscs
@@ -854,43 +842,17 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
         lambda_b_isc = lambda_solvent(chis, chi_s, alphaopt2, alphast2)
         delta_isc = final_energy_isc - initial_energy[:, np.newaxis] + lambda_b_isc
         
-        #initial_state = triplets - (chi_t + gamma_t) * alphast2
-        #final_state = singlets - gamma_s * alphast2 - chi_s * alphaopt2
-        #socs_complete = fetch(data, ["^soc_t.*s[1-9]"])
-        #initial_state, final_state, chi_t, chi_s, gamma_t, gamma_s, socs_complete = reorder(
-        #    initial_state, final_state, chi_t, chi_s, gamma_t, gamma_s, socs_complete
-        #)
-        #initial_state = initial_state[:, n_state]
-        #socs_complete = socs_complete[:, n_state, :]
-        #delta = final_state - initial_state[:, np.newaxis]
-        #lambda_b = lambda_solvent(chi_s, alphaopt2, alphast2)
         final = [
             i.split("_")[2].upper()
             for i in data.columns.values
             if "soc_" + initial.lower() + "_" in i and i.count("t") == 1
         ]
         # Tn to S0 ISC
-        #socs_s0 = fetch(data, ["^soc_t.*s0"])
         socs_s0 = socs_s0[:, n_state]
         socs_complete = np.hstack((socs_s0[:, np.newaxis], socs_complete))
         delta_isc = np.hstack((-1 * delta_emi[:, np.newaxis], delta_isc))
         lambda_b_isc = np.hstack((lambda_emission[:, np.newaxis], lambda_b_isc))
-        
         sigma_int = np.std(delta_isc, axis=0)
-        #delta_emi, socs_s0 = sorting_parameters(delta_emi_unsorted, socs_s0)
-        #delta_emi = delta_emi[:, n_state]
-        #socs_s0 = socs_s0[:, n_state]
-        #socs_complete = np.hstack((socs_s0[:, np.newaxis], socs_complete))
-        #delta = np.hstack((delta_emi[:, np.newaxis], delta))
-        #lambda_b = np.hstack((lambda_be[:, np.newaxis], lambda_b))
-        # Tn to Tm ISC
-        # delta_tt = Triplets + np.repeat((alphast2/alphaopt1)*Ss_t[:,n_state][:,np.newaxis] - Triplets[:,n_state][:,np.newaxis],Triplets.shape[1],axis=1) - (alphaopt2/alphaopt1)*Ss_t    #Tm (final) - Tn (initial) + lambda_b
-        # Removing Tn to Tn transfers
-        # indices  = [i for i in range(Triplets.shape[1]) if i != n_state]
-        # delta    = np.hstack((delta,delta_tt[:,indices]))
-        # lambda_bt= (alphast2/alphaopt1 - alphaopt2/alphaopt1)*Ss_t
-        # lambda_b = np.hstack((lambda_b,lambda_bt[:,indices]))
-        # final.extend([i.upper()[4:] for i in data.columns.values if 'soc_t' in i])
 
     sigma = total_reorganization_energy(lambda_b_isc, kbt, sigma_int)
     y_axis = (
@@ -1045,7 +1007,7 @@ def absorption(initial, dielec, data=None, save=False, detailed=False, nstates=-
 
     initial = initial.lower()
     spin = initial[0]
-    num = int(initial[1:])
+    n_state = int(initial[1:])
 
     # excited state energies
     engs = fetch(data, [f"^e_{spin}"])
@@ -1066,38 +1028,36 @@ def absorption(initial, dielec, data=None, save=False, detailed=False, nstates=-
         / (2 * refractive_index * MASS_E * LIGHT_SPEED * EPSILON_0)
         * 1e20
     )
-
-
-    engs = engs[:, num:]
-    chis = chis[:, num:]
-    gammas = gammas[:, num:]
-
-    lambda_b = lambda_solvent(chis, alphaopt2, alphast2)
-
+    
+    
+    
     if initial == "s0":
-        deltae_lambda =   engs + (gamma_s0 - gammas) * alphast2 - chis * alphaopt2
-
+        initial_energy = - gamma_s0 * alphast2
+        final_energy = engs - gammas * alphast2 - chis * alphaopt2
+        lambda_b = lambda_solvent(0, chis, alphaopt2, alphast2)
+        deltae = final_energy - initial_energy
     else:
-        base = fetch(data, [rf"\be_{initial}\b"])
-        chi_i = fetch(data, [rf"\bchi_{initial}\b"])
-        gamma_i = fetch(data, [rf"\bgamma_{initial}\b"])
-        initial_state = base - (gamma_i + chi_i) * alphast2
-        final_state = engs - gammas * alphast2 - chis * alphaopt2
-        deltae_lambda = final_state - initial_state
+        initial_energy = engs - (gammas + chis) * alphast2
+        initial_energy = initial_energy[:, n_state-1]
+        chi_initial = chis[:, n_state-1]
+        engs = engs[:, n_state:]
+        chis = chis[:, n_state:]
+        gammas = gammas[:, n_state:]
 
-    # Sorting states by energy
-    deltae_lambda, oscs, lambda_b = sorting_parameters(
-        deltae_lambda, oscs, lambda_b
-    )
-    l_total = total_reorganization_energy(lambda_b, kbt)
-    x_axis = x_values(deltae_lambda, l_total)
+        final_energy = engs - gammas * alphast2 - chis * alphaopt2
+        deltae = final_energy - initial_energy[:,np.newaxis]
+        lambda_b = lambda_solvent(chi_initial[:, np.newaxis], chis, alphaopt2, alphast2)
+
+
+    l_total = total_reorganization_energy(lambda_b, kbt, np.std(deltae, axis=0))
+    x_axis = x_values(deltae, l_total)
     if nstates == -1:
-        nstates = deltae_lambda.shape[1]
+        nstates = deltae.shape[1]
     # Add extra dimension to DE and Ltotal to match x shape
-    deltae_lambda, l_total, oscs, lambda_b = another_dimension(
-        nstates, deltae_lambda, l_total, oscs, lambda_b
+    deltae, l_total, oscs, lambda_b = another_dimension(
+        nstates, deltae, l_total, oscs, lambda_b
     )
-    y_axis = constante * oscs * nemo.tools.gauss(x_axis, deltae_lambda, l_total)
+    y_axis = constante * oscs * nemo.tools.gauss(x_axis - deltae, l_total)
     mean_y, sigma = rate_and_uncertainty(y_axis)
     mean_y = mean_y.T
     sigma = sigma.T
@@ -1123,7 +1083,7 @@ def absorption(initial, dielec, data=None, save=False, detailed=False, nstates=-
         )
     if detailed:
         breakdown = make_breakdown(
-            initial, spin, num, constante*oscs, deltae_lambda, chis[:,:nstates], l_total
+            initial, spin, n_state, constante*oscs, deltae, chis[:,:nstates], l_total
         )
         return abs_spec, breakdown
     return abs_spec
