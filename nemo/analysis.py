@@ -835,7 +835,12 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
         delta_ic = np.hstack((-1 * delta_emi[:, np.newaxis], delta_ic))
         lambda_b_ic = np.hstack((lambda_emission[:, np.newaxis], lambda_b_ic))
         sigma_int_ic = np.std(delta_ic, axis=0)
-        final = final + [f"S0"] + [f"S{j}" for j in range(1, 1 + singlets.shape[1]) if j != n_state+1]
+        #remove columns for states higher than n_state
+        delta_ic = delta_ic[:, :n_state+1]
+        lambda_b_ic = lambda_b_ic[:, :n_state+1]
+        sigma_int_ic = sigma_int_ic[:n_state+1]
+        h_ic = h_ic[:, :n_state+1]
+        final = final + [f"S0"] + [f"S{j}" for j in range(1, 1 + delta_ic.shape[1]) if j != n_state+1]
     elif "t" in initial:
         # Tn to Sm ISC
         final_energy_isc = singlets - (gamma_s + chi_s) * alphast2
@@ -874,6 +879,7 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
         sigma = np.hstack((sigma, sigma_ic))
         couplings = np.hstack((socs_complete, np.sqrt(h_ic)))
         gap = np.hstack((delta_isc,delta_ic))
+        print('Shape',gap.shape, y_axis.shape)
     else:
         mean_soc = 1000 * means(socs_complete, y_axis, ensemble_average)[:, np.newaxis]
         gap = delta_isc
