@@ -468,7 +468,7 @@ def gather_data_derivative_couplings(initial, final, data=None, data_dc=None, da
 
         # ----_ Get the corresponding coupling for the ith transition
         b = nemo.tools.B_to_vec(data_dc, lower, higher) # J^2
-        np.savetxt(f"debug_dc.csv", b, delimiter=",", fmt='%10.5e')
+        #np.savetxt(f"debug_dc.csv", b, delimiter=",", fmt='%10.5e')
 
         # ----- Calculate h_IC
         # ----- Gaussian line shape
@@ -491,7 +491,7 @@ def gather_data_derivative_couplings(initial, final, data=None, data_dc=None, da
         #term_neg = nemo.tools.voigt(-e_col-HBAR_EV*freq_row,0.0,gammas_lorentz) / nemo.tools.voigt(-e_col,0.0,gammas_lorentz)
         term_pos = nemo.tools.gauss(e_col-HBAR_EV*freq_row,sigma) 
         term_neg = nemo.tools.gauss(e_col+HBAR_EV*freq_row,sigma) 
-        print(final)
+        #print(final)
         # np.savetxt(f"debug_exp_pos_{final}.csv", term_pos, delimiter=",", fmt='%10.5e')
         # np.savetxt(f"debug_exp_neg_{final}.csv", term_neg, delimiter=",", fmt='%10.5e')
         # np.savetxt(f"debug_exp_den_{final}.csv", nemo.tools.gauss(e_col,sigma), delimiter=",", fmt='%10.5e')
@@ -507,7 +507,7 @@ def gather_data_derivative_couplings(initial, final, data=None, data_dc=None, da
             total_H = np.hstack((total_H, h))
         except NameError:
             total_H = h
-    np.savetxt("debug.csv", total_H/ (E_CHARGE**2), delimiter=",", fmt='%10.5e') #
+    #np.savetxt("debug.csv", total_H/ (E_CHARGE**2), delimiter=",", fmt='%10.5e') #
     return data_dc, data_V, total_H / (E_CHARGE**2) # J**2 to eV**2
 #######################################################################################
 
@@ -789,6 +789,7 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
         emi_error = np.sqrt(np.sum((espectro /HBAR_EV - emi_rate) ** 2, axis=0) / (number_geoms * (number_geoms - 1)))
     emi_error = np.nan_to_num(emi_error, nan=0.0)
     gap_emi = means(delta_emi, espectro, ensemble_average)
+    mean_emi_coupling = 1000 * means(np.sqrt(espectro / 2 * np.pi), espectro, ensemble_average)
     mean_sigma_emi = means(l_total, espectro, ensemble_average)
     mean_part_emi = (100 / number_geoms) / means(
         espectro / np.sum(espectro), espectro, ensemble_average
@@ -861,15 +862,23 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
     #tau_D = (refractive_index**2 / eps)*1e-12
     #g_ad = 0#np.nan_to_num((2 * np.pi * (socs_complete**2) * tau_D)/ (HBAR_EV * lambda_b_isc))
     #y_axis =  y_axis / (1 + g_ad)
-    sigma_ic = total_reorganization_energy(lambda_b_ic, kbt, sigma_int_ic)
-    #check for 0 in sigma_ic
-    y_axis_ic = (
-        (2 * np.pi / HBAR_EV) * (h_ic) * nemo.tools.gauss(delta_ic, sigma_ic)
-    )
+    if "s" in initial:
+        sigma_ic = total_reorganization_energy(lambda_b_ic, kbt, sigma_int_ic)
+        #check for 0 in sigma_ic
+        y_axis_ic = (
+            (2 * np.pi / HBAR_EV) * (h_ic) * nemo.tools.gauss(delta_ic, sigma_ic)
+        )
 
-    # hstack y and espectro
-    y_axis = np.hstack((y_axis, y_axis_ic))
-    sigma = np.hstack((sigma, sigma_ic))
+        # hstack y and espectro
+        y_axis = np.hstack((y_axis, y_axis_ic))
+        sigma = np.hstack((sigma, sigma_ic))
+        couplings = np.hstack((socs_complete, np.sqrt(h_ic)))
+        gap = np.hstack((delta_isc,delta_ic))
+    else:
+        mean_soc = 1000 * means(socs_complete, y_axis, ensemble_average)[:, np.newaxis]
+        gap = delta_isc
+        couplings = socs_complete
+
     individual = np.hstack((espectro[:, np.newaxis], y_axis))
     number_geoms = y_axis.shape[0]
     rate, error = rate_and_uncertainty(y_axis)
@@ -881,16 +890,15 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
                 emi_error,
                 100 * emi_rate / total,
                 gap_emi,
-                np.nan,
+                mean_emi_coupling,
                 mean_sigma_emi,
                 mean_part_emi,
             ]
         ]
     )
-    mean_gap = means(np.hstack((delta_isc,delta_ic)), y_axis, ensemble_average)[:, np.newaxis]
-    couplings = np.hstack((socs_complete, np.sqrt(h_ic)))
-    mean_soc = 1000 * means(couplings, y_axis, ensemble_average)[:, np.newaxis]
+    mean_gap = means(gap, y_axis, ensemble_average)[:, np.newaxis]
     mean_sigma = means(sigma, y_axis, ensemble_average)[:, np.newaxis]
+    mean_soc = 1000 * means(couplings, y_axis, ensemble_average)[:, np.newaxis] 
     #mean_g = means(g_ad, y_axis, ensemble_average)[:, np.newaxis]
     #print(np.round(mean_g, 3))
     with warnings.catch_warnings():
@@ -919,7 +927,7 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
             "Error(s^-1)",
             "Prob(%)",
             "AvgDE+L(eV)",
-            "AvgSOC(meV)",
+            "AvgCoupling(meV)",
             "AvgSigma(eV)",
             "AvgConc(%)",
         ],

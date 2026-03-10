@@ -1,0 +1,3200 @@
+
+Running Job 1 of 3 Geometry-3-.com
+qchem Geometry-3-.com_399467.0 /tmp/qchem399467/ 0
+/home/energy/modules/software/QChem/6.0-singlenode/exe/qcprog.exe_s Geometry-3-.com_399467.0 /tmp/qchem399467/
+                  Welcome to Q-Chem
+     A Quantum Leap Into The Future Of Chemistry
+
+
+ Q-Chem 6.0, Q-Chem, Inc., Pleasanton, CA (2022)
+
+ License issued to: SRG Juan Maria Garcia Lastra, Technical University of Denmark
+
+ E. Epifanovsky,  A. T. B. Gilbert,  Xintian Feng,  Joonho Lee,  Yuezhi Mao,  
+ N. Mardirossian,  P. Pokhilko,  A. White,  M. Wormit,  M. P. Coons,  
+ A. L. Dempwolff,  Zhengting Gan,  D. Hait,  P. R. Horn,  L. D. Jacobson,  
+ I. Kaliman,  J. Kussmann,  A. W. Lange,  Ka Un Lao,  D. S. Levine,  Jie Liu,  
+ S. C. McKenzie,  A. F. Morrison,  K. Nanda,  F. Plasser,  D. R. Rehn,  
+ M. L. Vidal,  Zhi-Qiang You,  Ying Zhu,  B. Alam,  B. Albrecht,  
+ A. Aldossary,  E. Alguire,  J. H. Andersen,  V. Athavale,  D. Barton,  
+ K. Begam,  A. Behn,  N. Bellonzi,  Y. A. Bernard,  E. J. Berquist,  
+ H. Burton,  A. Carreras,  K. Carter-Fenk,  Romit Chakraborty,  
+ Chandrima Chakravarty,  Junhan Chen,  A. D. Chien,  K. D. Closser,  
+ V. Cofer-Shabica,  L. Cunha,  S. Dasgupta,  Jia Deng,  M. de Wergifosse,  
+ M. Diedenhofen,  Hainam Do,  S. Ehlert,  Po-Tung Fang,  S. Fatehi,  
+ Qingguo Feng,  T. Friedhoff,  B. Ganoe,  J. Gayvert,  Qinghui Ge,  
+ G. Gidofalvi,  M. Goldey,  J. Gomes,  C. Gonzalez-Espinoza,  S. Gulania,  
+ A. Gunina,  J. A. Gyamfi,  M. W. D. Hanson-Heine,  P. H. P. Harbach,  
+ A. W. Hauser,  M. F. Herbst,  M. Hernandez Vera,  M. Hodecker,  
+ Z. C. Holden,  S. Houck,  Xunkun Huang,  Kerwin Hui,  B. C. Huynh,  
+ K. Ikeda,  M. Ivanov,  Hyunjun Ji,  Zuxin Jin,  Hanjie Jiang,  B. Kaduk,  
+ S. Kaehler,  R. Kang,  K. Khistyaev,  Jaehoon Kim,  Yongbin Kim,  
+ P. Klunzinger,  Z. Koczor-Benda,  Joong Hoon Koh,  D. Kosenkov,  
+ Saikiran Kotaru,  L. Koulias,  T. Kowalczyk,  C. M. Krauter,  K. Kue,  
+ A. Kunitsa,  T. Kus,  A. Landau,  K. V. Lawler,  D. Lefrancois,  S. Lehtola,  
+ Rain Li,  Shaozhi Li,  Yi-Pei Li,  Jiashu Liang,  M. Liebenthal,  
+ Hung-Hsuan Lin,  You-Sheng Lin,  Fenglai Liu,  Kuan-Yu Liu,  
+ M. Loipersberger,  A. Luenser,  C. Malbon,  A. Manjanath,  P. Manohar,  
+ E. Mansoor,  S. F. Manzer,  Shan-Ping Mao,  A. V. Marenich,  T. Markovich,  
+ S. Mason,  F. Matz,  S. A. Maurer,  P. F. McLaughlin,  M. F. S. J. Menger,  
+ J.-M. Mewes,  S. A. Mewes,  P. Morgante,  Mohammad Mostafanejad,  
+ J. W. Mullinax,  K. J. Oosterbaan,  G. Paran,  V. Parravicini,  
+ Alexander C. Paul,  Suranjan K. Paul,  F. Pavosevic,  Zheng Pei,  S. Prager,  
+ E. I. Proynov,  E. Ramos,  B. Rana,  A. E. Rask,  A. Rettig,  R. M. Richard,  
+ F. Rob,  E. Rossomme,  T. Scheele,  M. Scheurer,  M. Schneider,  
+ P. E. Schneider,  N. Sergueev,  S. M. Sharada,  Hengyuan Shen,  
+ W. Skomorowski,  D. W. Small,  C. J. Stein,  Yingli Su,  Yu-Chuan Su,  
+ E. J. Sundstrom,  Zhen Tao,  J. Thirman,  Hung-Yi Tsai,  T. Tsuchimochi,  
+ N. M. Tubman,  C. Utku,  S. P. Veccham,  O. Vydrov,  J. Wenzel,  
+ Jonathan Wong,  J. Witte,  A. Yamada,  Chou-Hsun Yang,  Kun Yao,  
+ S. Yeganeh,  S. R. Yost,  A. Zech,  F. Zeller,  Igor Ying Zhang,  
+ Xing Zhang,  Yu Zhang,  D. Zuev,  A. Aspuru-Guzik,  A. T. Bell,  
+ N. A. Besley,  K. B. Bravaya,  B. R. Brooks,  D. Casanova,  Jeng-Da Chai,  
+ Hsing-Ta Chen,  S. Coriani,  C. J. Cramer,  A. E. DePrince, III,  
+ R. A. DiStasio Jr.,  A. Dreuw,  B. D. Dunietz,  T. R. Furlani,  
+ W. A. Goddard III,  S. Grimme,  S. Hammes-Schiffer,  T. Head-Gordon,  
+ W. J. Hehre,  Chao-Ping Hsu,  T.-C. Jagau,  Yousung Jung,  A. Klamt,  
+ Jing Kong,  D. S. Lambrecht,  Xiangyuan Li,  WanZhen Liang,  N. J. Mayhall,  
+ C. W. McCurdy,  J. B. Neaton,  T. Neudecker,  C. Ochsenfeld,  
+ J. A. Parkhill,  R. Peverati,  V. A. Rassolov,  Haisheng Ren,  Yihan Shao,  
+ L. V. Slipchenko,  R. P. Steele,  J. E. Subotnik,  A. J. W. Thom,  
+ A. Tkatchenko,  D. G. Truhlar,  T. Van Voorhis,  Fan Wang,  
+ T. A. Wesolowski,  K. B. Whaley,  H. L. Woodcock III,  P. M. Zimmerman,  
+ S. Faraji,  P. M. W. Gill,  M. Head-Gordon,  J. M. Herbert,  A. I. Krylov
+
+ Contributors to earlier versions of Q-Chem not listed above: 
+ R. D. Adamson,  B. Austin,  R. Baer,  J. Baker,  G. J. O. Beran,  
+ K. Brandhorst,  S. T. Brown,  E. F. C. Byrd,  Arup K. Chakraborty,  
+ G. K. L. Chan,  Chun-Min Chang,  Yunqing Chen,  C.-L. Cheng,  
+ Siu Hung Chien,  D. M. Chipman,  D. L. Crittenden,  H. Dachsel,  
+ R. J. Doerksen,  A. D. Dutoi,  R. G. Edgar,  J. Fosso-Tande,  
+ L. Fusti-Molnar,  D. Ghosh,  A. Ghysels,  A. Golubeva-Zadorozhnaya,  
+ J. Gonthier,  M. S. Gordon,  S. R. Gwaltney,  G. Hawkins,  J. E. Herr,  
+ A. Heyden,  S. Hirata,  E. G. Hohenstein,  G. Kedziora,  F. J. Keil,  
+ C. Kelley,  Jihan Kim,  R. A. King,  R. Z. Khaliullin,  P. P. Korambath,  
+ W. Kurlancheek,  A. Laurent,  A. M. Lee,  M. S. Lee,  S. V. Levchenko,  
+ Ching Yeh Lin,  D. Liotard,  E. Livshits,  R. C. Lochan,  I. Lotan,  
+ L. A. Martinez-Martinez,  P. E. Maslen,  N. Nair,  D. P. O'Neill,  
+ D. Neuhauser,  E. Neuscamman,  C. M. Oana,  R. Olivares-Amaya,  R. Olson,  
+ T. M. Perrine,  B. Peters,  P. A. Pieniazek,  A. Prociuk,  Y. M. Rhee,  
+ J. Ritchie,  M. A. Rohrdanz,  E. Rosta,  N. J. Russ,  H. F. Schaefer III,  
+ M. W. Schmidt,  N. E. Schultz,  S. Sharma,  N. Shenvi,  C. D. Sherrill,  
+ A. C. Simmonett,  A. Sodt,  T. Stein,  D. Stuck,  K. S. Thanthiriwatte,  
+ V. Vanovschi,  L. Vogt,  Tao Wang,  A. Warshel,  M. A. Watson,  
+ C. F. Williams,  Q. Wu,  X. Xu,  Jun Yang,  W. Zhang,  Yan Zhao
+
+   Please cite Q-Chem as follows:
+  "Software for the frontiers of quantum chemistry:
+   An overview of developments in the Q-Chem 5 package"
+   J. Chem. Phys. 155, 084801 (2021)
+   https://doi.org/10.1063/5.0055522 (open access)
+
+ Q-Chem 6.0.2 for Intel X86 EM64T Linux
+
+ Parts of Q-Chem use Armadillo 9.900.5 (Nocturnal Misbehaviour).
+ http://arma.sourceforge.net/
+
+ Q-Chem begins on Sat Feb 28 10:18:21 2026  
+
+ Host: 
+0
+
+     Scratch files written to /tmp/qchem399467//
+ Dec722 |scratch|qcdevops|jenkins|workspace|build_RNUM 6465   
+ Processing $rem in /home/energy/modules/software/QChem/6.0-singlenode/config/preferences:
+ Processing $rem in /home/energy/ledso/.qchemrc:
+
+ Checking the input file for inconsistencies... 	...done.
+
+--------------------------------------------------------------
+User input:
+--------------------------------------------------------------
+$rem
+mem_total             100000
+mem_static            2000
+method                lrc-wpbe
+omega                 236
+basis                 6-31+g(d,p)
+rpa                     false
+cis_n_roots             5
+cis_singlets            true
+cis_triplets            true
+calc_soc                true
+STS_MOM                 true
+MAX_CIS_CYCLES          200
+MAX_SCF_CYCLES          200
+$end
+
+
+$molecule
+0 1
+6   1.9488172  1.1281006  0.0244125
+6   2.7777608  0.0258653  -0.0964186
+6   1.9187278  -1.0638598  -0.1071018
+6   0.5040414  -0.7027053  0.0720193
+6   0.5935080  0.6356204  0.0313895
+6   -0.5264892  1.6294414  0.1893091
+6   -1.9149407  1.2816270  -0.0488260
+6   -2.5726368  -0.0365157  -0.2126380
+6   -1.9401207  -1.2544829  -0.0075567
+6   -0.5908022  -1.6839286  0.1969405
+1   2.1190285  2.1706557  -0.2310780
+1   3.9467737  0.1543386  -0.1750892
+1   2.0716159  -2.0435541  -0.0540367
+1   -0.4213297  2.6887182  0.1933019
+1   -2.3762304  2.2917135  -0.1251856
+1   -3.6337117  0.0328138  -0.2694317
+1   -2.6611076  -2.0730243  0.0360945
+1   -0.2579012  -2.6637740  0.1847277
+
+$end
+
+
+--------------------------------------------------------------
+ ----------------------------------------------------------------
+             Standard Nuclear Orientation (Angstroms)
+    I     Atom           X                Y                Z
+ ----------------------------------------------------------------
+    1      C       1.9770250776    -1.0736582398    -0.0313482655
+    2      C       2.7777231625     0.0485757972     0.0957093842
+    3      C       1.8913762115     1.1161437810     0.1112110544
+    4      C       0.4864045286     0.7202154894    -0.0708601130
+    5      C       0.6096898196    -0.6156061529    -0.0369188473
+    6      C      -0.4846878130    -1.6366398224    -0.2007490990
+    7      C      -1.8816571935    -1.3252866062     0.0380321299
+    8      C      -2.5726158309    -0.0250580311     0.2079748336
+    9      C      -1.9709933749     1.2095503810     0.0095521894
+   10      C      -0.6328403246     1.6740374577    -0.1916971537
+   11      H       2.1733990310    -2.1128535394     0.2190091157
+   12      H       3.9495604103    -0.0506687656     0.1746624954
+   13      H       2.0194536235     2.0996499126     0.0632166466
+   14      H      -0.3527478291    -2.6928821790    -0.2100079660
+   15      H      -2.3172836653    -2.3470977545     0.1089212520
+   16      H      -3.6316337616    -0.1215054303     0.2635713183
+   17      H      -2.7124381318     2.0097940316    -0.0305393674
+   18      H      -0.3248552545     2.6619194006    -0.1742701729
+ ----------------------------------------------------------------
+ Molecular Point Group                 C1    NOp =  1
+ Largest Abelian Subgroup              C1    NOp =  1
+ Nuclear Repulsion Energy =         448.97325192 hartrees
+ There are       34 alpha and       34 beta electrons
+ Requested basis set is 6-31+G(d,p)
+ There are 74 shells and 230 basis functions
+
+ Total QAlloc Memory Limit 100000 MB
+ Mega-Array Size      1956 MB
+ MEM_STATIC part      2000 MB
+
+ A cutoff of  1.0D-12 yielded   2443 shell pairs
+ There are     24771 function pairs
+ Smallest overlap matrix eigenvalue = 1.23E-06
+
+ Scale SEOQF with 1.000000e-01/1.000000e-01/1.000000e-01
+
+ Standard Electronic Orientation quadrupole field applied
+ Nucleus-field energy     =     0.0000000157 hartrees
+ Guess from superposition of atomic densities
+ Warning:  Energy on first SCF cycle will be non-variational
+ SAD guess density has 68.000000 electrons
+
+ -----------------------------------------------------------------------
+  General SCF calculation program by
+  Eric Jon Sundstrom, Paul Horn, Yuezhi Mao, Dmitri Zuev, Alec White,
+  David Stuck, Shaama M.S., Shane Yost, Joonho Lee, David Small,
+  Daniel Levine, Susi Lehtola, Hugh Burton, Evgeny Epifanovsky,
+  Bang C. Huynh
+ -----------------------------------------------------------------------
+ Exchange:  wPBE + LR-HF      Correlation:  PBE
+ Using SG-1 standard quadrature grid
+ using 3 threads for integral computing
+ -------------------------------------------------------
+ OpenMP Integral computing Module                
+ Release: version 1.0, May 2013, Q-Chem Inc. Pittsburgh 
+ -------------------------------------------------------
+ A restricted SCF calculation will be
+ performed using DIIS
+ SCF converges when DIIS error is below 1.0e-08
+ ---------------------------------------
+  Cycle       Energy         DIIS error
+ ---------------------------------------
+    1    -388.1068237627      4.31e-02  
+    2    -385.2691607195      3.27e-03  
+    3    -385.2346271946      4.11e-03  
+    4    -385.3536763109      7.45e-04  
+    5    -385.3576220683      2.16e-04  
+    6    -385.3580026875      6.23e-05  
+    7    -385.3580343203      2.03e-05  
+    8    -385.3580410269      7.90e-06  
+    9    -385.3580437360      5.51e-06  
+   10    -385.3580454923      3.14e-06  
+   11    -385.3580474336      1.71e-06  
+   12    -385.3580479726      1.30e-06  
+   13    -385.3580480748      2.43e-07  
+   14    -385.3580480780      1.29e-07  
+   15    -385.3580480783      4.90e-08  
+   16    -385.3580480783      1.20e-08  
+   17    -385.3580480783      8.01e-09  Convergence criterion met
+ ---------------------------------------
+ SCF time:   CPU 138.79s  wall 49.00s 
+ SCF   energy in the final basis set =     -385.3580480783
+ Total energy in the final basis set =     -385.3580480783
+ 
+ MAX_CIS_SUBSPACE fits in available memory
+ Direct TDDFT/TDA calculation will be performed
+ Exchange:  wPBE + LR-HF      Correlation:  PBE
+ Using SG-1 standard quadrature grid
+ Triplet excitation energies requested
+ Singlet excitation energies requested
+ CIS energy converged when residual is below 10e- 6
+ ---------------------------------------------------
+ Iter    Rts Conv    Rts Left    Ttl Dev     Max Dev
+ ---------------------------------------------------
+   1         0           5      0.001567    0.000450
+   2         0           5      0.000496    0.000136
+   3         0           5      0.000284    0.000120
+   4         0           5      0.001098    0.000887
+   5         1           4      0.001330    0.000772
+   6         1           4      0.000657    0.000449
+   7         3           2      0.000303    0.000197
+   8         3           2      0.000115    0.000079
+   9         3           2      0.000046    0.000032
+  10         3           2      0.000025    0.000018
+  11         3           2      0.000017    0.000013
+  12         4           1      0.000009    0.000007
+  13         4           1      0.000005    0.000004
+  14         4           1      0.000005    0.000003
+  15         4           1      0.000003    0.000002
+  16         5           0      0.000002    0.000001    Roots Converged
+ ---------------------------------------------------
+ Triplets done: starting singlet calculation
+ ---------------------------------------------------
+ Iter    Rts Conv    Rts Left    Ttl Dev     Max Dev
+ ---------------------------------------------------
+  17         0           5      0.004370    0.001788
+  18         0           5      0.000979    0.000367
+  19         0           5      0.000562    0.000178
+  20         0           5      0.000367    0.000148
+  21         0           5      0.001588    0.000983
+  22         0           5      0.000526    0.000320
+  23         1           4      0.000598    0.000216
+  24         2           3      0.000611    0.000264
+  25         2           3      0.000497    0.000257
+  26         2           3      0.000220    0.000117
+  27         2           3      0.000089    0.000046
+  28         2           3      0.000032    0.000016
+  29         2           3      0.000014    0.000007
+  30         3           2      0.000005    0.000002
+  31         5           0      0.000002    0.000001    Roots Converged
+ ---------------------------------------------------
+ 
+ ---------------------------------------------------
+         TDDFT/TDA Excitation Energies              
+ ---------------------------------------------------
+
+ Excited state   1: excitation energy (eV) =    0.8021
+ Total energy for state  1:                  -385.32857273 au
+    Multiplicity: Triplet
+    Trans. Mom.:  0.0000 X   0.0000 Y   0.0000 Z
+    Strength   :     0.0000000000
+    D(   34) --> V(    1) amplitude =  0.9947
+
+ Excited state   2: excitation energy (eV) =    1.2063
+ Total energy for state  2:                  -385.31371603 au
+    Multiplicity: Singlet
+    Trans. Mom.: -0.0672 X  -0.3475 Y   0.0102 Z
+    Strength   :     0.0037061823
+    D(   34) --> V(    1) amplitude =  0.9849
+
+ Excited state   3: excitation energy (eV) =    2.0267
+ Total energy for state  3:                  -385.28356829 au
+    Multiplicity: Triplet
+    Trans. Mom.:  0.0000 X   0.0000 Y   0.0000 Z
+    Strength   :     0.0000000000
+    D(   33) --> V(    1) amplitude =  0.8176
+    D(   34) --> V(    2) amplitude =  0.5219
+
+ Excited state   4: excitation energy (eV) =    2.3134
+ Total energy for state  4:                  -385.27303188 au
+    Multiplicity: Triplet
+    Trans. Mom.:  0.0000 X   0.0000 Y   0.0000 Z
+    Strength   :     0.0000000000
+    D(   33) --> V(    1) amplitude = -0.5324
+    D(   34) --> V(    2) amplitude =  0.8324
+
+ Excited state   5: excitation energy (eV) =    3.2737
+ Total energy for state  5:                  -385.23774147 au
+    Multiplicity: Singlet
+    Trans. Mom.:  0.0864 X   0.0888 Y  -0.0327 Z
+    Strength   :     0.0013171579
+    D(   33) --> V(    1) amplitude =  0.6850
+    D(   34) --> V(    2) amplitude =  0.7091
+
+ Excited state   6: excitation energy (eV) =    3.4004
+ Total energy for state  6:                  -385.23308571 au
+    Multiplicity: Triplet
+    Trans. Mom.:  0.0000 X   0.0000 Y   0.0000 Z
+    Strength   :     0.0000000000
+    D(   32) --> V(    1) amplitude =  0.9574
+    D(   33) --> V(    2) amplitude =  0.2134
+
+ Excited state   7: excitation energy (eV) =    4.0591
+ Total energy for state  7:                  -385.20887933 au
+    Multiplicity: Triplet
+    Trans. Mom.:  0.0000 X   0.0000 Y   0.0000 Z
+    Strength   :     0.0000000000
+    D(   33) --> V(    2) amplitude =  0.9533
+
+ Excited state   8: excitation energy (eV) =    4.4733
+ Total energy for state  8:                  -385.19365644 au
+    Multiplicity: Singlet
+    Trans. Mom.: -0.2561 X  -0.0550 Y  -0.0003 Z
+    Strength   :     0.0075175797
+    D(   32) --> V(    1) amplitude =  0.6507
+    D(   33) --> V(    2) amplitude = -0.7116
+
+ Excited state   9: excitation energy (eV) =    4.6372
+ Total energy for state  9:                  -385.18763274 au
+    Multiplicity: Singlet
+    Trans. Mom.: -0.7544 X   0.0196 Y  -0.0299 Z
+    Strength   :     0.0647978812
+    D(   31) --> V(    1) amplitude =  0.9481
+
+ Excited state  10: excitation energy (eV) =    4.8735
+ Total energy for state 10:                  -385.17894969 au
+    Multiplicity: Singlet
+    Trans. Mom.: -3.0833 X  -0.0172 Y  -0.0251 Z
+    Strength   :     1.1352246094
+    D(   30) --> V(    1) amplitude =  0.2162
+    D(   31) --> V(    1) amplitude = -0.2457
+    D(   33) --> V(    1) amplitude =  0.6309
+    D(   34) --> V(    2) amplitude = -0.5911
+ 
+ ---------------------------------------------------
+  SETman timing summary (seconds)
+  CPU time               496.52s
+  System time              0.00s
+  Wall time              172.26s
+
+
+
+*********SPIN-ORBIT COUPLING JOB BEGINS HERE*********
+
+
+
+
+
+================================================================================
+ SPIN-ORBIT COUPLING BETWEEN THE SINGLET GROUND STATE AND EXCITED TRIPLET STATES
+================================================================================
+
+SOC between the singlet ground state and excited triplet states (ms=0):
+T1(ms=0)        0.000000 -        0.529932i  cm-1
+T2(ms=0)        0.000000 -        0.505265i  cm-1
+T3(ms=0)        0.000000 -        0.154630i  cm-1
+T4(ms=0)        0.000000 -        0.690089i  cm-1
+T5(ms=0)        0.000000 +        0.103003i  cm-1
+SOC between the singlet ground state and excited triplet states (ms=1):
+T1(ms=1)        0.112667 -        0.181008i  cm-1
+T2(ms=1)       -0.409002 -        0.119079i  cm-1
+T3(ms=1)        1.249523 +        0.057240i  cm-1
+T4(ms=1)        0.353411 +        0.569647i  cm-1
+T5(ms=1)       -0.542788 -        0.079905i  cm-1
+SOC between the singlet ground state and excited triplet states (ms=-1):
+T1(ms=1)       -0.112667 -        0.181008i  cm-1
+T2(ms=1)        0.409002 -        0.119079i  cm-1
+T3(ms=1)       -1.249523 +        0.057240i  cm-1
+T4(ms=1)       -0.353411 +        0.569647i  cm-1
+T5(ms=1)        0.542788 -        0.079905i  cm-1
+Total SOC between the singlet ground state and excited triplet states:
+T1        0.609707  cm-1
+T2        0.786268  cm-1
+T3        1.775692  cm-1
+T4        1.172611  cm-1
+T5        0.782699  cm-1
+
+
+================================================================================
+ SPIN-ORBIT COUPLING BETWEEN EXCITED TRIPLET STATES
+================================================================================
+
+SOC between the T1 (ms=0) state and excited triplet states (ms=1):
+T2(ms=1)       -0.348352 +        0.053746i  cm-1
+T3(ms=1)        0.372586 +        0.260473i  cm-1
+T4(ms=1)        0.204836 +        0.063964i  cm-1
+T5(ms=1)       -0.019944 +        0.010469i  cm-1
+
+SOC between the T1 (ms=0) state and excited triplet states (ms=-1):
+T2(ms=-1)       -0.348352 -        0.053746i  cm-1
+T3(ms=-1)        0.372586 -        0.260473i  cm-1
+T4(ms=-1)        0.204836 -        0.063964i  cm-1
+T5(ms=-1)       -0.019944 -        0.010469i  cm-1
+
+SOC between the T1 (ms=1) state and excited triplet states (ms=0):
+T2(ms=0)        0.348352 +        0.053746i  cm-1
+T3(ms=0)       -0.372586 +        0.260473i  cm-1
+T4(ms=0)       -0.204836 +        0.063964i  cm-1
+T5(ms=0)        0.019944 +        0.010469i  cm-1
+
+SOC between the T1 (ms=1) state and excited triplet states (ms=1):
+T2(ms=1)        0.000000 -        0.242035i  cm-1
+T3(ms=1)        0.000000 +        2.039799i  cm-1
+T4(ms=1)        0.000000 -        0.194724i  cm-1
+T5(ms=1)        0.000000 +        0.082558i  cm-1
+
+SOC between the T1 (ms=-1) state and excited triplet states (ms=0):
+T2(ms=0)        0.348352 -        0.053746i  cm-1
+T3(ms=0)       -0.372586 -        0.260473i  cm-1
+T4(ms=0)       -0.204836 -        0.063964i  cm-1
+T5(ms=0)        0.019944 -        0.010469i  cm-1
+
+SOC between the T1 (ms=-1) state and excited triplet states (ms=-1):
+T2(ms=-1)        0.000000 +        0.242035i  cm-1
+T3(ms=-1)        0.000000 -        2.039799i  cm-1
+T4(ms=-1)        0.000000 +        0.194724i  cm-1
+T5(ms=-1)        0.000000 -        0.082558i  cm-1
+
+Total SOC between the T1 state and excited triplet states:
+T2        0.783653  cm-1
+T3        3.024604  cm-1
+T4        0.509933  cm-1
+T5        0.125145  cm-1
+
+SOC between the T2 (ms=0) state and excited triplet states (ms=1):
+T3(ms=1)       -0.026952 +        0.013173i  cm-1
+T4(ms=1)       -0.175149 -        0.070021i  cm-1
+T5(ms=1)       -0.129682 +        0.272428i  cm-1
+
+SOC between the T2 (ms=0) state and excited triplet states (ms=-1):
+T3(ms=-1)       -0.026952 -        0.013173i  cm-1
+T4(ms=-1)       -0.175149 +        0.070021i  cm-1
+T5(ms=-1)       -0.129682 -        0.272428i  cm-1
+
+SOC between the T2 (ms=1) state and excited triplet states (ms=0):
+T3(ms=0)        0.026952 +        0.013173i  cm-1
+T4(ms=0)        0.175149 -        0.070021i  cm-1
+T5(ms=0)        0.129682 +        0.272428i  cm-1
+
+SOC between the T2 (ms=1) state and excited triplet states (ms=1):
+T3(ms=1)        0.000000 +        0.119896i  cm-1
+T4(ms=1)        0.000000 +        0.092346i  cm-1
+T5(ms=1)        0.000000 +        0.582949i  cm-1
+
+SOC between the T2 (ms=-1) state and excited triplet states (ms=0):
+T3(ms=0)        0.026952 -        0.013173i  cm-1
+T4(ms=0)        0.175149 +        0.070021i  cm-1
+T5(ms=0)        0.129682 -        0.272428i  cm-1
+
+SOC between the T2 (ms=-1) state and excited triplet states (ms=-1):
+T3(ms=-1)        0.000000 -        0.119896i  cm-1
+T4(ms=-1)        0.000000 -        0.092346i  cm-1
+T5(ms=-1)        0.000000 -        0.582949i  cm-1
+
+Total SOC between the T2 state and excited triplet states:
+T3        0.179861  cm-1
+T4        0.399219  cm-1
+T5        1.021663  cm-1
+
+SOC between the T3 (ms=0) state and excited triplet states (ms=1):
+T4(ms=1)        0.021378 -        0.015939i  cm-1
+T5(ms=1)       -0.415373 -        0.227463i  cm-1
+
+SOC between the T3 (ms=0) state and excited triplet states (ms=-1):
+T4(ms=-1)        0.021378 +        0.015939i  cm-1
+T5(ms=-1)       -0.415373 +        0.227463i  cm-1
+
+SOC between the T3 (ms=1) state and excited triplet states (ms=0):
+T4(ms=0)       -0.021378 -        0.015939i  cm-1
+T5(ms=0)        0.415373 -        0.227463i  cm-1
+
+SOC between the T3 (ms=1) state and excited triplet states (ms=1):
+T4(ms=1)        0.000000 -        0.552618i  cm-1
+T5(ms=1)        0.000000 -        1.945381i  cm-1
+
+SOC between the T3 (ms=-1) state and excited triplet states (ms=0):
+T4(ms=0)       -0.021378 +        0.015939i  cm-1
+T5(ms=0)        0.415373 +        0.227463i  cm-1
+
+SOC between the T3 (ms=-1) state and excited triplet states (ms=-1):
+T4(ms=-1)        0.000000 +        0.552618i  cm-1
+T5(ms=-1)        0.000000 +        1.945381i  cm-1
+
+Total SOC between the T3 state and excited triplet states:
+T4        0.783337  cm-1
+T5        2.909658  cm-1
+
+SOC between the T4 (ms=0) state and excited triplet states (ms=1):
+T5(ms=1)        0.174402 +        0.058911i  cm-1
+
+SOC between the T4 (ms=0) state and excited triplet states (ms=-1):
+T5(ms=-1)        0.174402 -        0.058911i  cm-1
+
+SOC between the T4 (ms=1) state and excited triplet states (ms=0):
+T5(ms=0)       -0.174402 +        0.058911i  cm-1
+
+SOC between the T4 (ms=1) state and excited triplet states (ms=1):
+T5(ms=1)        0.000000 +        0.177016i  cm-1
+
+SOC between the T4 (ms=-1) state and excited triplet states (ms=0):
+T5(ms=0)       -0.174402 -        0.058911i  cm-1
+
+SOC between the T4 (ms=-1) state and excited triplet states (ms=-1):
+T5(ms=-1)        0.000000 -        0.177016i  cm-1
+
+Total SOC between the T4 state and excited triplet states:
+T5        0.445214  cm-1
+
+
+
+================================================================================
+ SPIN-ORBIT COUPLING BETWEEN EXCITED SINGLET STATES AND TRIPLET STATES
+================================================================================
+
+SOC between the S1 state and excited triplet states (ms=0):
+T1(ms=0)        0.000000 -        0.174730i  cm-1
+T2(ms=0)        0.000000 +        2.060755i  cm-1
+T3(ms=0)        0.000000 +        0.599578i  cm-1
+T4(ms=0)        0.000000 +        0.127072i  cm-1
+T5(ms=0)        0.000000 -        0.045103i  cm-1
+
+SOC between the S1 state and excited triplet states (ms=1):
+T1(ms=1)        0.067470 +        0.050536i  cm-1
+T2(ms=1)       -0.483482 -        0.228063i  cm-1
+T3(ms=1)        0.141299 -        0.167962i  cm-1
+T4(ms=1)        0.268845 +        0.137784i  cm-1
+T5(ms=1)       -0.168317 -        0.060330i  cm-1
+
+SOC between the S1 state and excited triplet states (ms=-1):
+T1(ms=-1)       -0.067470 +        0.050536i  cm-1
+T2(ms=-1)        0.483482 -        0.228063i  cm-1
+T3(ms=-1)       -0.141299 -        0.167962i  cm-1
+T4(ms=-1)       -0.268845 +        0.137784i  cm-1
+T5(ms=-1)        0.168317 -        0.060330i  cm-1
+
+Total SOC between the S1 state and excited triplet states:
+T1        0.211525  cm-1
+T2        2.195051  cm-1
+T3        0.675165  cm-1
+T4        0.445725  cm-1
+T5        0.256856  cm-1
+
+SOC between the S2 state and excited triplet states (ms=0):
+T1(ms=0)        0.000000 -        2.090232i  cm-1
+T2(ms=0)        0.000000 -        0.041503i  cm-1
+T3(ms=0)        0.000000 -        0.041706i  cm-1
+T4(ms=0)        0.000000 +        0.415072i  cm-1
+T5(ms=0)        0.000000 +        1.910117i  cm-1
+
+SOC between the S2 state and excited triplet states (ms=1):
+T1(ms=1)        0.451614 +        0.294899i  cm-1
+T2(ms=1)       -0.089760 +        0.001928i  cm-1
+T3(ms=1)       -0.042504 -        0.004778i  cm-1
+T4(ms=1)       -0.302778 -        0.169772i  cm-1
+T5(ms=1)       -0.323694 -        0.138852i  cm-1
+
+SOC between the S2 state and excited triplet states (ms=-1):
+T1(ms=-1)       -0.451614 +        0.294899i  cm-1
+T2(ms=-1)        0.089760 +        0.001928i  cm-1
+T3(ms=-1)        0.042504 -        0.004778i  cm-1
+T4(ms=-1)        0.302778 -        0.169772i  cm-1
+T5(ms=-1)        0.323694 -        0.138852i  cm-1
+
+Total SOC between the S2 state and excited triplet states:
+T1        2.225065  cm-1
+T2        0.133580  cm-1
+T3        0.073473  cm-1
+T4        0.642868  cm-1
+T5        1.973997  cm-1
+
+SOC between the S3 state and excited triplet states (ms=0):
+T1(ms=0)        0.000000 -        0.036459i  cm-1
+T2(ms=0)        0.000000 +        1.634298i  cm-1
+T3(ms=0)        0.000000 +        0.290738i  cm-1
+T4(ms=0)        0.000000 -        0.068707i  cm-1
+T5(ms=0)        0.000000 -        0.032430i  cm-1
+
+SOC between the S3 state and excited triplet states (ms=1):
+T1(ms=1)       -0.686915 -        0.074431i  cm-1
+T2(ms=1)        0.008858 +        0.222787i  cm-1
+T3(ms=1)       -0.477648 -        0.242326i  cm-1
+T4(ms=1)        0.050670 +        0.010741i  cm-1
+T5(ms=1)        0.104801 +        0.004282i  cm-1
+
+SOC between the S3 state and excited triplet states (ms=-1):
+T1(ms=-1)        0.686915 -        0.074431i  cm-1
+T2(ms=-1)       -0.008858 +        0.222787i  cm-1
+T3(ms=-1)        0.477648 -        0.242326i  cm-1
+T4(ms=-1)       -0.050670 +        0.010741i  cm-1
+T5(ms=-1)       -0.104801 +        0.004282i  cm-1
+
+Total SOC between the S3 state and excited triplet states:
+T1        0.977810  cm-1
+T2        1.664438  cm-1
+T3        0.811337  cm-1
+T4        0.100431  cm-1
+T5        0.151838  cm-1
+
+SOC between the S4 state and excited triplet states (ms=0):
+T1(ms=0)        0.000000 +        0.106327i  cm-1
+T2(ms=0)        0.000000 +        0.643569i  cm-1
+T3(ms=0)        0.000000 -        0.282830i  cm-1
+T4(ms=0)        0.000000 +        0.273681i  cm-1
+T5(ms=0)        0.000000 +        0.042920i  cm-1
+
+SOC between the S4 state and excited triplet states (ms=1):
+T1(ms=1)        3.156386 -        0.504737i  cm-1
+T2(ms=1)       -1.294216 -        2.841818i  cm-1
+T3(ms=1)        0.882405 +        1.816731i  cm-1
+T4(ms=1)       -0.699476 -        0.036952i  cm-1
+T5(ms=1)        0.379323 +        0.309154i  cm-1
+
+SOC between the S4 state and excited triplet states (ms=-1):
+T1(ms=-1)       -3.156386 -        0.504737i  cm-1
+T2(ms=-1)        1.294216 -        2.841818i  cm-1
+T3(ms=-1)       -0.882405 +        1.816731i  cm-1
+T4(ms=-1)        0.699476 -        0.036952i  cm-1
+T5(ms=-1)       -0.379323 +        0.309154i  cm-1
+
+Total SOC between the S4 state and excited triplet states:
+T1        4.521766  cm-1
+T2        4.462738  cm-1
+T3        2.870243  cm-1
+T4        1.027699  cm-1
+T5        0.693373  cm-1
+
+SOC between the S5 state and excited triplet states (ms=0):
+T1(ms=0)        0.000000 -        0.227057i  cm-1
+T2(ms=0)        0.000000 -        0.591569i  cm-1
+T3(ms=0)        0.000000 +        0.261482i  cm-1
+T4(ms=0)        0.000000 -        0.001482i  cm-1
+T5(ms=0)        0.000000 +        0.020328i  cm-1
+
+SOC between the S5 state and excited triplet states (ms=1):
+T1(ms=1)       -0.575664 -        0.675247i  cm-1
+T2(ms=1)       -0.604937 +        0.687468i  cm-1
+T3(ms=1)        0.014443 -        0.438066i  cm-1
+T4(ms=1)        0.068202 -        0.065373i  cm-1
+T5(ms=1)        0.359793 +        0.267094i  cm-1
+
+SOC between the S5 state and excited triplet states (ms=-1):
+T1(ms=-1)        0.575664 -        0.675247i  cm-1
+T2(ms=-1)        0.604937 +        0.687468i  cm-1
+T3(ms=-1)       -0.014443 -        0.438066i  cm-1
+T4(ms=-1)       -0.068202 -        0.065373i  cm-1
+T5(ms=-1)       -0.359793 +        0.267094i  cm-1
+
+Total SOC between the S5 state and excited triplet states:
+T1        1.275245  cm-1
+T2        1.423754  cm-1
+T3        0.672751  cm-1
+T4        0.133613  cm-1
+T5        0.634029  cm-1
+
+
+
+            *********SOC CODE ENDS HERE*********
+
+
+
+
+                    STATE-TO-STATE TRANSITION MOMENTS
+
+
+    Electron Dipole Moments of Ground State
+ -----------------------------------------------------
+   State     X           Y           Z(a.u.) 
+ -----------------------------------------------------
+       0     0.935072    0.016514   -0.061639
+ -----------------------------------------------------
+
+ Within CIS/TDA Excited States:
+
+    Electron Dipole Moments of Triplet Excited State
+ -----------------------------------------------------
+   State     X           Y           Z(a.u.) 
+ -----------------------------------------------------
+       1    -1.373746    0.316124   -0.204606
+       3    -0.643911   -0.028466   -0.169537
+       4    -1.133710   -0.174594   -0.205090
+       6     1.153551    0.415296    0.023289
+       7    -0.694375   -0.168869   -0.197493
+ -----------------------------------------------------
+
+                Transition Moments Between Ground and Triplet Excited States
+ --------------------------------------------------------------------------------
+    States   X          Y          Z           Strength(a.u.)
+ --------------------------------------------------------------------------------
+    0    1   0.000000   0.000000   0.000000              0
+    0    3   0.000000   0.000000   0.000000              0
+    0    4   0.000000   0.000000   0.000000              0
+    0    6   0.000000   0.000000   0.000000              0
+    0    7   0.000000   0.000000   0.000000              0
+ --------------------------------------------------------------------------------
+
+                Transition Moments Between Triplet Excited States
+ --------------------------------------------------------------------------------
+    States   X          Y          Z           Strength(a.u.)
+ --------------------------------------------------------------------------------
+    1    3  -0.047695  -0.179402   0.053480    0.001119715
+    1    4  -0.056575  -0.526365  -0.057209     0.01049847
+    1    6   1.578811   0.197842   0.062649      0.1614183
+    1    7  -0.257708  -0.114231  -0.006383    0.006343967
+    3    4  -0.179177  -0.148193   0.003618   0.0003798623
+    3    6   0.033376   0.352693  -0.002831    0.004224199
+    3    7   0.158135  -0.486981   0.034434     0.01311252
+    4    6   0.259924  -0.021834   0.041761    0.001858326
+    4    7   0.100832   0.442430   0.063894    0.008981085
+    6    7  -0.619424  -0.301772  -0.057664     0.00771502
+ --------------------------------------------------------------------------------
+
+ Within CIS/TDA Excited States:
+
+    Electron Dipole Moments of Singlet Excited State
+ -----------------------------------------------------
+   State     X           Y           Z(a.u.) 
+ -----------------------------------------------------
+       2    -1.591770    0.216687   -0.219777
+       5    -1.895098    0.022643   -0.237244
+       8    -0.102984   -0.116141   -0.085085
+       9    -0.067614    0.302592   -0.118503
+      10    -1.258167    0.011883   -0.175103
+ -----------------------------------------------------
+
+                Transition Moments Between Ground and Singlet Excited States
+ --------------------------------------------------------------------------------
+    States   X          Y          Z           Strength(a.u.)
+ --------------------------------------------------------------------------------
+    0    2  -0.067204  -0.347535   0.010201    0.003706182
+    0    5   0.086419   0.088785  -0.032732    0.001317158
+    0    8  -0.256074  -0.054961  -0.000260     0.00751758
+    0    9  -0.754371   0.019586  -0.029894     0.06479788
+    0   10  -3.083327  -0.017189  -0.025096       1.135225
+ --------------------------------------------------------------------------------
+
+                Transition Moments Between Singlet Excited States
+ --------------------------------------------------------------------------------
+    States   X          Y          Z           Strength(a.u.)
+ --------------------------------------------------------------------------------
+    2    5   0.178388  -0.316648   0.070187     0.00693975
+    2    8   1.189682   0.139365   0.015164      0.1148566
+    2    9   0.207285   0.159028   0.055710    0.005998265
+    2   10   0.016153   0.484339   0.047667     0.02130363
+    5    8   0.137281   0.685551  -0.041942      0.0144183
+    5    9   0.093670   0.153552   0.002024    0.001080896
+    5   10   0.362119   0.068219  -0.021184    0.005339578
+    8    9  -0.085117   0.176753   0.017118   0.0001557304
+    8   10  -0.101787   0.492260   0.014479    0.002479465
+    9   10  -0.446715  -0.235174   0.009637    0.001475852
+ --------------------------------------------------------------------------------
+
+                    END OF TRANSITION MOMENT CALCULATION
+
+ STSman time:  CPU 0.58 s  wall 0.19 s
+
+ 
+ --------------------------------------------------------------
+ 
+                    Orbital Energies (a.u.)
+ --------------------------------------------------------------
+ 
+ Alpha MOs
+ -- Occupied --
+-10.0885 -10.0841 -10.0789 -10.0689 -10.0671 -10.0493 -10.0483 -10.0389
+-10.0110 -10.0061  -0.9428  -0.8911  -0.8474  -0.8090  -0.7555  -0.7407
+ -0.6795  -0.6335  -0.6128  -0.5820  -0.5791  -0.5362  -0.5291  -0.4788
+ -0.4775  -0.4718  -0.4469  -0.4420  -0.4172  -0.4089  -0.3951  -0.3719
+ -0.3135  -0.2524
+ -- Virtual --
+ -0.0519   0.0063   0.0544   0.0634   0.0730   0.0832   0.0857   0.1010
+  0.1032   0.1080   0.1162   0.1229   0.1258   0.1275   0.1402   0.1417
+  0.1448   0.1590   0.1693   0.1706   0.1759   0.1831   0.1958   0.2012
+  0.2095   0.2128   0.2195   0.2223   0.2319   0.2340   0.2362   0.2455
+  0.2463   0.2527   0.2597   0.2644   0.2705   0.2746   0.2765   0.2871
+  0.2928   0.2951   0.3000   0.3085   0.3096   0.3147   0.3251   0.3323
+  0.3405   0.3419   0.3506   0.3650   0.3688   0.3776   0.3853   0.3961
+  0.4288   0.4397   0.4600   0.5040   0.5279   0.5485   0.5693   0.6587
+  0.7105   0.7206   0.7302   0.7503   0.7644   0.7750   0.7830   0.7924
+  0.8018   0.8037   0.8107   0.8154   0.8337   0.8416   0.8482   0.8551
+  0.8601   0.8768   0.9054   0.9267   0.9423   0.9598   0.9709   0.9818
+  0.9911   1.0251   1.0332   1.0456   1.0688   1.0711   1.0779   1.1240
+  1.1372   1.1523   1.1711   1.1904   1.2057   1.2465   1.2692   1.2824
+  1.2904   1.3008   1.3289   1.3520   1.3576   1.3872   1.3921   1.4252
+  1.4489   1.4668   1.4792   1.5435   1.5531   1.5647   1.6546   1.6718
+  1.7416   1.7596   1.8101   1.8554   1.8831   1.9167   1.9307   1.9510
+  1.9571   1.9680   1.9801   2.0009   2.0144   2.0252   2.0494   2.0684
+  2.1013   2.1412   2.1648   2.2070   2.2254   2.2343   2.2716   2.3194
+  2.3494   2.3670   2.3935   2.4062   2.4344   2.4473   2.4691   2.4773
+  2.4906   2.5057   2.5227   2.5445   2.5563   2.5726   2.5843   2.6074
+  2.6196   2.6520   2.6791   2.6940   2.6971   2.7307   2.7493   2.7713
+  2.8106   2.8552   2.8754   2.9266   3.0197   3.0559   3.1026   3.1590
+  3.2115   3.3071   3.3353   3.3751   3.4139   3.5207   3.5808   3.6429
+  3.7413   3.8970   4.2220   4.3504   4.3636   4.3804   4.4057   4.4482
+  4.5038   4.7156   4.7949   4.8203
+ --------------------------------------------------------------
+ 
+          Ground-State Mulliken Net Atomic Charges
+
+     Atom                 Charge (a.u.)
+  ----------------------------------------
+      1 C                    -0.459861
+      2 C                     0.091112
+      3 C                    -0.349633
+      4 C                    -0.395903
+      5 C                     0.289765
+      6 C                     0.137546
+      7 C                    -0.245016
+      8 C                    -0.185774
+      9 C                    -0.149972
+     10 C                     0.049716
+     11 H                     0.139853
+     12 H                     0.161320
+     13 H                     0.110736
+     14 H                     0.158800
+     15 H                     0.154601
+     16 H                     0.171420
+     17 H                     0.156252
+     18 H                     0.165037
+  ----------------------------------------
+  Sum of atomic charges =     0.000000
+
+ -----------------------------------------------------------------
+                    Cartesian Multipole Moments
+ -----------------------------------------------------------------
+    Charge (ESU x 10^10)
+                 0.0000
+    Dipole Moment (Debye)
+         X      -2.3767      Y      -0.0420      Z       0.1567
+       Tot       2.3822
+    Quadrupole Moments (Debye-Ang)
+        XX     -53.2768     XY      -0.8170     YY     -50.3850
+        XZ       0.1714     YZ      -1.0370     ZZ     -65.0156
+    Octopole Moments (Debye-Ang^2)
+       XXX     -13.4024    XXY      -1.5526    XYY      -7.2687
+       YYY      -1.3803    XXZ       4.7336    XYZ      -0.8537
+       YYZ      -0.3477    XZZ      -2.2784    YZZ       0.4553
+       ZZZ       0.0490
+    Hexadecapole Moments (Debye-Ang^3)
+      XXXX   -1106.9711   XXXY     -15.6528   XXYY    -299.0806
+      XYYY       2.6548   YYYY    -506.0391   XXXZ      -0.2542
+      XXYZ      -6.1690   XYYZ       2.5540   YYYZ      -5.0503
+      XXZZ    -250.5560   XYZZ      -1.1375   YYZZ    -124.1183
+      XZZZ      -0.3686   YZZZ      -1.8695   ZZZZ     -88.0634
+ -----------------------------------------------------------------
+ Total job time:  221.36s(wall), 637.40s(cpu) 
+ Sat Feb 28 10:22:02 2026
+
+        *************************************************************
+        *                                                           *
+        *  Thank you very much for using Q-Chem.  Have a nice day.  *
+        *                                                           *
+        *************************************************************
+
+
+
+Running Job 2 of 3 Geometry-3-.com
+qchem Geometry-3-.com_399467.1 /tmp/qchem399467/ 0
+/home/energy/modules/software/QChem/6.0-singlenode/exe/qcprog.exe_s Geometry-3-.com_399467.1 /tmp/qchem399467/
+                  Welcome to Q-Chem
+     A Quantum Leap Into The Future Of Chemistry
+
+
+ Q-Chem 6.0, Q-Chem, Inc., Pleasanton, CA (2022)
+
+ License issued to: SRG Juan Maria Garcia Lastra, Technical University of Denmark
+
+ E. Epifanovsky,  A. T. B. Gilbert,  Xintian Feng,  Joonho Lee,  Yuezhi Mao,  
+ N. Mardirossian,  P. Pokhilko,  A. White,  M. Wormit,  M. P. Coons,  
+ A. L. Dempwolff,  Zhengting Gan,  D. Hait,  P. R. Horn,  L. D. Jacobson,  
+ I. Kaliman,  J. Kussmann,  A. W. Lange,  Ka Un Lao,  D. S. Levine,  Jie Liu,  
+ S. C. McKenzie,  A. F. Morrison,  K. Nanda,  F. Plasser,  D. R. Rehn,  
+ M. L. Vidal,  Zhi-Qiang You,  Ying Zhu,  B. Alam,  B. Albrecht,  
+ A. Aldossary,  E. Alguire,  J. H. Andersen,  V. Athavale,  D. Barton,  
+ K. Begam,  A. Behn,  N. Bellonzi,  Y. A. Bernard,  E. J. Berquist,  
+ H. Burton,  A. Carreras,  K. Carter-Fenk,  Romit Chakraborty,  
+ Chandrima Chakravarty,  Junhan Chen,  A. D. Chien,  K. D. Closser,  
+ V. Cofer-Shabica,  L. Cunha,  S. Dasgupta,  Jia Deng,  M. de Wergifosse,  
+ M. Diedenhofen,  Hainam Do,  S. Ehlert,  Po-Tung Fang,  S. Fatehi,  
+ Qingguo Feng,  T. Friedhoff,  B. Ganoe,  J. Gayvert,  Qinghui Ge,  
+ G. Gidofalvi,  M. Goldey,  J. Gomes,  C. Gonzalez-Espinoza,  S. Gulania,  
+ A. Gunina,  J. A. Gyamfi,  M. W. D. Hanson-Heine,  P. H. P. Harbach,  
+ A. W. Hauser,  M. F. Herbst,  M. Hernandez Vera,  M. Hodecker,  
+ Z. C. Holden,  S. Houck,  Xunkun Huang,  Kerwin Hui,  B. C. Huynh,  
+ K. Ikeda,  M. Ivanov,  Hyunjun Ji,  Zuxin Jin,  Hanjie Jiang,  B. Kaduk,  
+ S. Kaehler,  R. Kang,  K. Khistyaev,  Jaehoon Kim,  Yongbin Kim,  
+ P. Klunzinger,  Z. Koczor-Benda,  Joong Hoon Koh,  D. Kosenkov,  
+ Saikiran Kotaru,  L. Koulias,  T. Kowalczyk,  C. M. Krauter,  K. Kue,  
+ A. Kunitsa,  T. Kus,  A. Landau,  K. V. Lawler,  D. Lefrancois,  S. Lehtola,  
+ Rain Li,  Shaozhi Li,  Yi-Pei Li,  Jiashu Liang,  M. Liebenthal,  
+ Hung-Hsuan Lin,  You-Sheng Lin,  Fenglai Liu,  Kuan-Yu Liu,  
+ M. Loipersberger,  A. Luenser,  C. Malbon,  A. Manjanath,  P. Manohar,  
+ E. Mansoor,  S. F. Manzer,  Shan-Ping Mao,  A. V. Marenich,  T. Markovich,  
+ S. Mason,  F. Matz,  S. A. Maurer,  P. F. McLaughlin,  M. F. S. J. Menger,  
+ J.-M. Mewes,  S. A. Mewes,  P. Morgante,  Mohammad Mostafanejad,  
+ J. W. Mullinax,  K. J. Oosterbaan,  G. Paran,  V. Parravicini,  
+ Alexander C. Paul,  Suranjan K. Paul,  F. Pavosevic,  Zheng Pei,  S. Prager,  
+ E. I. Proynov,  E. Ramos,  B. Rana,  A. E. Rask,  A. Rettig,  R. M. Richard,  
+ F. Rob,  E. Rossomme,  T. Scheele,  M. Scheurer,  M. Schneider,  
+ P. E. Schneider,  N. Sergueev,  S. M. Sharada,  Hengyuan Shen,  
+ W. Skomorowski,  D. W. Small,  C. J. Stein,  Yingli Su,  Yu-Chuan Su,  
+ E. J. Sundstrom,  Zhen Tao,  J. Thirman,  Hung-Yi Tsai,  T. Tsuchimochi,  
+ N. M. Tubman,  C. Utku,  S. P. Veccham,  O. Vydrov,  J. Wenzel,  
+ Jonathan Wong,  J. Witte,  A. Yamada,  Chou-Hsun Yang,  Kun Yao,  
+ S. Yeganeh,  S. R. Yost,  A. Zech,  F. Zeller,  Igor Ying Zhang,  
+ Xing Zhang,  Yu Zhang,  D. Zuev,  A. Aspuru-Guzik,  A. T. Bell,  
+ N. A. Besley,  K. B. Bravaya,  B. R. Brooks,  D. Casanova,  Jeng-Da Chai,  
+ Hsing-Ta Chen,  S. Coriani,  C. J. Cramer,  A. E. DePrince, III,  
+ R. A. DiStasio Jr.,  A. Dreuw,  B. D. Dunietz,  T. R. Furlani,  
+ W. A. Goddard III,  S. Grimme,  S. Hammes-Schiffer,  T. Head-Gordon,  
+ W. J. Hehre,  Chao-Ping Hsu,  T.-C. Jagau,  Yousung Jung,  A. Klamt,  
+ Jing Kong,  D. S. Lambrecht,  Xiangyuan Li,  WanZhen Liang,  N. J. Mayhall,  
+ C. W. McCurdy,  J. B. Neaton,  T. Neudecker,  C. Ochsenfeld,  
+ J. A. Parkhill,  R. Peverati,  V. A. Rassolov,  Haisheng Ren,  Yihan Shao,  
+ L. V. Slipchenko,  R. P. Steele,  J. E. Subotnik,  A. J. W. Thom,  
+ A. Tkatchenko,  D. G. Truhlar,  T. Van Voorhis,  Fan Wang,  
+ T. A. Wesolowski,  K. B. Whaley,  H. L. Woodcock III,  P. M. Zimmerman,  
+ S. Faraji,  P. M. W. Gill,  M. Head-Gordon,  J. M. Herbert,  A. I. Krylov
+
+ Contributors to earlier versions of Q-Chem not listed above: 
+ R. D. Adamson,  B. Austin,  R. Baer,  J. Baker,  G. J. O. Beran,  
+ K. Brandhorst,  S. T. Brown,  E. F. C. Byrd,  Arup K. Chakraborty,  
+ G. K. L. Chan,  Chun-Min Chang,  Yunqing Chen,  C.-L. Cheng,  
+ Siu Hung Chien,  D. M. Chipman,  D. L. Crittenden,  H. Dachsel,  
+ R. J. Doerksen,  A. D. Dutoi,  R. G. Edgar,  J. Fosso-Tande,  
+ L. Fusti-Molnar,  D. Ghosh,  A. Ghysels,  A. Golubeva-Zadorozhnaya,  
+ J. Gonthier,  M. S. Gordon,  S. R. Gwaltney,  G. Hawkins,  J. E. Herr,  
+ A. Heyden,  S. Hirata,  E. G. Hohenstein,  G. Kedziora,  F. J. Keil,  
+ C. Kelley,  Jihan Kim,  R. A. King,  R. Z. Khaliullin,  P. P. Korambath,  
+ W. Kurlancheek,  A. Laurent,  A. M. Lee,  M. S. Lee,  S. V. Levchenko,  
+ Ching Yeh Lin,  D. Liotard,  E. Livshits,  R. C. Lochan,  I. Lotan,  
+ L. A. Martinez-Martinez,  P. E. Maslen,  N. Nair,  D. P. O'Neill,  
+ D. Neuhauser,  E. Neuscamman,  C. M. Oana,  R. Olivares-Amaya,  R. Olson,  
+ T. M. Perrine,  B. Peters,  P. A. Pieniazek,  A. Prociuk,  Y. M. Rhee,  
+ J. Ritchie,  M. A. Rohrdanz,  E. Rosta,  N. J. Russ,  H. F. Schaefer III,  
+ M. W. Schmidt,  N. E. Schultz,  S. Sharma,  N. Shenvi,  C. D. Sherrill,  
+ A. C. Simmonett,  A. Sodt,  T. Stein,  D. Stuck,  K. S. Thanthiriwatte,  
+ V. Vanovschi,  L. Vogt,  Tao Wang,  A. Warshel,  M. A. Watson,  
+ C. F. Williams,  Q. Wu,  X. Xu,  Jun Yang,  W. Zhang,  Yan Zhao
+
+   Please cite Q-Chem as follows:
+  "Software for the frontiers of quantum chemistry:
+   An overview of developments in the Q-Chem 5 package"
+   J. Chem. Phys. 155, 084801 (2021)
+   https://doi.org/10.1063/5.0055522 (open access)
+
+ Q-Chem 6.0.2 for Intel X86 EM64T Linux
+
+ Parts of Q-Chem use Armadillo 9.900.5 (Nocturnal Misbehaviour).
+ http://arma.sourceforge.net/
+
+ Q-Chem begins on Sat Feb 28 10:22:02 2026  
+
+ Host: 
+0
+
+     Scratch files written to /tmp/qchem399467//
+ Dec722 |scratch|qcdevops|jenkins|workspace|build_RNUM 6465   
+ Processing $rem in /home/energy/modules/software/QChem/6.0-singlenode/config/preferences:
+ Processing $rem in /home/energy/ledso/.qchemrc:
+ Symmetry turned off for PCM/SM12/SMD calculation
+
+ Checking the input file for inconsistencies... 	...done.
+
+--------------------------------------------------------------
+User input:
+--------------------------------------------------------------
+
+$molecule
+read
+$end
+
+$rem
+mem_total             100000
+mem_static            2000
+method                lrc-wpbe
+omega                 236
+basis                 6-31+g(d,p)
+rpa                     false
+cis_n_roots             5
+cis_singlets            true
+cis_triplets            true
+CIS_RELAXED_DENSITY     TRUE
+solvent_method          PCM
+MAX_CIS_CYCLES          200
+MAX_SCF_CYCLES          200
+$end
+
+$pcm
+theory                  IEFPCM
+ChargeSeparation        Marcus
+StateSpecific           Perturb
+$end
+
+$solvent
+Dielectric              3.0
+OpticalDielectric       1.9599999999999997
+$end
+
+
+--------------------------------------------------------------
+ ----------------------------------------------------------------
+             Standard Nuclear Orientation (Angstroms)
+    I     Atom           X                Y                Z
+ ----------------------------------------------------------------
+    1      C       1.9488172000     1.1281006000     0.0244125000
+    2      C       2.7777608000     0.0258653000    -0.0964186000
+    3      C       1.9187278000    -1.0638598000    -0.1071018000
+    4      C       0.5040414000    -0.7027053000     0.0720193000
+    5      C       0.5935080000     0.6356204000     0.0313895000
+    6      C      -0.5264892000     1.6294414000     0.1893091000
+    7      C      -1.9149407000     1.2816270000    -0.0488260000
+    8      C      -2.5726368000    -0.0365157000    -0.2126380000
+    9      C      -1.9401207000    -1.2544829000    -0.0075567000
+   10      C      -0.5908022000    -1.6839286000     0.1969405000
+   11      H       2.1190285000     2.1706557000    -0.2310780000
+   12      H       3.9467737000     0.1543386000    -0.1750892000
+   13      H       2.0716159000    -2.0435541000    -0.0540367000
+   14      H      -0.4213297000     2.6887182000     0.1933019000
+   15      H      -2.3762304000     2.2917135000    -0.1251856000
+   16      H      -3.6337117000     0.0328138000    -0.2694317000
+   17      H      -2.6611076000    -2.0730243000     0.0360945000
+   18      H      -0.2579012000    -2.6637740000     0.1847277000
+ ----------------------------------------------------------------
+ Nuclear Repulsion Energy =         448.97325192 hartrees
+ There are       34 alpha and       34 beta electrons
+ Requested basis set is 6-31+G(d,p)
+ There are 74 shells and 230 basis functions
+
+ Total QAlloc Memory Limit 100000 MB
+ Mega-Array Size      1956 MB
+ MEM_STATIC part      2000 MB
+
+ Discretize the solute cavity surface with Lebedev spheres
+	Using 110 Lebedev grid points for each H atom
+	Using 194 Lebedev grid points for other atoms
+	Atomic van der Waals radii (Bondi set) will be scaled by 1.20
+ Using smooth SwiG surface discretization
+ Remove points where switching function is < 1.0e-08
+ Keep 1233 surface tesserae and discard 1587 interior tesserae
+ Molecular Surface Area = 175.986 Angst**2
+
+ A cutoff of  1.0D-12 yielded   2443 shell pairs
+ There are     24771 function pairs
+ Smallest overlap matrix eigenvalue = 1.23E-06
+
+ Scale SEOQF with 1.000000e-01/1.000000e-01/1.000000e-01
+
+ Standard Electronic Orientation quadrupole field applied
+ Nucleus-field energy     =     0.0000000157 hartrees
+ Guess from superposition of atomic densities
+ Warning:  Energy on first SCF cycle will be non-variational
+ SAD guess density has 68.000000 electrons
+
+ -----------------------------------------------------------------------
+  General SCF calculation program by
+  Eric Jon Sundstrom, Paul Horn, Yuezhi Mao, Dmitri Zuev, Alec White,
+  David Stuck, Shaama M.S., Shane Yost, Joonho Lee, David Small,
+  Daniel Levine, Susi Lehtola, Hugh Burton, Evgeny Epifanovsky,
+  Bang C. Huynh
+ -----------------------------------------------------------------------
+ Exchange:  wPBE + LR-HF      Correlation:  PBE
+ Using SG-1 standard quadrature grid
+ using 3 threads for integral computing
+ -------------------------------------------------------
+ OpenMP Integral computing Module                
+ Release: version 1.0, May 2013, Q-Chem Inc. Pittsburgh 
+ -------------------------------------------------------
+ IEF-PCM solvent model, solve by matrix inversion
+ A restricted SCF calculation will be
+ performed using DIIS
+ SCF converges when DIIS error is below 1.0e-08
+ ---------------------------------------
+  Cycle       Energy         DIIS error
+ ---------------------------------------
+ Using non-symmetric K matrix
+    1    -388.1067474046      4.31e-02  
+    2    -385.2831872665      3.13e-03  
+    3    -385.2823132269      3.40e-03  
+    4    -385.3608363147      5.57e-04  
+    5    -385.3629574027      1.87e-04  
+    6    -385.3632336716      5.12e-05  
+    7    -385.3632550094      1.72e-05  
+    8    -385.3632603263      7.26e-06  
+    9    -385.3632624068      4.70e-06  
+   10    -385.3632636757      2.75e-06  
+   11    -385.3632651379      1.36e-06  
+   12    -385.3632654710      8.94e-07  
+   13    -385.3632655140      2.23e-07  
+   14    -385.3632655161      9.04e-08  
+   15    -385.3632655160      5.47e-08  
+   16    -385.3632655159      1.66e-08  
+   17    -385.3632655159      9.01e-09  Convergence criterion met
+ ---------------------------------------
+ SCF time:   CPU 183.91s  wall 67.00s 
+
+************** Final PCM Free Energy Summary **************
+ G_electrostatic  =      -0.00589099 hartree =      -3.69665187 kcal/mol
+ G_cavitation     =       0.00000000 hartree =       0.00000000 kcal/mol
+ G_dispersion     =       0.00000000 hartree =       0.00000000 kcal/mol
+ G_repulsion      =       0.00000000 hartree =       0.00000000 kcal/mol
+ --------------------------------------------------
+ Non-electrostatic Free Energy =       0.00000000 hartree =       0.00000000 kcal/mol
+ Total                         =      -0.00589099 hartree =      -3.69665187 kcal/mol
+ --------------------------------------------------
+ SCF Energy (H0 + V/2)                       =    -385.36326552 
+ Solute Internal Energy (H0)                 =    -385.35737453 
+ Total Free Energy (H0 + V/2 + non-elec)     =    -385.36326552 hartree
+                                             = -241819.09888671 kcal/mol
+***********************************************************
+
+ SCF   energy in the final basis set =     -385.3632655159
+ Total energy in the final basis set =     -385.3632655159
+ 
+ MAX_CIS_SUBSPACE fits in available memory
+ Direct TDDFT/TDA calculation will be performed
+ Exchange:  wPBE + LR-HF      Correlation:  PBE
+ Using SG-1 standard quadrature grid
+ Triplet excitation energies requested
+ Singlet excitation energies requested
+ Omitting PCM contribution to the XC response
+ (0th-order approach using solvent-polarized MOs and energy levels)
+ CIS energy converged when residual is below 10e- 6
+ ---------------------------------------------------
+ Iter    Rts Conv    Rts Left    Ttl Dev     Max Dev
+ ---------------------------------------------------
+   1         0           5      0.001710    0.000447
+   2         0           5      0.000529    0.000148
+   3         0           5      0.000295    0.000144
+   4         0           5      0.000854    0.000777
+   5         1           4      0.000324    0.000295
+   6         1           4      0.000128    0.000118
+   7         3           2      0.000075    0.000070
+   8         3           2      0.000038    0.000036
+   9         4           1      0.000013    0.000011
+  10         4           1      0.000006    0.000005
+  11         4           1      0.000004    0.000003
+  12         4           1      0.000002    0.000001
+  13         5           0      0.000002    0.000001    Roots Converged
+ ---------------------------------------------------
+ Triplets done: starting singlet calculation
+ ---------------------------------------------------
+ Iter    Rts Conv    Rts Left    Ttl Dev     Max Dev
+ ---------------------------------------------------
+  14         0           5      0.005599    0.001757
+  15         0           5      0.001323    0.000460
+  16         0           5      0.000879    0.000393
+  17         0           5      0.000459    0.000162
+  18         0           5      0.000310    0.000135
+  19         1           4      0.000951    0.000612
+  20         1           4      0.000475    0.000267
+  21         2           3      0.000254    0.000143
+  22         2           3      0.000088    0.000048
+  23         2           3      0.000039    0.000021
+  24         3           2      0.000016    0.000008
+  25         3           2      0.000008    0.000004
+  26         3           2      0.000004    0.000002
+  27         5           0      0.000002    0.000001    Roots Converged
+ ---------------------------------------------------
+ 
+ ---------------------------------------------------
+         TDDFT/TDA Excitation Energies              
+ ---------------------------------------------------
+
+ Excited state   1: excitation energy (eV) =    0.8877
+ Total energy for state  1:                  -385.33064390 au
+    Multiplicity: Triplet
+    Trans. Mom.:  0.0000 X   0.0000 Y   0.0000 Z
+    Strength   :     0.0000000000
+    D(   34) --> V(    1) amplitude =  0.9945
+
+ Excited state   2: excitation energy (eV) =    1.2886
+ Total energy for state  2:                  -385.31590901 au
+    Multiplicity: Singlet
+    Trans. Mom.: -0.0807 X   0.3585 Y  -0.0111 Z
+    Strength   :     0.0042666646
+    D(   34) --> V(    1) amplitude =  0.9844
+
+ Excited state   3: excitation energy (eV) =    2.0882
+ Total energy for state  3:                  -385.28652645 au
+    Multiplicity: Triplet
+    Trans. Mom.:  0.0000 X   0.0000 Y   0.0000 Z
+    Strength   :     0.0000000000
+    D(   33) --> V(    1) amplitude =  0.8253
+    D(   34) --> V(    2) amplitude =  0.5089
+
+ Excited state   4: excitation energy (eV) =    2.3896
+ Total energy for state  4:                  -385.27544870 au
+    Multiplicity: Triplet
+    Trans. Mom.:  0.0000 X   0.0000 Y   0.0000 Z
+    Strength   :     0.0000000000
+    D(   33) --> V(    1) amplitude = -0.5200
+    D(   34) --> V(    2) amplitude =  0.8394
+
+ Excited state   5: excitation energy (eV) =    3.3490
+ Total energy for state  5:                  -385.24019048 au
+    Multiplicity: Singlet
+    Trans. Mom.:  0.0757 X  -0.0853 Y   0.0323 Z
+    Strength   :     0.0011533409
+    D(   33) --> V(    1) amplitude =  0.6876
+    D(   34) --> V(    2) amplitude =  0.7069
+
+ Excited state   6: excitation energy (eV) =    3.3960
+ Total energy for state  6:                  -385.23846564 au
+    Multiplicity: Triplet
+    Trans. Mom.:  0.0000 X   0.0000 Y   0.0000 Z
+    Strength   :     0.0000000000
+    D(   32) --> V(    1) amplitude =  0.9637
+
+ Excited state   7: excitation energy (eV) =    4.1093
+ Total energy for state  7:                  -385.21225000 au
+    Multiplicity: Triplet
+    Trans. Mom.:  0.0000 X   0.0000 Y   0.0000 Z
+    Strength   :     0.0000000000
+    D(   33) --> V(    2) amplitude =  0.9601
+
+ Excited state   8: excitation energy (eV) =    4.5045
+ Total energy for state  8:                  -385.19772853 au
+    Multiplicity: Singlet
+    Trans. Mom.: -0.2156 X   0.0851 Y  -0.0021 Z
+    Strength   :     0.0059286981
+    D(   32) --> V(    1) amplitude =  0.6582
+    D(   33) --> V(    2) amplitude = -0.6918
+
+ Excited state   9: excitation energy (eV) =    4.6247
+ Total energy for state  9:                  -385.19331126 au
+    Multiplicity: Singlet
+    Trans. Mom.: -0.7115 X  -0.0253 Y   0.0286 Z
+    Strength   :     0.0575171285
+    D(   31) --> V(    1) amplitude =  0.9392
+
+ Excited state  10: excitation energy (eV) =    4.8712
+ Total energy for state 10:                  -385.18425321 au
+    Multiplicity: Singlet
+    Trans. Mom.: -3.0387 X  -0.0720 Y   0.0217 Z
+    Strength   :     1.1026165080
+    D(   30) --> V(    1) amplitude =  0.2323
+    D(   31) --> V(    1) amplitude = -0.2315
+    D(   33) --> V(    1) amplitude =  0.6280
+    D(   34) --> V(    2) amplitude = -0.5930
+ 
+ ---------------------------------------------------
+ Calculating Relaxed Density
+ ---------------------------------------------------
+ Iter    Rts Conv    Rts Left    Ttl Dev     Max Dev
+ ---------------------------------------------------
+   1         0           5      0.001371    0.000365
+   2         0           5      0.000436    0.000103
+   3         0           5      0.000199    0.000053
+   4         0           5      0.000085    0.000030
+   5         0           5      0.000027    0.000011
+   6         2           3      0.000007    0.000003
+   7         5           0      0.000000    0.000000    Roots Converged
+ ---------------------------------------------------
+ Triplets done- using as guess for singlets
+ ---------------------------------------------------
+ Iter    Rts Conv    Rts Left    Ttl Dev     Max Dev
+ ---------------------------------------------------
+   1         0           5      0.001873    0.000631
+   2         0           5      0.000632    0.000160
+   3         0           5      0.000224    0.000067
+   4         0           5      0.000089    0.000035
+   5         0           5      0.000036    0.000015
+   6         0           5      0.000010    0.000004
+   7         5           0      0.000000    0.000000    Roots Converged
+ ---------------------------------------------------
+ Using non-symmetric K matrix
+
+
+ ***************************************************************
+ *      Excited-state properties with unrelaxed density        *
+ ***************************************************************
+ (For best results, use excitation energies based on the relaxed density instead)
+ Using non-symmetric K matrix
+
+ ---------------- SUMMARY OF LR-PCM AND SS-PCM -----------------
+
+ Unrelaxed triplet excited state    1:
+   0th-order excitation energy              =   0.887679 eV
+   1st-order ptSS-PCM correction            =  -0.117917 eV
+   1st-order ptLR-PCM correction            =   0.000000 eV
+   ptSS-PCM 1st-order corrected exc. energy =   0.769763 eV
+   ptLR-PCM 1st-order corrected exc. energy =   0.887679 eV
+   Total 1st-order (ptSS+ptLR)  exc. energy =   0.769763 eV
+   Dipole Mom. (Debye):    2.6902 X    0.8796 Y   -0.5457 Z
+   Strength |mu - mu_0| (Debye):   6.0071
+
+ Unrelaxed singlet excited state    2:
+   0th-order excitation energy              =   1.288636 eV
+   1st-order ptSS-PCM correction            =  -0.142409 eV
+   1st-order ptLR-PCM correction            =  -0.010219 eV
+   ptSS-PCM 1st-order corrected exc. energy =   1.146227 eV
+   ptLR-PCM 1st-order corrected exc. energy =   1.278417 eV
+   Total 1st-order (ptSS+ptLR)  exc. energy =   1.136008 eV
+   Dipole Mom. (Debye):    3.3959 X    0.6312 Y   -0.5872 Z
+   Strength |mu - mu_0| (Debye):   6.6774
+
+ Unrelaxed triplet excited state    3:
+   0th-order excitation energy              =   2.088176 eV
+   1st-order ptSS-PCM correction            =  -0.047992 eV
+   1st-order ptLR-PCM correction            =   0.000000 eV
+   ptSS-PCM 1st-order corrected exc. energy =   2.040185 eV
+   ptLR-PCM 1st-order corrected exc. energy =   2.088176 eV
+   Total 1st-order (ptSS+ptLR)  exc. energy =   2.040185 eV
+   Dipole Mom. (Debye):    0.8465 X   -0.0316 Y   -0.4606 Z
+   Strength |mu - mu_0| (Debye):   4.0920
+
+ Unrelaxed triplet excited state    4:
+   0th-order excitation energy              =   2.389617 eV
+   1st-order ptSS-PCM correction            =  -0.081295 eV
+   1st-order ptLR-PCM correction            =   0.000000 eV
+   ptSS-PCM 1st-order corrected exc. energy =   2.308323 eV
+   ptLR-PCM 1st-order corrected exc. energy =   2.389617 eV
+   Total 1st-order (ptSS+ptLR)  exc. energy =   2.308323 eV
+   Dipole Mom. (Debye):    2.0589 X   -0.3862 Y   -0.5372 Z
+   Strength |mu - mu_0| (Debye):   5.3186
+
+ Unrelaxed singlet excited state    5:
+   0th-order excitation energy              =   3.349042 eV
+   1st-order ptSS-PCM correction            =  -0.142314 eV
+   1st-order ptLR-PCM correction            =  -0.014641 eV
+   ptSS-PCM 1st-order corrected exc. energy =   3.206728 eV
+   ptLR-PCM 1st-order corrected exc. energy =   3.334401 eV
+   Total 1st-order (ptSS+ptLR)  exc. energy =   3.192087 eV
+   Dipole Mom. (Debye):    3.9840 X    0.1612 Y   -0.6276 Z
+   Strength |mu - mu_0| (Debye):   7.2364
+
+ Unrelaxed triplet excited state    6:
+   0th-order excitation energy              =   3.395977 eV
+   1st-order ptSS-PCM correction            =  -0.013929 eV
+   1st-order ptLR-PCM correction            =   0.000000 eV
+   ptSS-PCM 1st-order corrected exc. energy =   3.382049 eV
+   ptLR-PCM 1st-order corrected exc. energy =   3.395977 eV
+   Total 1st-order (ptSS+ptLR)  exc. energy =   3.382049 eV
+   Dipole Mom. (Debye):   -3.6409 X    0.9651 Y    0.0211 Z
+   Strength |mu - mu_0| (Debye):   1.0960
+
+ Unrelaxed triplet excited state    7:
+   0th-order excitation energy              =   4.109341 eV
+   1st-order ptSS-PCM correction            =  -0.055599 eV
+   1st-order ptLR-PCM correction            =   0.000000 eV
+   ptSS-PCM 1st-order corrected exc. energy =   4.053742 eV
+   ptLR-PCM 1st-order corrected exc. energy =   4.109341 eV
+   Total 1st-order (ptSS+ptLR)  exc. energy =   4.053742 eV
+   Dipole Mom. (Debye):    0.9224 X   -0.4873 Y   -0.5421 Z
+   Strength |mu - mu_0| (Debye):   4.1987
+
+ Unrelaxed singlet excited state    8:
+   0th-order excitation energy              =   4.504490 eV
+   1st-order ptSS-PCM correction            =  -0.017755 eV
+   1st-order ptLR-PCM correction            =  -0.011584 eV
+   ptSS-PCM 1st-order corrected exc. energy =   4.486735 eV
+   ptLR-PCM 1st-order corrected exc. energy =   4.492907 eV
+   Total 1st-order (ptSS+ptLR)  exc. energy =   4.475151 eV
+   Dipole Mom. (Debye):   -0.5758 X   -0.3211 Y   -0.2410 Z
+   Strength |mu - mu_0| (Debye):   2.6765
+
+ Unrelaxed singlet excited state    9:
+   0th-order excitation energy              =   4.624690 eV
+   1st-order ptSS-PCM correction            =  -0.032612 eV
+   1st-order ptLR-PCM correction            =  -0.016423 eV
+   ptSS-PCM 1st-order corrected exc. energy =   4.592078 eV
+   ptLR-PCM 1st-order corrected exc. energy =   4.608268 eV
+   Total 1st-order (ptSS+ptLR)  exc. energy =   4.575655 eV
+   Dipole Mom. (Debye):   -0.9396 X    0.8521 Y   -0.3317 Z
+   Strength |mu - mu_0| (Debye):   2.4657
+
+ Unrelaxed singlet excited state   10:
+   0th-order excitation energy              =   4.871173 eV
+   1st-order ptSS-PCM correction            =  -0.089681 eV
+   1st-order ptLR-PCM correction            =  -0.269421 eV
+   ptSS-PCM 1st-order corrected exc. energy =   4.781491 eV
+   ptLR-PCM 1st-order corrected exc. energy =   4.601752 eV
+   Total 1st-order (ptSS+ptLR)  exc. energy =   4.512071 eV
+   Dipole Mom. (Debye):    2.2821 X    0.1048 Y   -0.4639 Z
+   Strength |mu - mu_0| (Debye):   5.5271
+
+ ------------------------ END OF SUMMARY -----------------------
+
+
+ ***************************************************************
+ *      Excited-state properties with   relaxed density        *
+ ***************************************************************
+ Using non-symmetric K matrix
+
+ ---------------- SUMMARY OF LR-PCM AND SS-PCM -----------------
+
+ Relaxed   triplet excited state    1:
+   0th-order excitation energy              =   0.887679 eV
+   1st-order ptSS-PCM correction            =  -0.029903 eV
+   1st-order ptLR-PCM correction            =   0.000000 eV
+   ptSS-PCM 1st-order corrected exc. energy =   0.857777 eV
+   ptLR-PCM 1st-order corrected exc. energy =   0.887679 eV
+   Total 1st-order (ptSS+ptLR)  exc. energy =   0.857777 eV
+   Dipole Mom. (Debye):   -0.5499 X    0.3154 Y   -0.3509 Z
+   Strength |mu - mu_0| (Debye):   2.7139
+
+ Relaxed   singlet excited state    2:
+   0th-order excitation energy              =   1.288636 eV
+   1st-order ptSS-PCM correction            =  -0.028799 eV
+   1st-order ptLR-PCM correction            =  -0.010219 eV
+   ptSS-PCM 1st-order corrected exc. energy =   1.259837 eV
+   ptLR-PCM 1st-order corrected exc. energy =   1.278417 eV
+   Total 1st-order (ptSS+ptLR)  exc. energy =   1.249618 eV
+   Dipole Mom. (Debye):   -0.5768 X    0.1957 Y   -0.3691 Z
+   Strength |mu - mu_0| (Debye):   2.6756
+
+ Relaxed   triplet excited state    3:
+   0th-order excitation energy              =   2.088176 eV
+   1st-order ptSS-PCM correction            =  -0.013503 eV
+   1st-order ptLR-PCM correction            =   0.000000 eV
+   ptSS-PCM 1st-order corrected exc. energy =   2.074673 eV
+   ptLR-PCM 1st-order corrected exc. energy =   2.088176 eV
+   Total 1st-order (ptSS+ptLR)  exc. energy =   2.074673 eV
+   Dipole Mom. (Debye):   -1.0887 X   -0.0229 Y   -0.3272 Z
+   Strength |mu - mu_0| (Debye):   2.1523
+
+ Relaxed   triplet excited state    4:
+   0th-order excitation energy              =   2.389617 eV
+   1st-order ptSS-PCM correction            =  -0.023688 eV
+   1st-order ptLR-PCM correction            =   0.000000 eV
+   ptSS-PCM 1st-order corrected exc. energy =   2.365929 eV
+   ptLR-PCM 1st-order corrected exc. energy =   2.389617 eV
+   Total 1st-order (ptSS+ptLR)  exc. energy =   2.365929 eV
+   Dipole Mom. (Debye):   -0.3725 X   -0.2073 Y   -0.3276 Z
+   Strength |mu - mu_0| (Debye):   2.8725
+
+ Relaxed   singlet excited state    5:
+   0th-order excitation energy              =   3.349042 eV
+   1st-order ptSS-PCM correction            =  -0.023440 eV
+   1st-order ptLR-PCM correction            =  -0.014641 eV
+   ptSS-PCM 1st-order corrected exc. energy =   3.325602 eV
+   ptLR-PCM 1st-order corrected exc. energy =   3.334401 eV
+   Total 1st-order (ptSS+ptLR)  exc. energy =   3.310960 eV
+   Dipole Mom. (Debye):   -0.2614 X    0.0257 Y   -0.3625 Z
+   Strength |mu - mu_0| (Debye):   2.9807
+
+ Relaxed   triplet excited state    6:
+   0th-order excitation energy              =   3.395977 eV
+   1st-order ptSS-PCM correction            =  -0.006443 eV
+   1st-order ptLR-PCM correction            =   0.000000 eV
+   ptSS-PCM 1st-order corrected exc. energy =   3.389535 eV
+   ptLR-PCM 1st-order corrected exc. energy =   3.395977 eV
+   Total 1st-order (ptSS+ptLR)  exc. energy =   3.389535 eV
+   Dipole Mom. (Debye):   -3.6725 X    0.4563 Y   -0.0842 Z
+   Strength |mu - mu_0| (Debye):   0.6629
+
+ Relaxed   triplet excited state    7:
+   0th-order excitation energy              =   4.109341 eV
+   1st-order ptSS-PCM correction            =  -0.016118 eV
+   1st-order ptLR-PCM correction            =   0.000000 eV
+   ptSS-PCM 1st-order corrected exc. energy =   4.093224 eV
+   ptLR-PCM 1st-order corrected exc. energy =   4.109341 eV
+   Total 1st-order (ptSS+ptLR)  exc. energy =   4.093224 eV
+   Dipole Mom. (Debye):   -1.0396 X   -0.1526 Y   -0.3401 Z
+   Strength |mu - mu_0| (Debye):   2.2054
+
+ Relaxed   singlet excited state    8:
+   0th-order excitation energy              =   4.504490 eV
+   1st-order ptSS-PCM correction            =  -0.004607 eV
+   1st-order ptLR-PCM correction            =  -0.011584 eV
+   ptSS-PCM 1st-order corrected exc. energy =   4.499884 eV
+   ptLR-PCM 1st-order corrected exc. energy =   4.492907 eV
+   Total 1st-order (ptSS+ptLR)  exc. energy =   4.488300 eV
+   Dipole Mom. (Debye):   -1.8828 X   -0.2253 Y   -0.2514 Z
+   Strength |mu - mu_0| (Debye):   1.3686
+
+ Relaxed   singlet excited state    9:
+   0th-order excitation energy              =   4.624690 eV
+   1st-order ptSS-PCM correction            =  -0.008863 eV
+   1st-order ptLR-PCM correction            =  -0.016423 eV
+   ptSS-PCM 1st-order corrected exc. energy =   4.615828 eV
+   ptLR-PCM 1st-order corrected exc. energy =   4.608268 eV
+   Total 1st-order (ptSS+ptLR)  exc. energy =   4.599405 eV
+   Dipole Mom. (Debye):   -2.7545 X    0.2099 Y   -0.2765 Z
+   Strength |mu - mu_0| (Debye):   0.5476
+
+ Relaxed   singlet excited state   10:
+   0th-order excitation energy              =   4.871173 eV
+   1st-order ptSS-PCM correction            =  -0.001234 eV
+   1st-order ptLR-PCM correction            =  -0.269421 eV
+   ptSS-PCM 1st-order corrected exc. energy =   4.869939 eV
+   ptLR-PCM 1st-order corrected exc. energy =   4.601752 eV
+   Total 1st-order (ptSS+ptLR)  exc. energy =   4.600518 eV
+   Dipole Mom. (Debye):   -3.3211 X    0.1293 Y   -0.1529 Z
+   Strength |mu - mu_0| (Debye):   0.1855
+
+ ------------------------ END OF SUMMARY -----------------------
+  SETman timing summary (seconds)
+  CPU time               970.43s
+  System time              0.00s
+  Wall time              340.34s
+ 
+ --------------------------------------------------------------
+ 
+                    Orbital Energies (a.u.)
+ --------------------------------------------------------------
+ 
+ Alpha MOs
+ -- Occupied --
+-10.0862 -10.0809 -10.0767 -10.0661 -10.0637 -10.0484 -10.0478 -10.0387
+-10.0106 -10.0060  -0.9427  -0.8888  -0.8450  -0.8076  -0.7547  -0.7387
+ -0.6773  -0.6315  -0.6109  -0.5798  -0.5762  -0.5338  -0.5253  -0.4783
+ -0.4755  -0.4694  -0.4445  -0.4406  -0.4164  -0.4076  -0.3933  -0.3705
+ -0.3144  -0.2537
+ -- Virtual --
+ -0.0508   0.0076   0.0619   0.0703   0.0756   0.0888   0.0896   0.1009
+  0.1078   0.1117   0.1170   0.1226   0.1255   0.1289   0.1411   0.1455
+  0.1487   0.1618   0.1672   0.1720   0.1763   0.1839   0.1976   0.2049
+  0.2103   0.2151   0.2223   0.2248   0.2324   0.2346   0.2364   0.2470
+  0.2504   0.2559   0.2603   0.2662   0.2710   0.2761   0.2782   0.2884
+  0.2959   0.2980   0.3030   0.3109   0.3134   0.3164   0.3259   0.3333
+  0.3411   0.3433   0.3520   0.3665   0.3701   0.3791   0.3877   0.3982
+  0.4303   0.4427   0.4619   0.5076   0.5296   0.5504   0.5707   0.6612
+  0.7129   0.7213   0.7326   0.7526   0.7651   0.7761   0.7829   0.7925
+  0.8030   0.8059   0.8105   0.8162   0.8326   0.8407   0.8473   0.8575
+  0.8600   0.8784   0.9060   0.9279   0.9424   0.9637   0.9759   0.9821
+  0.9967   1.0298   1.0376   1.0481   1.0710   1.0757   1.0810   1.1259
+  1.1388   1.1522   1.1737   1.1908   1.2072   1.2483   1.2717   1.2834
+  1.2916   1.3009   1.3297   1.3531   1.3595   1.3872   1.3930   1.4250
+  1.4505   1.4684   1.4807   1.5447   1.5534   1.5651   1.6556   1.6719
+  1.7425   1.7599   1.8121   1.8574   1.8831   1.9182   1.9330   1.9530
+  1.9581   1.9707   1.9828   2.0034   2.0180   2.0275   2.0511   2.0705
+  2.1016   2.1432   2.1659   2.2070   2.2270   2.2348   2.2744   2.3224
+  2.3520   2.3707   2.3955   2.4086   2.4368   2.4503   2.4728   2.4803
+  2.4925   2.5093   2.5262   2.5464   2.5593   2.5744   2.5871   2.6108
+  2.6215   2.6559   2.6811   2.6956   2.7012   2.7332   2.7517   2.7739
+  2.8108   2.8574   2.8759   2.9297   3.0213   3.0577   3.1065   3.1616
+  3.2146   3.3094   3.3384   3.3813   3.4186   3.5261   3.5827   3.6467
+  3.7463   3.8975   4.2240   4.3519   4.3650   4.3799   4.4062   4.4497
+  4.5051   4.7180   4.7958   4.8205
+ --------------------------------------------------------------
+ 
+          Ground-State Mulliken Net Atomic Charges
+
+     Atom                 Charge (a.u.)
+  ----------------------------------------
+      1 C                    -0.496137
+      2 C                     0.078022
+      3 C                    -0.391181
+      4 C                    -0.394701
+      5 C                     0.269999
+      6 C                     0.153754
+      7 C                    -0.271064
+      8 C                    -0.184244
+      9 C                    -0.160325
+     10 C                     0.043242
+     11 H                     0.152307
+     12 H                     0.176057
+     13 H                     0.121854
+     14 H                     0.178939
+     15 H                     0.173410
+     16 H                     0.191324
+     17 H                     0.173906
+     18 H                     0.184839
+  ----------------------------------------
+  Sum of atomic charges =     0.000000
+
+ -----------------------------------------------------------------
+                    Cartesian Multipole Moments
+ -----------------------------------------------------------------
+    Charge (ESU x 10^10)
+                 0.0000
+    Dipole Moment (Debye)
+         X      -3.2360      Y      -0.0331      Z      -0.1813
+       Tot       3.2412
+    Quadrupole Moments (Debye-Ang)
+        XX     -52.6162     XY       0.7739     YY     -49.1133
+        XZ      -0.1266     YZ      -1.2501     ZZ     -65.2305
+    Octopole Moments (Debye-Ang^2)
+       XXX     -20.4412    XXY       1.4046    XYY      -9.4054
+       YYY       0.3027    XXZ      -4.9369    XYZ      -1.0872
+       YYZ       0.4467    XZZ      -3.1960    YZZ      -0.8499
+       ZZZ       0.4885
+    Hexadecapole Moments (Debye-Ang^3)
+      XXXX   -1091.0356   XXXY      11.5662   XXYY    -294.2377
+      XYYY     -13.0506   YYYY    -493.5932   XXXZ       0.6404
+      XXYZ      -6.3804   XYYZ      -2.9568   YYYZ      -5.1716
+      XXZZ    -251.2534   XYZZ      -2.0111   YYZZ    -123.9435
+      XZZZ       0.0232   YZZZ      -0.7407   ZZZZ     -89.0853
+ -----------------------------------------------------------------
+ Total job time:  407.65s(wall), 1155.47s(cpu) 
+ Sat Feb 28 10:28:50 2026
+
+        *************************************************************
+        *                                                           *
+        *  Thank you very much for using Q-Chem.  Have a nice day.  *
+        *                                                           *
+        *************************************************************
+
+
+
+Running Job 3 of 3 Geometry-3-.com
+qchem Geometry-3-.com_399467.2 /tmp/qchem399467/ 0
+/home/energy/modules/software/QChem/6.0-singlenode/exe/qcprog.exe_s Geometry-3-.com_399467.2 /tmp/qchem399467/
+                  Welcome to Q-Chem
+     A Quantum Leap Into The Future Of Chemistry
+
+
+ Q-Chem 6.0, Q-Chem, Inc., Pleasanton, CA (2022)
+
+ License issued to: SRG Juan Maria Garcia Lastra, Technical University of Denmark
+
+ E. Epifanovsky,  A. T. B. Gilbert,  Xintian Feng,  Joonho Lee,  Yuezhi Mao,  
+ N. Mardirossian,  P. Pokhilko,  A. White,  M. Wormit,  M. P. Coons,  
+ A. L. Dempwolff,  Zhengting Gan,  D. Hait,  P. R. Horn,  L. D. Jacobson,  
+ I. Kaliman,  J. Kussmann,  A. W. Lange,  Ka Un Lao,  D. S. Levine,  Jie Liu,  
+ S. C. McKenzie,  A. F. Morrison,  K. Nanda,  F. Plasser,  D. R. Rehn,  
+ M. L. Vidal,  Zhi-Qiang You,  Ying Zhu,  B. Alam,  B. Albrecht,  
+ A. Aldossary,  E. Alguire,  J. H. Andersen,  V. Athavale,  D. Barton,  
+ K. Begam,  A. Behn,  N. Bellonzi,  Y. A. Bernard,  E. J. Berquist,  
+ H. Burton,  A. Carreras,  K. Carter-Fenk,  Romit Chakraborty,  
+ Chandrima Chakravarty,  Junhan Chen,  A. D. Chien,  K. D. Closser,  
+ V. Cofer-Shabica,  L. Cunha,  S. Dasgupta,  Jia Deng,  M. de Wergifosse,  
+ M. Diedenhofen,  Hainam Do,  S. Ehlert,  Po-Tung Fang,  S. Fatehi,  
+ Qingguo Feng,  T. Friedhoff,  B. Ganoe,  J. Gayvert,  Qinghui Ge,  
+ G. Gidofalvi,  M. Goldey,  J. Gomes,  C. Gonzalez-Espinoza,  S. Gulania,  
+ A. Gunina,  J. A. Gyamfi,  M. W. D. Hanson-Heine,  P. H. P. Harbach,  
+ A. W. Hauser,  M. F. Herbst,  M. Hernandez Vera,  M. Hodecker,  
+ Z. C. Holden,  S. Houck,  Xunkun Huang,  Kerwin Hui,  B. C. Huynh,  
+ K. Ikeda,  M. Ivanov,  Hyunjun Ji,  Zuxin Jin,  Hanjie Jiang,  B. Kaduk,  
+ S. Kaehler,  R. Kang,  K. Khistyaev,  Jaehoon Kim,  Yongbin Kim,  
+ P. Klunzinger,  Z. Koczor-Benda,  Joong Hoon Koh,  D. Kosenkov,  
+ Saikiran Kotaru,  L. Koulias,  T. Kowalczyk,  C. M. Krauter,  K. Kue,  
+ A. Kunitsa,  T. Kus,  A. Landau,  K. V. Lawler,  D. Lefrancois,  S. Lehtola,  
+ Rain Li,  Shaozhi Li,  Yi-Pei Li,  Jiashu Liang,  M. Liebenthal,  
+ Hung-Hsuan Lin,  You-Sheng Lin,  Fenglai Liu,  Kuan-Yu Liu,  
+ M. Loipersberger,  A. Luenser,  C. Malbon,  A. Manjanath,  P. Manohar,  
+ E. Mansoor,  S. F. Manzer,  Shan-Ping Mao,  A. V. Marenich,  T. Markovich,  
+ S. Mason,  F. Matz,  S. A. Maurer,  P. F. McLaughlin,  M. F. S. J. Menger,  
+ J.-M. Mewes,  S. A. Mewes,  P. Morgante,  Mohammad Mostafanejad,  
+ J. W. Mullinax,  K. J. Oosterbaan,  G. Paran,  V. Parravicini,  
+ Alexander C. Paul,  Suranjan K. Paul,  F. Pavosevic,  Zheng Pei,  S. Prager,  
+ E. I. Proynov,  E. Ramos,  B. Rana,  A. E. Rask,  A. Rettig,  R. M. Richard,  
+ F. Rob,  E. Rossomme,  T. Scheele,  M. Scheurer,  M. Schneider,  
+ P. E. Schneider,  N. Sergueev,  S. M. Sharada,  Hengyuan Shen,  
+ W. Skomorowski,  D. W. Small,  C. J. Stein,  Yingli Su,  Yu-Chuan Su,  
+ E. J. Sundstrom,  Zhen Tao,  J. Thirman,  Hung-Yi Tsai,  T. Tsuchimochi,  
+ N. M. Tubman,  C. Utku,  S. P. Veccham,  O. Vydrov,  J. Wenzel,  
+ Jonathan Wong,  J. Witte,  A. Yamada,  Chou-Hsun Yang,  Kun Yao,  
+ S. Yeganeh,  S. R. Yost,  A. Zech,  F. Zeller,  Igor Ying Zhang,  
+ Xing Zhang,  Yu Zhang,  D. Zuev,  A. Aspuru-Guzik,  A. T. Bell,  
+ N. A. Besley,  K. B. Bravaya,  B. R. Brooks,  D. Casanova,  Jeng-Da Chai,  
+ Hsing-Ta Chen,  S. Coriani,  C. J. Cramer,  A. E. DePrince, III,  
+ R. A. DiStasio Jr.,  A. Dreuw,  B. D. Dunietz,  T. R. Furlani,  
+ W. A. Goddard III,  S. Grimme,  S. Hammes-Schiffer,  T. Head-Gordon,  
+ W. J. Hehre,  Chao-Ping Hsu,  T.-C. Jagau,  Yousung Jung,  A. Klamt,  
+ Jing Kong,  D. S. Lambrecht,  Xiangyuan Li,  WanZhen Liang,  N. J. Mayhall,  
+ C. W. McCurdy,  J. B. Neaton,  T. Neudecker,  C. Ochsenfeld,  
+ J. A. Parkhill,  R. Peverati,  V. A. Rassolov,  Haisheng Ren,  Yihan Shao,  
+ L. V. Slipchenko,  R. P. Steele,  J. E. Subotnik,  A. J. W. Thom,  
+ A. Tkatchenko,  D. G. Truhlar,  T. Van Voorhis,  Fan Wang,  
+ T. A. Wesolowski,  K. B. Whaley,  H. L. Woodcock III,  P. M. Zimmerman,  
+ S. Faraji,  P. M. W. Gill,  M. Head-Gordon,  J. M. Herbert,  A. I. Krylov
+
+ Contributors to earlier versions of Q-Chem not listed above: 
+ R. D. Adamson,  B. Austin,  R. Baer,  J. Baker,  G. J. O. Beran,  
+ K. Brandhorst,  S. T. Brown,  E. F. C. Byrd,  Arup K. Chakraborty,  
+ G. K. L. Chan,  Chun-Min Chang,  Yunqing Chen,  C.-L. Cheng,  
+ Siu Hung Chien,  D. M. Chipman,  D. L. Crittenden,  H. Dachsel,  
+ R. J. Doerksen,  A. D. Dutoi,  R. G. Edgar,  J. Fosso-Tande,  
+ L. Fusti-Molnar,  D. Ghosh,  A. Ghysels,  A. Golubeva-Zadorozhnaya,  
+ J. Gonthier,  M. S. Gordon,  S. R. Gwaltney,  G. Hawkins,  J. E. Herr,  
+ A. Heyden,  S. Hirata,  E. G. Hohenstein,  G. Kedziora,  F. J. Keil,  
+ C. Kelley,  Jihan Kim,  R. A. King,  R. Z. Khaliullin,  P. P. Korambath,  
+ W. Kurlancheek,  A. Laurent,  A. M. Lee,  M. S. Lee,  S. V. Levchenko,  
+ Ching Yeh Lin,  D. Liotard,  E. Livshits,  R. C. Lochan,  I. Lotan,  
+ L. A. Martinez-Martinez,  P. E. Maslen,  N. Nair,  D. P. O'Neill,  
+ D. Neuhauser,  E. Neuscamman,  C. M. Oana,  R. Olivares-Amaya,  R. Olson,  
+ T. M. Perrine,  B. Peters,  P. A. Pieniazek,  A. Prociuk,  Y. M. Rhee,  
+ J. Ritchie,  M. A. Rohrdanz,  E. Rosta,  N. J. Russ,  H. F. Schaefer III,  
+ M. W. Schmidt,  N. E. Schultz,  S. Sharma,  N. Shenvi,  C. D. Sherrill,  
+ A. C. Simmonett,  A. Sodt,  T. Stein,  D. Stuck,  K. S. Thanthiriwatte,  
+ V. Vanovschi,  L. Vogt,  Tao Wang,  A. Warshel,  M. A. Watson,  
+ C. F. Williams,  Q. Wu,  X. Xu,  Jun Yang,  W. Zhang,  Yan Zhao
+
+   Please cite Q-Chem as follows:
+  "Software for the frontiers of quantum chemistry:
+   An overview of developments in the Q-Chem 5 package"
+   J. Chem. Phys. 155, 084801 (2021)
+   https://doi.org/10.1063/5.0055522 (open access)
+
+ Q-Chem 6.0.2 for Intel X86 EM64T Linux
+
+ Parts of Q-Chem use Armadillo 9.900.5 (Nocturnal Misbehaviour).
+ http://arma.sourceforge.net/
+
+ Q-Chem begins on Sat Feb 28 10:28:50 2026  
+
+ Host: 
+0
+
+     Scratch files written to /tmp/qchem399467//
+ Dec722 |scratch|qcdevops|jenkins|workspace|build_RNUM 6465   
+ Processing $rem in /home/energy/modules/software/QChem/6.0-singlenode/config/preferences:
+ Processing $rem in /home/energy/ledso/.qchemrc:
+
+ Checking the input file for inconsistencies... 	...done.
+
+--------------------------------------------------------------
+User input:
+--------------------------------------------------------------
+
+$molecule
+read
+$end
+
+$rem
+mem_total             100000
+mem_static            2000
+method                lrc-wpbe
+omega                 236
+basis                 6-31+g(d,p)
+rpa                     false
+cis_n_roots             5
+cis_singlets            true
+cis_triplets            false
+MAX_CIS_CYCLES          200
+MAX_SCF_CYCLES          200
+CIS_DER_NUMSTATE        6
+CALC_NAC                true
+$end
+
+$derivative_coupling
+comment
+0 1 2 3 4 5
+$end
+
+
+--------------------------------------------------------------
+ ----------------------------------------------------------------
+             Standard Nuclear Orientation (Angstroms)
+    I     Atom           X                Y                Z
+ ----------------------------------------------------------------
+    1      C       1.9770250776    -1.0736582398    -0.0313482655
+    2      C       2.7777231625     0.0485757972     0.0957093842
+    3      C       1.8913762115     1.1161437810     0.1112110544
+    4      C       0.4864045286     0.7202154894    -0.0708601130
+    5      C       0.6096898196    -0.6156061529    -0.0369188473
+    6      C      -0.4846878130    -1.6366398224    -0.2007490990
+    7      C      -1.8816571935    -1.3252866062     0.0380321299
+    8      C      -2.5726158309    -0.0250580311     0.2079748336
+    9      C      -1.9709933749     1.2095503810     0.0095521894
+   10      C      -0.6328403246     1.6740374577    -0.1916971537
+   11      H       2.1733990310    -2.1128535394     0.2190091157
+   12      H       3.9495604103    -0.0506687656     0.1746624954
+   13      H       2.0194536235     2.0996499126     0.0632166466
+   14      H      -0.3527478291    -2.6928821790    -0.2100079660
+   15      H      -2.3172836653    -2.3470977545     0.1089212520
+   16      H      -3.6316337616    -0.1215054303     0.2635713183
+   17      H      -2.7124381318     2.0097940316    -0.0305393674
+   18      H      -0.3248552545     2.6619194006    -0.1742701729
+ ----------------------------------------------------------------
+ Molecular Point Group                 C1    NOp =  1
+ Largest Abelian Subgroup              C1    NOp =  1
+ Nuclear Repulsion Energy =         448.97325192 hartrees
+ There are       34 alpha and       34 beta electrons
+ Requested basis set is 6-31+G(d,p)
+ There are 74 shells and 230 basis functions
+
+ Total QAlloc Memory Limit 100000 MB
+ Mega-Array Size      1956 MB
+ MEM_STATIC part      2000 MB
+
+ A cutoff of  1.0D-12 yielded   2443 shell pairs
+ There are     24771 function pairs
+ Smallest overlap matrix eigenvalue = 1.23E-06
+
+ Scale SEOQF with 1.000000e-01/1.000000e-01/1.000000e-01
+
+ Standard Electronic Orientation quadrupole field applied
+ Nucleus-field energy     =     0.0000000157 hartrees
+ Guess from superposition of atomic densities
+ Warning:  Energy on first SCF cycle will be non-variational
+ SAD guess density has 68.000000 electrons
+
+ -----------------------------------------------------------------------
+  General SCF calculation program by
+  Eric Jon Sundstrom, Paul Horn, Yuezhi Mao, Dmitri Zuev, Alec White,
+  David Stuck, Shaama M.S., Shane Yost, Joonho Lee, David Small,
+  Daniel Levine, Susi Lehtola, Hugh Burton, Evgeny Epifanovsky,
+  Bang C. Huynh
+ -----------------------------------------------------------------------
+ Exchange:  wPBE + LR-HF      Correlation:  PBE
+ Using SG-1 standard quadrature grid
+ using 3 threads for integral computing
+ -------------------------------------------------------
+ OpenMP Integral computing Module                
+ Release: version 1.0, May 2013, Q-Chem Inc. Pittsburgh 
+ -------------------------------------------------------
+ A restricted SCF calculation will be
+ performed using DIIS
+ SCF converges when DIIS error is below 1.0e-08
+ ---------------------------------------
+  Cycle       Energy         DIIS error
+ ---------------------------------------
+    1    -388.1068237627      4.31e-02  
+    2    -385.2691607195      3.27e-03  
+    3    -385.2346271946      4.11e-03  
+    4    -385.3536763109      7.45e-04  
+    5    -385.3576220683      2.16e-04  
+    6    -385.3580026875      6.23e-05  
+    7    -385.3580343203      2.03e-05  
+    8    -385.3580410269      7.90e-06  
+    9    -385.3580437360      5.51e-06  
+   10    -385.3580454923      3.14e-06  
+   11    -385.3580474336      1.71e-06  
+   12    -385.3580479726      1.30e-06  
+   13    -385.3580480748      2.43e-07  
+   14    -385.3580480780      1.29e-07  
+   15    -385.3580480783      4.90e-08  
+   16    -385.3580480783      1.20e-08  
+   17    -385.3580480783      8.01e-09  Convergence criterion met
+ ---------------------------------------
+ SCF time:   CPU 142.24s  wall 52.00s 
+ SCF   energy in the final basis set =     -385.3580480783
+ Total energy in the final basis set =     -385.3580480783
+ 
+ MAX_CIS_SUBSPACE fits in available memory
+ Direct TDDFT/TDA calculation will be performed
+ Exchange:  wPBE + LR-HF      Correlation:  PBE
+ Using SG-1 standard quadrature grid
+ Singlet excitation energies requested
+ CIS energy converged when residual is below 10e- 6
+ ---------------------------------------------------
+ Iter    Rts Conv    Rts Left    Ttl Dev     Max Dev
+ ---------------------------------------------------
+   1         0           5      0.004370    0.001788
+   2         0           5      0.000979    0.000367
+   3         0           5      0.000562    0.000178
+   4         0           5      0.000367    0.000148
+   5         0           5      0.001588    0.000983
+   6         0           5      0.000526    0.000320
+   7         1           4      0.000598    0.000216
+   8         2           3      0.000611    0.000264
+   9         2           3      0.000497    0.000257
+  10         2           3      0.000220    0.000117
+  11         2           3      0.000089    0.000046
+  12         2           3      0.000032    0.000016
+  13         2           3      0.000014    0.000007
+  14         3           2      0.000005    0.000002
+  15         5           0      0.000002    0.000001    Roots Converged
+ ---------------------------------------------------
+ 
+ ---------------------------------------------------
+         TDDFT/TDA Excitation Energies              
+ ---------------------------------------------------
+
+ Excited state   1: excitation energy (eV) =    1.2063
+ Total energy for state  1:                  -385.31371603 au
+    Multiplicity: Singlet
+    Trans. Mom.: -0.0672 X  -0.3475 Y   0.0102 Z
+    Strength   :     0.0037061823
+    D(   34) --> V(    1) amplitude =  0.9849
+
+ Excited state   2: excitation energy (eV) =    3.2737
+ Total energy for state  2:                  -385.23774147 au
+    Multiplicity: Singlet
+    Trans. Mom.:  0.0864 X   0.0888 Y  -0.0327 Z
+    Strength   :     0.0013171579
+    D(   33) --> V(    1) amplitude =  0.6850
+    D(   34) --> V(    2) amplitude =  0.7091
+
+ Excited state   3: excitation energy (eV) =    4.4733
+ Total energy for state  3:                  -385.19365644 au
+    Multiplicity: Singlet
+    Trans. Mom.: -0.2561 X  -0.0550 Y  -0.0003 Z
+    Strength   :     0.0075175797
+    D(   32) --> V(    1) amplitude =  0.6507
+    D(   33) --> V(    2) amplitude = -0.7116
+
+ Excited state   4: excitation energy (eV) =    4.6372
+ Total energy for state  4:                  -385.18763274 au
+    Multiplicity: Singlet
+    Trans. Mom.: -0.7544 X   0.0196 Y  -0.0299 Z
+    Strength   :     0.0647978812
+    D(   31) --> V(    1) amplitude =  0.9481
+
+ Excited state   5: excitation energy (eV) =    4.8735
+ Total energy for state  5:                  -385.17894969 au
+    Multiplicity: Singlet
+    Trans. Mom.: -3.0833 X  -0.0172 Y  -0.0251 Z
+    Strength   :     1.1352246094
+    D(   30) --> V(    1) amplitude =  0.2162
+    D(   31) --> V(    1) amplitude = -0.2457
+    D(   33) --> V(    1) amplitude =  0.6309
+    D(   34) --> V(    2) amplitude = -0.5911
+ 
+ ---------------------------------------------------
+ Calculating Relaxed Density
+ zisleg_dc time:  CPU 123.35 s  wall 57.87 s
+ ---------------------------------------------------
+ Iter    Rts Conv    Rts Left    Ttl Dev     Max Dev
+ ---------------------------------------------------
+   1         0          20      0.004402    0.000500
+   2         0          20      0.000866    0.000088
+   3         0          20      0.000129    0.000012
+   4         7          13      0.000017    0.000002
+   5        20           0      0.000000    0.000000    Roots Converged
+ ---------------------------------------------------
+  SETman timing summary (seconds)
+  CPU time               758.10s
+  System time              0.00s
+  Wall time              273.06s
+ 
+ --------------------------------------------------------------
+ 
+                    Orbital Energies (a.u.)
+ --------------------------------------------------------------
+ 
+ Alpha MOs
+ -- Occupied --
+-10.0885 -10.0841 -10.0789 -10.0689 -10.0671 -10.0493 -10.0483 -10.0389
+-10.0110 -10.0061  -0.9428  -0.8911  -0.8474  -0.8090  -0.7555  -0.7407
+ -0.6795  -0.6335  -0.6128  -0.5820  -0.5791  -0.5362  -0.5291  -0.4788
+ -0.4775  -0.4718  -0.4469  -0.4420  -0.4172  -0.4089  -0.3951  -0.3719
+ -0.3135  -0.2524
+ -- Virtual --
+ -0.0519   0.0063   0.0544   0.0634   0.0730   0.0832   0.0857   0.1010
+  0.1032   0.1080   0.1162   0.1229   0.1258   0.1275   0.1402   0.1417
+  0.1448   0.1590   0.1693   0.1706   0.1759   0.1831   0.1958   0.2012
+  0.2095   0.2128   0.2195   0.2223   0.2319   0.2340   0.2362   0.2455
+  0.2463   0.2527   0.2597   0.2644   0.2705   0.2746   0.2765   0.2871
+  0.2928   0.2951   0.3000   0.3085   0.3096   0.3147   0.3251   0.3323
+  0.3405   0.3419   0.3506   0.3650   0.3688   0.3776   0.3853   0.3961
+  0.4288   0.4397   0.4600   0.5040   0.5279   0.5485   0.5693   0.6587
+  0.7105   0.7206   0.7302   0.7503   0.7644   0.7750   0.7830   0.7924
+  0.8018   0.8037   0.8107   0.8154   0.8337   0.8416   0.8482   0.8551
+  0.8601   0.8768   0.9054   0.9267   0.9423   0.9598   0.9709   0.9818
+  0.9911   1.0251   1.0332   1.0456   1.0688   1.0711   1.0779   1.1240
+  1.1372   1.1523   1.1711   1.1904   1.2057   1.2465   1.2692   1.2824
+  1.2904   1.3008   1.3289   1.3520   1.3576   1.3872   1.3921   1.4252
+  1.4489   1.4668   1.4792   1.5435   1.5531   1.5647   1.6546   1.6718
+  1.7416   1.7596   1.8101   1.8554   1.8831   1.9167   1.9307   1.9510
+  1.9571   1.9680   1.9801   2.0009   2.0144   2.0252   2.0494   2.0684
+  2.1013   2.1412   2.1648   2.2070   2.2254   2.2343   2.2716   2.3194
+  2.3494   2.3670   2.3935   2.4062   2.4344   2.4473   2.4691   2.4773
+  2.4906   2.5057   2.5227   2.5445   2.5563   2.5726   2.5843   2.6074
+  2.6196   2.6520   2.6791   2.6940   2.6971   2.7307   2.7493   2.7713
+  2.8106   2.8552   2.8754   2.9266   3.0197   3.0559   3.1026   3.1590
+  3.2115   3.3071   3.3353   3.3751   3.4139   3.5207   3.5808   3.6429
+  3.7413   3.8970   4.2220   4.3504   4.3636   4.3804   4.4057   4.4482
+  4.5038   4.7156   4.7949   4.8203
+ --------------------------------------------------------------
+ 
+          Ground-State Mulliken Net Atomic Charges
+
+     Atom                 Charge (a.u.)
+  ----------------------------------------
+      1 C                    -0.459861
+      2 C                     0.091112
+      3 C                    -0.349633
+      4 C                    -0.395903
+      5 C                     0.289765
+      6 C                     0.137546
+      7 C                    -0.245016
+      8 C                    -0.185774
+      9 C                    -0.149972
+     10 C                     0.049716
+     11 H                     0.139853
+     12 H                     0.161320
+     13 H                     0.110736
+     14 H                     0.158800
+     15 H                     0.154601
+     16 H                     0.171420
+     17 H                     0.156252
+     18 H                     0.165037
+  ----------------------------------------
+  Sum of atomic charges =     0.000000
+
+ -----------------------------------------------------------------
+                    Cartesian Multipole Moments
+ -----------------------------------------------------------------
+    Charge (ESU x 10^10)
+                 0.0000
+    Dipole Moment (Debye)
+         X      -2.3767      Y      -0.0420      Z       0.1567
+       Tot       2.3822
+    Quadrupole Moments (Debye-Ang)
+        XX     -53.2768     XY      -0.8170     YY     -50.3850
+        XZ       0.1714     YZ      -1.0370     ZZ     -65.0156
+    Octopole Moments (Debye-Ang^2)
+       XXX     -13.4024    XXY      -1.5526    XYY      -7.2687
+       YYY      -1.3803    XXZ       4.7336    XYZ      -0.8537
+       YYZ      -0.3477    XZZ      -2.2784    YZZ       0.4553
+       ZZZ       0.0490
+    Hexadecapole Moments (Debye-Ang^3)
+      XXXX   -1106.9711   XXXY     -15.6528   XXYY    -299.0806
+      XYYY       2.6548   YYYY    -506.0391   XXXZ      -0.2542
+      XXYZ      -6.1690   XYYZ       2.5540   YYYZ      -5.0503
+      XXZZ    -250.5560   XYZZ      -1.1375   YYZZ    -124.1183
+      XZZZ      -0.3686   YZZZ      -1.8695   ZZZZ     -88.0634
+ -----------------------------------------------------------------
+
+
+ ---------------------------------------------------
+             CIS Derivative Couplings
+ ---------------------------------------------------
+              between states 0 and 1
+NCharge is 0
+ get_w_dc time:  CPU 14.14 s  wall 5.22 s
+ AOints 129 time:  CPU 77.93 s  wall 26.13 s
+ DFT time  CPU 4.27 s  wall 3.73 s
+ Ei = -385.358048
+ Ej = -385.313716
+ Ej-Ei = 0.044332
+---------------------------------------------------
+DC between ground and excited states with ETF:
+  Atom         X              Y              Z     
+---------------------------------------------------
+   1       1.012340       0.077018      -0.003702
+   2      -0.009146      -1.024589      -0.072534
+   3      -1.112043       0.106387      -0.049837
+   4       0.994670       0.138213       0.204543
+   5      -0.860901       0.065729      -0.071470
+   6       1.018542       0.184041      -0.050806
+   7      -0.754361       0.627610       0.107828
+   8      -0.004583      -0.917125       0.008645
+   9       0.745871       0.672885      -0.118376
+  10      -1.030314       0.113122       0.031208
+  11       0.001339       0.005764       0.015479
+  12      -0.005042      -0.022525       0.011601
+  13      -0.009753      -0.000563      -0.008366
+  14       0.026357      -0.000793       0.009638
+  15      -0.005831      -0.003910       0.027279
+  16       0.006156      -0.029838       0.013459
+  17       0.003648       0.004972      -0.018664
+  18      -0.016949       0.003602      -0.035925
+---------------------------------------------------
+---------------------------------------------------
+CIS Force Matrix Element
+  Atom         X              Y              Z     
+---------------------------------------------------
+   1       0.044879       0.003414      -0.000164
+   2      -0.000405      -0.045422      -0.003216
+   3      -0.049299       0.004716      -0.002209
+   4       0.044096       0.006127       0.009068
+   5      -0.038166       0.002914      -0.003168
+   6       0.045154       0.008159      -0.002252
+   7      -0.033442       0.027823       0.004780
+   8      -0.000203      -0.040658       0.000383
+   9       0.033066       0.029830      -0.005248
+  10      -0.045676       0.005015       0.001384
+  11       0.000059       0.000256       0.000686
+  12      -0.000224      -0.000999       0.000514
+  13      -0.000432      -0.000025      -0.000371
+  14       0.001168      -0.000035       0.000427
+  15      -0.000259      -0.000173       0.001209
+  16       0.000273      -0.001323       0.000597
+  17       0.000162       0.000220      -0.000827
+  18      -0.000751       0.000160      -0.001593
+---------------------------------------------------
+---------------------------------------------------
+CIS derivative coupling without ETF
+  Atom         X              Y              Z     
+---------------------------------------------------
+   1       1.031245       0.076952       0.003158
+   2      -0.010024      -0.967130      -0.061205
+   3      -1.136730       0.100187      -0.057214
+   4       0.981309       0.037830       0.201742
+   5      -0.839192      -0.041303      -0.067000
+   6       0.953986       0.178361      -0.039985
+   7      -0.771396       0.639965       0.104120
+   8      -0.004690      -0.872380       0.015009
+   9       0.761452       0.687807      -0.118755
+  10      -0.971101       0.105123       0.016319
+  11       0.000136       0.005025       0.013664
+  12      -0.005179      -0.021723       0.011688
+  13      -0.007815       0.000007      -0.011042
+  14       0.025758       0.000134       0.010534
+  15      -0.004654      -0.003249       0.025027
+  16       0.006170      -0.029584       0.014185
+  17       0.002384       0.004763      -0.016816
+  18      -0.016519       0.004325      -0.038234
+---------------------------------------------------
+              between states 0 and 2
+NCharge is 0
+ get_w_dc time:  CPU 14.38 s  wall 5.22 s
+ AOints 129 time:  CPU 77.58 s  wall 26.00 s
+ DFT time  CPU 4.34 s  wall 3.80 s
+ Ei = -385.358048
+ Ej = -385.237741
+ Ej-Ei = 0.120307
+---------------------------------------------------
+DC between ground and excited states with ETF:
+  Atom         X              Y              Z     
+---------------------------------------------------
+   1       0.160184       0.147225       0.036872
+   2       0.063428      -0.101210       0.024245
+   3      -0.006077      -0.085319      -0.076292
+   4      -0.064418      -0.178939       0.028420
+   5      -0.278126       0.116350      -0.026674
+   6       0.259269       0.106663       0.045797
+   7      -0.223145       0.007780      -0.031207
+   8       0.089675      -0.145421      -0.039349
+   9      -0.005976       0.165675      -0.029038
+  10       0.010225      -0.033907       0.077422
+  11       0.007005      -0.007410      -0.017725
+  12      -0.001067       0.000662       0.003630
+  13       0.002913       0.006125       0.012436
+  14      -0.004189      -0.007895      -0.012466
+  15      -0.006497       0.002375       0.010465
+  16      -0.000836      -0.001902       0.015434
+  17       0.000384       0.001074      -0.010085
+  18      -0.002754       0.008075      -0.011884
+---------------------------------------------------
+---------------------------------------------------
+CIS Force Matrix Element
+  Atom         X              Y              Z     
+---------------------------------------------------
+   1       0.019271       0.017712       0.004436
+   2       0.007631      -0.012176       0.002917
+   3      -0.000731      -0.010264      -0.009178
+   4      -0.007750      -0.021528       0.003419
+   5      -0.033460       0.013998      -0.003209
+   6       0.031192       0.012832       0.005510
+   7      -0.026846       0.000936      -0.003754
+   8       0.010789      -0.017495      -0.004734
+   9      -0.000719       0.019932      -0.003493
+  10       0.001230      -0.004079       0.009314
+  11       0.000843      -0.000892      -0.002132
+  12      -0.000128       0.000080       0.000437
+  13       0.000350       0.000737       0.001496
+  14      -0.000504      -0.000950      -0.001500
+  15      -0.000782       0.000286       0.001259
+  16      -0.000101      -0.000229       0.001857
+  17       0.000046       0.000129      -0.001213
+  18      -0.000331       0.000971      -0.001430
+---------------------------------------------------
+---------------------------------------------------
+CIS derivative coupling without ETF
+  Atom         X              Y              Z     
+---------------------------------------------------
+   1       0.142524       0.116960       0.038849
+   2       0.066379      -0.106125      -0.006108
+   3       0.003781      -0.057334      -0.060267
+   4      -0.044596      -0.153021      -0.016406
+   5      -0.251300       0.102887       0.001044
+   6       0.229665       0.091373       0.039655
+   7      -0.217580       0.013967       0.002718
+   8       0.079607      -0.127666      -0.045814
+   9       0.002625       0.162081      -0.011023
+  10       0.001313      -0.036112       0.063094
+  11       0.005999      -0.005778      -0.021023
+  12       0.001711       0.000633       0.004512
+  13       0.002313       0.003424       0.014886
+  14      -0.004144      -0.006090      -0.013487
+  15      -0.007237      -0.000521       0.008948
+  16       0.001478      -0.001075       0.015249
+  17      -0.001052       0.002505      -0.009131
+  18      -0.002656       0.006561      -0.012451
+---------------------------------------------------
+              between states 0 and 3
+NCharge is 0
+ get_w_dc time:  CPU 14.32 s  wall 5.02 s
+ AOints 129 time:  CPU 77.62 s  wall 26.01 s
+ DFT time  CPU 4.32 s  wall 3.77 s
+ Ei = -385.358048
+ Ej = -385.193656
+ Ej-Ei = 0.164392
+---------------------------------------------------
+DC between ground and excited states with ETF:
+  Atom         X              Y              Z     
+---------------------------------------------------
+   1       0.233823       0.106345       0.013266
+   2      -0.010321      -0.279865      -0.012856
+   3      -0.233506       0.109609       0.003775
+   4       0.211343      -0.140469       0.053651
+   5      -0.170389      -0.103510      -0.021188
+   6       0.394019       0.104292      -0.024228
+   7      -0.421652       0.312821       0.048096
+   8      -0.011050      -0.508690       0.000294
+   9       0.436525       0.322972      -0.063438
+  10      -0.426317       0.085877      -0.010279
+  11       0.006577      -0.000115       0.002998
+  12      -0.000800       0.000243       0.004354
+  13      -0.007193      -0.000114      -0.007404
+  14       0.003577      -0.001904       0.005580
+  15      -0.010421       0.000119       0.009359
+  16       0.003588      -0.012385       0.009104
+  17       0.007709       0.003998      -0.000467
+  18      -0.005513       0.000775      -0.010618
+---------------------------------------------------
+---------------------------------------------------
+CIS Force Matrix Element
+  Atom         X              Y              Z     
+---------------------------------------------------
+   1       0.038439       0.017482       0.002181
+   2      -0.001697      -0.046007      -0.002113
+   3      -0.038386       0.018019       0.000621
+   4       0.034743      -0.023092       0.008820
+   5      -0.028011      -0.017016      -0.003483
+   6       0.064773       0.017145      -0.003983
+   7      -0.069316       0.051425       0.007907
+   8      -0.001817      -0.083624       0.000048
+   9       0.071761       0.053094      -0.010429
+  10      -0.070083       0.014117      -0.001690
+  11       0.001081      -0.000019       0.000493
+  12      -0.000132       0.000040       0.000716
+  13      -0.001182      -0.000019      -0.001217
+  14       0.000588      -0.000313       0.000917
+  15      -0.001713       0.000020       0.001539
+  16       0.000590      -0.002036       0.001497
+  17       0.001267       0.000657      -0.000077
+  18      -0.000906       0.000127      -0.001746
+---------------------------------------------------
+---------------------------------------------------
+CIS derivative coupling without ETF
+  Atom         X              Y              Z     
+---------------------------------------------------
+   1       0.196618       0.079906      -0.019492
+   2      -0.006479      -0.281111      -0.016250
+   3      -0.196940       0.092560       0.022891
+   4       0.211998      -0.082819       0.052821
+   5      -0.185907      -0.054426      -0.022933
+   6       0.370291       0.100752      -0.015162
+   7      -0.382894       0.284348       0.055288
+   8      -0.007411      -0.476970       0.014133
+   9       0.400598       0.289884      -0.068554
+  10      -0.398622       0.077799      -0.015362
+  11       0.006101      -0.002896       0.003203
+  12      -0.000493       0.002190       0.003404
+  13      -0.007293      -0.000982      -0.007366
+  14       0.001069      -0.000907       0.008362
+  15      -0.008608       0.000352       0.005800
+  16       0.003180      -0.010454       0.008885
+  17       0.006770       0.001482       0.002201
+  18      -0.003517       0.001976      -0.009858
+---------------------------------------------------
+              between states 0 and 4
+NCharge is 0
+ get_w_dc time:  CPU 14.26 s  wall 5.22 s
+ AOints 129 time:  CPU 78.22 s  wall 26.66 s
+ DFT time  CPU 4.16 s  wall 3.61 s
+ Ei = -385.358048
+ Ej = -385.187633
+ Ej-Ei = 0.170415
+---------------------------------------------------
+DC between ground and excited states with ETF:
+  Atom         X              Y              Z     
+---------------------------------------------------
+   1       0.060327       0.014785       0.103595
+   2      -0.011883      -0.056201       0.001721
+   3       0.007119       0.027114      -0.124779
+   4      -0.005657      -0.081075      -0.007918
+   5      -0.029679       0.003430       0.084735
+   6       0.032168       0.021758      -0.142536
+   7      -0.027909       0.066441       0.028601
+   8      -0.004065      -0.063890       0.001171
+   9       0.046356       0.056483       0.010400
+  10      -0.070491       0.010384       0.073570
+  11       0.002994      -0.002601       0.010580
+  12       0.001307       0.000062       0.005262
+  13      -0.003766       0.002820      -0.000392
+  14      -0.001821      -0.000484      -0.063892
+  15       0.014212      -0.000160       0.036681
+  16       0.001020       0.000185      -0.010505
+  17      -0.003588      -0.000321      -0.009246
+  18      -0.006644       0.001270       0.002951
+---------------------------------------------------
+---------------------------------------------------
+CIS Force Matrix Element
+  Atom         X              Y              Z     
+---------------------------------------------------
+   1       0.010281       0.002520       0.017654
+   2      -0.002025      -0.009578       0.000293
+   3       0.001213       0.004621      -0.021264
+   4      -0.000964      -0.013816      -0.001349
+   5      -0.005058       0.000585       0.014440
+   6       0.005482       0.003708      -0.024290
+   7      -0.004756       0.011323       0.004874
+   8      -0.000693      -0.010888       0.000199
+   9       0.007900       0.009626       0.001772
+  10      -0.012013       0.001770       0.012537
+  11       0.000510      -0.000443       0.001803
+  12       0.000223       0.000011       0.000897
+  13      -0.000642       0.000481      -0.000067
+  14      -0.000310      -0.000083      -0.010888
+  15       0.002422      -0.000027       0.006251
+  16       0.000174       0.000031      -0.001790
+  17      -0.000611      -0.000055      -0.001576
+  18      -0.001132       0.000216       0.000503
+---------------------------------------------------
+---------------------------------------------------
+CIS derivative coupling without ETF
+  Atom         X              Y              Z     
+---------------------------------------------------
+   1       0.056069       0.001497       0.085400
+   2      -0.002013      -0.048980       0.001519
+   3       0.007444       0.032581      -0.121989
+   4      -0.007058      -0.072986      -0.057891
+   5      -0.039101       0.023292       0.148538
+   6       0.029861       0.026684      -0.127763
+   7      -0.010134       0.053013       0.020895
+   8      -0.002256      -0.055660      -0.009385
+   9       0.039194       0.055239       0.008691
+  10      -0.074225      -0.001673       0.078482
+  11       0.002002      -0.005422       0.009463
+  12       0.002957       0.000171       0.005673
+  13      -0.005882       0.003162       0.003597
+  14      -0.004792       0.000048      -0.075676
+  15       0.016328       0.001046       0.045936
+  16       0.001792       0.000685      -0.013364
+  17      -0.002638      -0.001556      -0.012584
+  18      -0.007534       0.000480       0.003548
+---------------------------------------------------
+              between states 0 and 5
+NCharge is 0
+ get_w_dc time:  CPU 14.36 s  wall 5.00 s
+ AOints 129 time:  CPU 78.07 s  wall 26.18 s
+ DFT time  CPU 4.20 s  wall 3.66 s
+ Ei = -385.358048
+ Ej = -385.178950
+ Ej-Ei = 0.179098
+---------------------------------------------------
+DC between ground and excited states with ETF:
+  Atom         X              Y              Z     
+---------------------------------------------------
+   1       0.085506       0.000853       0.008833
+   2      -0.051874      -0.007920       0.036952
+   3       0.107869       0.010685      -0.084688
+   4      -0.002439      -0.239920       0.167694
+   5       0.006318       0.272901      -0.112883
+   6      -0.187822      -0.042879      -0.101079
+   7       0.114598      -0.082670       0.045307
+   8       0.016556       0.039534       0.018639
+   9       0.040313       0.029938       0.039236
+  10      -0.086097       0.007371       0.002992
+  11      -0.005308      -0.012617       0.023045
+  12       0.005495      -0.003493       0.018130
+  13      -0.002936       0.017228      -0.016599
+  14      -0.018674       0.002231      -0.009861
+  15      -0.012256       0.012944      -0.007909
+  16       0.004980       0.002847      -0.004573
+  17      -0.002578      -0.008308       0.010936
+  18      -0.011652       0.001274      -0.034174
+---------------------------------------------------
+---------------------------------------------------
+CIS Force Matrix Element
+  Atom         X              Y              Z     
+---------------------------------------------------
+   1       0.015314       0.000153       0.001582
+   2      -0.009291      -0.001418       0.006618
+   3       0.019319       0.001914      -0.015167
+   4      -0.000437      -0.042969       0.030034
+   5       0.001132       0.048876      -0.020217
+   6      -0.033639      -0.007680      -0.018103
+   7       0.020524      -0.014806       0.008114
+   8       0.002965       0.007081       0.003338
+   9       0.007220       0.005362       0.007027
+  10      -0.015420       0.001320       0.000536
+  11      -0.000951      -0.002260       0.004127
+  12       0.000984      -0.000626       0.003247
+  13      -0.000526       0.003086      -0.002973
+  14      -0.003344       0.000400      -0.001766
+  15      -0.002195       0.002318      -0.001416
+  16       0.000892       0.000510      -0.000819
+  17      -0.000462      -0.001488       0.001959
+  18      -0.002087       0.000228      -0.006120
+---------------------------------------------------
+---------------------------------------------------
+CIS derivative coupling without ETF
+  Atom         X              Y              Z     
+---------------------------------------------------
+   1       0.085025      -0.042461      -0.093033
+   2      -0.012604       0.007727       0.017212
+   3       0.087254       0.043595       0.043607
+   4      -0.010291      -0.219998       0.047024
+   5       0.007138       0.262046      -0.037794
+   6      -0.167969      -0.020167       0.037008
+   7       0.105175      -0.071935       0.031229
+   8       0.011482       0.031541      -0.035666
+   9       0.044311       0.027821       0.016570
+  10      -0.077378      -0.027734      -0.003931
+  11      -0.008090      -0.020929       0.017845
+  12       0.012615      -0.004938       0.023446
+  13      -0.008343       0.023786      -0.012053
+  14      -0.022574       0.004403      -0.009875
+  15      -0.014110       0.019402      -0.008021
+  16       0.011048       0.003475      -0.009963
+  17      -0.001239      -0.013082       0.012084
+  18      -0.018637      -0.001264      -0.038715
+---------------------------------------------------
+              between states 1 and 2
+NCharge is 0
+ get_w_dc time:  CPU 32.51 s  wall 10.94 s
+ AOints 129 time:  CPU 77.93 s  wall 26.22 s
+ DFT time  CPU 4.19 s  wall 3.64 s
+ Ei = -385.313716
+ Ej = -385.237741
+ Ej-Ei = 0.075975
+---------------------------------------------------
+CIS derivative coupling without ETF
+  Atom         X              Y              Z     
+---------------------------------------------------
+   1       0.296221       0.152773       0.014523
+   2       0.002372      -0.638500      -0.021725
+   3      -0.319830       0.169059      -0.020799
+   4       0.024814       0.052915       0.026826
+   5       0.029636       0.134810      -0.000968
+   6      -0.375034       0.070913       0.114021
+   7       0.332310      -0.302894      -0.072768
+   8       0.005893       0.587933      -0.013020
+   9      -0.307494      -0.331469       0.084811
+  10       0.310751       0.123791      -0.105407
+  11       0.010634       0.001324      -0.009867
+  12      -0.002165      -0.003926       0.007416
+  13      -0.006903       0.000375      -0.008485
+  14      -0.005857      -0.005374      -0.011985
+  15       0.005985      -0.000575      -0.018556
+  16      -0.003338       0.006928      -0.005557
+  17      -0.007058      -0.006135       0.013908
+  18       0.000838      -0.009753       0.022888
+---------------------------------------------------
+---------------------------------------------------
+CIS Force Matrix Element
+  Atom         X              Y              Z     
+---------------------------------------------------
+   1       0.026624       0.013302       0.001660
+   2       0.000122      -0.043857      -0.001941
+   3      -0.028540       0.014406      -0.000781
+   4      -0.002745       0.004279       0.001190
+   5       0.007047       0.010573       0.000169
+   6      -0.023871       0.006934       0.007976
+   7       0.029422      -0.026183      -0.005268
+   8       0.000603       0.040085      -0.001060
+   9      -0.027290      -0.028695       0.006143
+  10       0.019251       0.010455      -0.007767
+  11       0.000806       0.000127      -0.000602
+  12      -0.000170      -0.000298       0.000624
+  13      -0.000552       0.000041      -0.000512
+  14      -0.000436      -0.000406      -0.000958
+  15       0.000491      -0.000055      -0.001260
+  16      -0.000263       0.000512      -0.000529
+  17      -0.000554      -0.000486       0.000972
+  18       0.000057      -0.000735       0.001942
+---------------------------------------------------
+---------------------------------------------------
+CIS derivative coupling with ETF
+  Atom         X              Y              Z     
+---------------------------------------------------
+   1       0.350427       0.175088       0.021844
+   2       0.001609      -0.577260      -0.025543
+   3      -0.375657       0.189618      -0.010279
+   4      -0.036125       0.056316       0.015667
+   5       0.092750       0.139169       0.002224
+   6      -0.314192       0.091263       0.104983
+   7       0.387261      -0.344622      -0.069333
+   8       0.007935       0.527611      -0.013949
+   9      -0.359204      -0.377692       0.080858
+  10       0.253389       0.137615      -0.102232
+  11       0.010613       0.001676      -0.007917
+  12      -0.002238      -0.003917       0.008217
+  13      -0.007271       0.000540      -0.006738
+  14      -0.005742      -0.005341      -0.012607
+  15       0.006458      -0.000724      -0.016585
+  16      -0.003460       0.006733      -0.006958
+  17      -0.007298      -0.006399       0.012789
+  18       0.000744      -0.009674       0.025559
+---------------------------------------------------
+              between states 1 and 3
+NCharge is 0
+ get_w_dc time:  CPU 32.72 s  wall 11.07 s
+ AOints 129 time:  CPU 78.18 s  wall 26.34 s
+ DFT time  CPU 4.13 s  wall 3.58 s
+ Ei = -385.313716
+ Ej = -385.193656
+ Ej-Ei = 0.120060
+---------------------------------------------------
+CIS derivative coupling without ETF
+  Atom         X              Y              Z     
+---------------------------------------------------
+   1       0.073865       0.002515       0.031046
+   2      -0.002084       0.025771      -0.023927
+   3       0.110082      -0.013915       0.023135
+   4      -0.037884      -0.329993       0.029090
+   5      -0.023704       0.345464       0.015613
+   6      -0.221471      -0.082401      -0.039325
+   7       0.088382      -0.003281      -0.001446
+   8       0.013504      -0.033258      -0.015063
+   9       0.086978       0.027593      -0.005807
+  10      -0.199809       0.042948      -0.014085
+  11       0.001668       0.000919      -0.000568
+  12      -0.000391       0.000802       0.000617
+  13       0.006219      -0.000439      -0.009658
+  14      -0.001825       0.001752      -0.000805
+  15       0.005819      -0.001944       0.005093
+  16       0.000227       0.000080       0.000104
+  17       0.003822       0.004710       0.010532
+  18      -0.003569       0.001459      -0.005407
+---------------------------------------------------
+---------------------------------------------------
+CIS Force Matrix Element
+  Atom         X              Y              Z     
+---------------------------------------------------
+   1       0.009590       0.000441       0.003203
+   2      -0.000300       0.002620      -0.002236
+   3       0.015042      -0.001879       0.002410
+   4      -0.001897      -0.040747       0.002973
+   5      -0.001666       0.042250       0.001134
+   6      -0.025581      -0.009720      -0.004915
+   7       0.011027       0.000264       0.000993
+   8       0.001743      -0.002964      -0.001233
+   9       0.012040       0.004117      -0.000073
+  10      -0.021392       0.004736      -0.001954
+  11       0.000202       0.000120      -0.000058
+  12      -0.000045       0.000098       0.000067
+  13       0.000768      -0.000047      -0.000898
+  14      -0.000215       0.000211      -0.000085
+  15       0.000648      -0.000221       0.000387
+  16       0.000027       0.000009       0.000048
+  17       0.000436       0.000542       0.001084
+  18      -0.000428       0.000172      -0.000847
+---------------------------------------------------
+---------------------------------------------------
+CIS derivative coupling with ETF
+  Atom         X              Y              Z     
+---------------------------------------------------
+   1       0.079877       0.003673       0.026682
+   2      -0.002501       0.021821      -0.018625
+   3       0.125288      -0.015652       0.020069
+   4      -0.015798      -0.339389       0.024766
+   5      -0.013876       0.351911       0.009445
+   6      -0.213066      -0.080958      -0.040937
+   7       0.091847       0.002198       0.008268
+   8       0.014516      -0.024690      -0.010274
+   9       0.100287       0.034287      -0.000607
+  10      -0.178178       0.039450      -0.016273
+  11       0.001681       0.000997      -0.000480
+  12      -0.000374       0.000814       0.000562
+  13       0.006396      -0.000393      -0.007482
+  14      -0.001787       0.001755      -0.000708
+  15       0.005399      -0.001842       0.003226
+  16       0.000222       0.000072       0.000399
+  17       0.003633       0.004511       0.009026
+  18      -0.003567       0.001435      -0.007057
+---------------------------------------------------
+              between states 1 and 4
+NCharge is 0
+ get_w_dc time:  CPU 32.48 s  wall 11.14 s
+ AOints 129 time:  CPU 77.82 s  wall 26.35 s
+ DFT time  CPU 4.11 s  wall 3.56 s
+ Ei = -385.313716
+ Ej = -385.187633
+ Ej-Ei = 0.126083
+---------------------------------------------------
+CIS derivative coupling without ETF
+  Atom         X              Y              Z     
+---------------------------------------------------
+   1      -0.004926       0.012387      -0.055099
+   2      -0.003288       0.034439       0.049116
+   3       0.073216      -0.021656      -0.067820
+   4      -0.028647      -0.051157      -0.220196
+   5       0.012145       0.063956      -0.042879
+   6      -0.062833      -0.021571       0.131248
+   7       0.023365      -0.015187      -0.005448
+   8       0.008818      -0.003064       0.068731
+   9      -0.005858       0.002544      -0.012305
+  10       0.005406      -0.013472       0.116806
+  11       0.000611       0.005753       0.029073
+  12       0.000663       0.000638      -0.001834
+  13      -0.010977       0.006424       0.113202
+  14      -0.000477      -0.000948       0.009073
+  15      -0.018648       0.001860      -0.065269
+  16       0.000047      -0.000105       0.000853
+  17      -0.007975      -0.008419      -0.056430
+  18       0.002063       0.001182       0.000106
+---------------------------------------------------
+---------------------------------------------------
+CIS Force Matrix Element
+  Atom         X              Y              Z     
+---------------------------------------------------
+   1      -0.000268       0.002692      -0.004229
+   2      -0.000069       0.004778       0.005053
+   3       0.008942      -0.002277      -0.005803
+   4      -0.003589      -0.008063      -0.024962
+   5       0.002006       0.006708      -0.004444
+   6      -0.008483      -0.002894       0.013173
+   7       0.002608      -0.001540      -0.000080
+   8       0.001083       0.000466       0.007741
+   9       0.000161       0.000826      -0.002999
+  10       0.001473      -0.001477       0.013478
+  11       0.000213       0.000652       0.003206
+  12       0.000082       0.000076      -0.000226
+  13      -0.001446       0.000744       0.012230
+  14      -0.000078      -0.000104       0.001103
+  15      -0.002077       0.000194      -0.007136
+  16       0.000001       0.000001       0.000101
+  17      -0.000857      -0.000911      -0.006121
+  18       0.000302       0.000130      -0.000083
+---------------------------------------------------
+---------------------------------------------------
+CIS derivative coupling with ETF
+  Atom         X              Y              Z     
+---------------------------------------------------
+   1      -0.002126       0.021355      -0.033545
+   2      -0.000549       0.037897       0.040073
+   3       0.070918      -0.018062      -0.046028
+   4      -0.028467      -0.063953      -0.197980
+   5       0.015907       0.053204      -0.035244
+   6      -0.067285      -0.022951       0.104477
+   7       0.020686      -0.012218      -0.000634
+   8       0.008588       0.003695       0.061392
+   9       0.001274       0.006551      -0.023786
+  10       0.011679      -0.011718       0.106897
+  11       0.001686       0.005174       0.025427
+  12       0.000650       0.000604      -0.001794
+  13      -0.011471       0.005902       0.097003
+  14      -0.000622      -0.000828       0.008745
+  15      -0.016474       0.001540      -0.056599
+  16       0.000008       0.000007       0.000799
+  17      -0.006799      -0.007227      -0.048546
+  18       0.002396       0.001030      -0.000656
+---------------------------------------------------
+              between states 1 and 5
+NCharge is 0
+ get_w_dc time:  CPU 33.22 s  wall 11.79 s
+ AOints 129 time:  CPU 77.83 s  wall 26.29 s
+ DFT time  CPU 4.07 s  wall 3.51 s
+ Ei = -385.313716
+ Ej = -385.178950
+ Ej-Ei = 0.134766
+---------------------------------------------------
+CIS derivative coupling without ETF
+  Atom         X              Y              Z     
+---------------------------------------------------
+   1      -0.171075       0.057027       0.046992
+   2       0.002221       0.011195       0.008120
+   3       0.146034       0.065044       0.005072
+   4      -0.211796       0.026666      -0.080746
+   5       0.206636       0.018554       0.093990
+   6      -0.128180      -0.093844      -0.115603
+   7       0.073799      -0.052841       0.015248
+   8      -0.007154       0.072736      -0.018779
+   9      -0.072934      -0.052710      -0.002339
+  10       0.154045      -0.075107       0.065275
+  11       0.001465      -0.005086      -0.032658
+  12       0.000517       0.004976      -0.003295
+  13       0.002178       0.000280      -0.012837
+  14      -0.003208       0.004586       0.002622
+  15       0.007761      -0.000503       0.028001
+  16      -0.000512       0.003417      -0.003563
+  17       0.002147       0.000488       0.005454
+  18       0.002923       0.004321      -0.001274
+---------------------------------------------------
+---------------------------------------------------
+CIS Force Matrix Element
+  Atom         X              Y              Z     
+---------------------------------------------------
+   1      -0.021183       0.009992       0.005479
+   2       0.000656       0.004078       0.000980
+   3       0.017073       0.011103       0.001105
+   4      -0.028945      -0.000377      -0.011841
+   5       0.029069      -0.002384       0.012744
+   6      -0.019276      -0.012897      -0.016287
+   7       0.007956      -0.006071       0.005576
+   8      -0.000543       0.011240      -0.001782
+   9      -0.008529      -0.006228      -0.004054
+  10       0.022263      -0.010306       0.010021
+  11       0.000088      -0.000551      -0.003666
+  12       0.000064       0.000681      -0.000463
+  13       0.000259       0.000032      -0.001200
+  14      -0.000448       0.000615       0.000518
+  15       0.000886      -0.000038       0.003061
+  16      -0.000069       0.000462      -0.000438
+  17       0.000278       0.000070       0.000681
+  18       0.000401       0.000579      -0.000435
+---------------------------------------------------
+---------------------------------------------------
+CIS derivative coupling with ETF
+  Atom         X              Y              Z     
+---------------------------------------------------
+   1      -0.157181       0.074147       0.040657
+   2       0.004868       0.030257       0.007269
+   3       0.126689       0.082390       0.008201
+   4      -0.214777      -0.002796      -0.087866
+   5       0.215699      -0.017691       0.094561
+   6      -0.143036      -0.095701      -0.120850
+   7       0.059039      -0.045048       0.041376
+   8      -0.004029       0.083401      -0.013220
+   9      -0.063290      -0.046215      -0.030082
+  10       0.165194      -0.076470       0.074360
+  11       0.000651      -0.004090      -0.027202
+  12       0.000475       0.005055      -0.003437
+  13       0.001924       0.000239      -0.008901
+  14      -0.003325       0.004561       0.003847
+  15       0.006575      -0.000281       0.022710
+  16      -0.000512       0.003432      -0.003253
+  17       0.002059       0.000517       0.005055
+  18       0.002978       0.004294      -0.003225
+---------------------------------------------------
+              between states 2 and 3
+NCharge is 0
+ get_w_dc time:  CPU 33.16 s  wall 11.80 s
+ AOints 129 time:  CPU 78.19 s  wall 26.41 s
+ DFT time  CPU 4.28 s  wall 3.72 s
+ Ei = -385.237741
+ Ej = -385.193656
+ Ej-Ei = 0.044085
+---------------------------------------------------
+CIS derivative coupling without ETF
+  Atom         X              Y              Z     
+---------------------------------------------------
+   1      -0.513531      -0.108256      -0.008708
+   2      -0.016678       0.809473       0.010625
+   3       0.696304      -0.152106       0.102888
+   4      -0.034151      -0.406647      -0.089272
+   5      -0.170770      -0.259836       0.010150
+   6       0.488115      -0.037243      -0.150695
+   7      -0.361554       0.435739       0.108656
+   8       0.013549      -0.700479       0.003739
+   9       0.412281       0.437111      -0.109639
+  10      -0.531549      -0.105827       0.120310
+  11      -0.014983      -0.005640      -0.007200
+  12       0.003214       0.008891      -0.012203
+  13       0.017483      -0.000628       0.020889
+  14       0.004973       0.013111       0.025836
+  15      -0.014313      -0.001602       0.019169
+  16       0.001886       0.000324       0.007533
+  17       0.019038       0.015247      -0.008601
+  18      -0.000032       0.019124      -0.041379
+---------------------------------------------------
+---------------------------------------------------
+CIS Force Matrix Element
+  Atom         X              Y              Z     
+---------------------------------------------------
+   1      -0.023925      -0.005178      -0.000342
+   2      -0.000729       0.034268       0.000468
+   3       0.032084      -0.007018       0.004363
+   4      -0.000052      -0.018302      -0.003112
+   5      -0.008822      -0.011776       0.000452
+   6       0.019470      -0.002110      -0.007203
+   7      -0.017923       0.020626       0.005029
+   8       0.000553      -0.028554       0.000312
+   9       0.020050       0.020779      -0.005105
+  10      -0.021468      -0.004891       0.005107
+  11      -0.000663      -0.000254      -0.000340
+  12       0.000143       0.000393      -0.000552
+  13       0.000787      -0.000030       0.000859
+  14       0.000221       0.000575       0.001193
+  15      -0.000650      -0.000064       0.000779
+  16       0.000088       0.000022       0.000390
+  17       0.000840       0.000672      -0.000395
+  18      -0.000002       0.000842      -0.001902
+---------------------------------------------------
+---------------------------------------------------
+CIS derivative coupling with ETF
+  Atom         X              Y              Z     
+---------------------------------------------------
+   1      -0.542702      -0.117453      -0.007758
+   2      -0.016544       0.777324       0.010614
+   3       0.727767      -0.159197       0.098964
+   4      -0.001186      -0.415149      -0.070600
+   5      -0.200104      -0.267127       0.010246
+   6       0.441636      -0.047872      -0.163388
+   7      -0.406566       0.467879       0.114064
+   8       0.012542      -0.647709       0.007083
+   9       0.454807       0.471343      -0.115802
+  10      -0.486976      -0.110944       0.115855
+  11      -0.015049      -0.005769      -0.007716
+  12       0.003237       0.008913      -0.012517
+  13       0.017859      -0.000682       0.019491
+  14       0.005002       0.013046       0.027059
+  15      -0.014734      -0.001449       0.017661
+  16       0.001998       0.000495       0.008842
+  17       0.019051       0.015244      -0.008950
+  18      -0.000039       0.019106      -0.043148
+---------------------------------------------------
+              between states 2 and 4
+NCharge is 0
+ get_w_dc time:  CPU 33.06 s  wall 11.41 s
+ AOints 129 time:  CPU 77.78 s  wall 26.45 s
+ DFT time  CPU 4.13 s  wall 3.57 s
+ Ei = -385.237741
+ Ej = -385.187633
+ Ej-Ei = 0.050109
+---------------------------------------------------
+CIS derivative coupling without ETF
+  Atom         X              Y              Z     
+---------------------------------------------------
+   1       0.090508       0.021752       0.116775
+   2      -0.008951       0.103810       0.003110
+   3       0.209777      -0.067580      -0.102606
+   4      -0.150170      -0.004961       0.252737
+   5      -0.265642      -0.036475      -0.185266
+   6       0.250007       0.046350      -0.220777
+   7      -0.182938       0.095338       0.029940
+   8       0.035203      -0.129517      -0.000972
+   9      -0.014977       0.052284       0.010094
+  10       0.040666      -0.085860       0.106997
+  11      -0.003664       0.005303       0.022950
+  12      -0.003026      -0.003188       0.010925
+  13       0.017795      -0.002002      -0.091621
+  14      -0.003760       0.002040       0.081577
+  15      -0.011829       0.011037       0.014087
+  16       0.000556      -0.003270       0.020794
+  17      -0.008785      -0.009711      -0.054641
+  18       0.007722       0.000279      -0.011246
+---------------------------------------------------
+---------------------------------------------------
+CIS Force Matrix Element
+  Atom         X              Y              Z     
+---------------------------------------------------
+   1       0.004197       0.001093       0.005856
+   2      -0.000298       0.004915       0.000028
+   3       0.010674      -0.003723      -0.005197
+   4      -0.007253      -0.000026       0.011972
+   5      -0.013356      -0.001902      -0.008865
+   6       0.012324       0.002251      -0.010487
+   7      -0.009407       0.004918       0.001712
+   8       0.001654      -0.006217      -0.000201
+   9      -0.000512       0.002792       0.000324
+  10       0.002308      -0.004149       0.005117
+  11      -0.000213       0.000255       0.001104
+  12      -0.000150      -0.000167       0.000517
+  13       0.000816      -0.000091      -0.004317
+  14      -0.000220       0.000116       0.003874
+  15      -0.000575       0.000543       0.000700
+  16       0.000027      -0.000164       0.001011
+  17      -0.000413      -0.000455      -0.002590
+  18       0.000396       0.000011      -0.000557
+---------------------------------------------------
+---------------------------------------------------
+CIS derivative coupling with ETF
+  Atom         X              Y              Z     
+---------------------------------------------------
+   1       0.083765       0.021806       0.116865
+   2      -0.005950       0.098093       0.000563
+   3       0.213012      -0.074298      -0.103721
+   4      -0.144745      -0.000518       0.238924
+   5      -0.266540      -0.037967      -0.176924
+   6       0.245953       0.044920      -0.209277
+   7      -0.187727       0.098148       0.034156
+   8       0.033009      -0.124080      -0.004017
+   9      -0.010218       0.055721       0.006466
+  10       0.046063      -0.082791       0.102110
+  11      -0.004241       0.005085       0.022032
+  12      -0.002993      -0.003332       0.010321
+  13       0.016281      -0.001825      -0.086144
+  14      -0.004392       0.002324       0.077302
+  15      -0.011481       0.010842       0.013968
+  16       0.000540      -0.003263       0.020177
+  17      -0.008241      -0.009087      -0.051691
+  18       0.007906       0.000221      -0.011109
+---------------------------------------------------
+              between states 2 and 5
+NCharge is 0
+ get_w_dc time:  CPU 33.20 s  wall 11.87 s
+ AOints 129 time:  CPU 77.21 s  wall 26.34 s
+ DFT time  CPU 4.15 s  wall 3.59 s
+ Ei = -385.237741
+ Ej = -385.178950
+ Ej-Ei = 0.058792
+---------------------------------------------------
+CIS derivative coupling without ETF
+  Atom         X              Y              Z     
+---------------------------------------------------
+   1       0.477719       0.171749      -0.014596
+   2      -0.125124      -0.138523      -0.097714
+   3       0.280036      -0.114442      -0.015993
+   4      -0.436137       0.118749      -0.024866
+   5      -0.420493      -0.018244       0.112887
+   6       0.359513       0.125965      -0.063826
+   7      -0.342731       0.168423       0.046932
+   8       0.087692       0.000593      -0.060022
+   9      -0.275497      -0.126276       0.027968
+  10       0.367606      -0.162586      -0.062549
+  11      -0.002992      -0.003761      -0.009167
+  12      -0.014032      -0.006541       0.054416
+  13      -0.005154       0.007675       0.024623
+  14       0.016776       0.001695       0.000623
+  15       0.003512      -0.007189       0.024577
+  16       0.002705      -0.002549       0.023748
+  17       0.000751      -0.001719       0.005080
+  18       0.009790      -0.006404       0.028988
+---------------------------------------------------
+---------------------------------------------------
+CIS Force Matrix Element
+  Atom         X              Y              Z     
+---------------------------------------------------
+   1       0.027978       0.010050      -0.000551
+   2      -0.007397      -0.008363      -0.005242
+   3       0.016602      -0.007073      -0.001419
+   4      -0.026287       0.007368      -0.001183
+   5      -0.024173      -0.000561       0.006091
+   6       0.021896       0.007560      -0.003784
+   7      -0.019419       0.009446       0.003361
+   8       0.004976      -0.000680      -0.004184
+   9      -0.016640      -0.007626       0.001656
+  10       0.021786      -0.009063      -0.003338
+  11      -0.000155      -0.000203      -0.000440
+  12      -0.000812      -0.000364       0.003009
+  13      -0.000294       0.000458       0.001355
+  14       0.000989       0.000101       0.000020
+  15       0.000196      -0.000416       0.001435
+  16       0.000156      -0.000151       0.001331
+  17       0.000030      -0.000115       0.000223
+  18       0.000566      -0.000368       0.001662
+---------------------------------------------------
+---------------------------------------------------
+CIS derivative coupling with ETF
+  Atom         X              Y              Z     
+---------------------------------------------------
+   1       0.475890       0.170947      -0.009369
+   2      -0.125820      -0.142245      -0.089170
+   3       0.282388      -0.120310      -0.024144
+   4      -0.447128       0.125324      -0.020125
+   5      -0.411159      -0.009535       0.103609
+   6       0.372441       0.128585      -0.064366
+   7      -0.330307       0.160671       0.057159
+   8       0.084644      -0.011560      -0.071174
+   9      -0.283040      -0.129710       0.028169
+  10       0.370565      -0.154152      -0.056782
+  11      -0.002629      -0.003461      -0.007492
+  12      -0.013805      -0.006190       0.051187
+  13      -0.004998       0.007797       0.023051
+  14       0.016824       0.001713       0.000347
+  15       0.003337      -0.007083       0.024410
+  16       0.002655      -0.002565       0.022632
+  17       0.000511      -0.001963       0.003792
+  18       0.009629      -0.006261       0.028266
+---------------------------------------------------
+              between states 3 and 4
+NCharge is 0
+ get_w_dc time:  CPU 32.20 s  wall 10.80 s
+ AOints 129 time:  CPU 76.05 s  wall 25.47 s
+ DFT time  CPU 4.03 s  wall 3.48 s
+ Ei = -385.193656
+ Ej = -385.187633
+ Ej-Ei = 0.006024
+---------------------------------------------------
+CIS derivative coupling without ETF
+  Atom         X              Y              Z     
+---------------------------------------------------
+   1       1.873874       0.200165       0.617744
+   2      -0.150241      -1.896378      -0.179767
+   3      -0.699196      -0.151516       0.459607
+   4      -0.333020      -1.905470       0.114798
+   5      -0.366577       2.962343      -1.297880
+   6      -0.569240      -0.658067      -0.620816
+   7       1.091078       0.939062       0.462911
+   8      -0.580754      -0.366252       1.218309
+   9       1.833980      -0.123371       0.448935
+  10      -1.561910       1.077312       0.221675
+  11      -0.042848       0.020445      -0.133505
+  12      -0.029299      -0.004939       0.116561
+  13      -0.338684       0.038209      -0.418712
+  14       0.154087       0.015216       0.978446
+  15      -0.156412      -0.117779      -1.096140
+  16       0.032925      -0.044044      -0.040722
+  17      -0.107443       0.019094      -0.878103
+  18      -0.047855       0.001706       0.031520
+---------------------------------------------------
+---------------------------------------------------
+CIS Force Matrix Element
+  Atom         X              Y              Z     
+---------------------------------------------------
+   1       0.011255       0.001174       0.003671
+   2      -0.000916      -0.011464      -0.001061
+   3      -0.004172      -0.000948       0.002719
+   4      -0.001998      -0.011400       0.000663
+   5      -0.002222       0.017927      -0.007789
+   6      -0.003386      -0.003932      -0.003653
+   7       0.006606       0.005613       0.002739
+   8      -0.003507      -0.002253       0.007297
+   9       0.010996      -0.000783       0.002673
+  10      -0.009445       0.006496       0.001347
+  11      -0.000259       0.000123      -0.000801
+  12      -0.000176      -0.000030       0.000699
+  13      -0.002037       0.000232      -0.002499
+  14       0.000925       0.000093       0.005852
+  15      -0.000928      -0.000713      -0.006546
+  16       0.000198      -0.000265      -0.000248
+  17      -0.000644       0.000120      -0.005250
+  18      -0.000289       0.000010       0.000190
+---------------------------------------------------
+---------------------------------------------------
+CIS derivative coupling with ETF
+  Atom         X              Y              Z     
+---------------------------------------------------
+   1       1.868418       0.194818       0.609421
+   2      -0.152063      -1.903153      -0.176152
+   3      -0.692573      -0.157432       0.451333
+   4      -0.331710      -1.892483       0.110047
+   5      -0.368899       2.976104      -1.293142
+   6      -0.562085      -0.652780      -0.606485
+   7       1.096647       0.931857       0.454683
+   8      -0.582199      -0.373975       1.211363
+   9       1.825420      -0.129996       0.443709
+  10      -1.568036       1.078420       0.223537
+  11      -0.043005       0.020428      -0.133055
+  12      -0.029261      -0.004948       0.116013
+  13      -0.338201       0.038484      -0.414897
+  14       0.153558       0.015417       0.971515
+  15      -0.154083      -0.118373      -1.086719
+  16       0.032896      -0.044015      -0.041141
+  17      -0.106843       0.019896      -0.871623
+  18      -0.047982       0.001731       0.031594
+---------------------------------------------------
+              between states 3 and 5
+NCharge is 0
+ get_w_dc time:  CPU 32.13 s  wall 10.79 s
+ AOints 129 time:  CPU 75.66 s  wall 25.33 s
+ DFT time  CPU 3.96 s  wall 3.40 s
+ Ei = -385.193656
+ Ej = -385.178950
+ Ej-Ei = 0.014707
+---------------------------------------------------
+CIS derivative coupling without ETF
+  Atom         X              Y              Z     
+---------------------------------------------------
+   1       1.522782       0.305305      -0.034188
+   2       0.019327      -1.965098      -0.005122
+   3      -2.348341       0.395950      -0.212099
+   4       1.998132       0.509969       0.362798
+   5      -0.966952      -0.412447      -0.047927
+   6       1.439822       0.108028      -0.279529
+   7      -0.960362       0.799470       0.031475
+   8      -0.045570      -0.988039      -0.059248
+   9       0.929346       1.223630      -0.175127
+  10      -1.662683      -0.044002       0.358748
+  11       0.019663       0.038790       0.029583
+  12       0.004178      -0.002029      -0.017316
+  13      -0.004847       0.007212       0.005935
+  14       0.033915       0.026763       0.054648
+  15       0.012041       0.009700       0.227511
+  16       0.003121      -0.039383      -0.011278
+  17       0.037631       0.007196       0.000686
+  18      -0.022023       0.037241      -0.229313
+---------------------------------------------------
+---------------------------------------------------
+CIS Force Matrix Element
+  Atom         X              Y              Z     
+---------------------------------------------------
+   1       0.022030       0.004242      -0.000580
+   2       0.000264      -0.029291       0.000044
+   3      -0.034179       0.005578      -0.003191
+   4       0.029387       0.008374       0.005139
+   5      -0.014284      -0.005325      -0.000825
+   6       0.021640       0.001822      -0.003880
+   7      -0.013617       0.011360       0.000484
+   8      -0.000642      -0.015025      -0.000836
+   9       0.013145       0.017516      -0.002548
+  10      -0.024959      -0.000488       0.005411
+  11       0.000288       0.000562       0.000394
+  12       0.000061      -0.000038      -0.000250
+  13      -0.000072       0.000107       0.000060
+  14       0.000498       0.000393       0.000789
+  15       0.000167       0.000145       0.003302
+  16       0.000045      -0.000580      -0.000174
+  17       0.000552       0.000103      -0.000014
+  18      -0.000324       0.000546      -0.003327
+---------------------------------------------------
+---------------------------------------------------
+CIS derivative coupling with ETF
+  Atom         X              Y              Z     
+---------------------------------------------------
+   1       1.497971       0.288469      -0.039444
+   2       0.017955      -1.991696       0.002974
+   3      -2.324066       0.379252      -0.216962
+   4       1.998182       0.569415       0.349442
+   5      -0.971277      -0.362093      -0.056086
+   6       1.471410       0.123869      -0.263796
+   7      -0.925874       0.772427       0.032927
+   8      -0.043620      -1.021611      -0.056816
+   9       0.893811       1.191019      -0.173245
+  10      -1.697113      -0.033157       0.367907
+  11       0.019602       0.038182       0.026792
+  12       0.004143      -0.002574      -0.017026
+  13      -0.004915       0.007251       0.004101
+  14       0.033870       0.026700       0.053674
+  15       0.011340       0.009832       0.224551
+  16       0.003072      -0.039420      -0.011859
+  17       0.037509       0.007011      -0.000924
+  18      -0.022000       0.037126      -0.226210
+---------------------------------------------------
+              between states 4 and 5
+NCharge is 0
+ get_w_dc time:  CPU 32.18 s  wall 10.81 s
+ AOints 129 time:  CPU 74.75 s  wall 25.03 s
+ DFT time  CPU 3.97 s  wall 3.41 s
+ Ei = -385.187633
+ Ej = -385.178950
+ Ej-Ei = 0.008683
+---------------------------------------------------
+CIS derivative coupling without ETF
+  Atom         X              Y              Z     
+---------------------------------------------------
+   1       1.088566      -0.495713       0.054921
+   2       0.143143      -0.043453       0.263157
+   3      -0.915133      -0.803487      -0.963042
+   4       1.166003      -1.285673       1.111428
+   5      -0.870449       3.496165      -0.227312
+   6      -0.572804      -2.250543      -0.784149
+   7       0.608755       1.893011      -0.158112
+   8      -0.981545      -0.618836       0.247106
+   9       1.568085       0.283777      -0.516921
+  10      -1.499899       0.351996       0.752812
+  11      -0.206558       0.023450       0.039621
+  12      -0.055039      -0.134240       0.048021
+  13      -0.055204       0.011589      -0.208699
+  14       0.167464       0.051105       0.285060
+  15       0.374503      -0.376114       0.150279
+  16       0.048611       0.009521      -0.006025
+  17      -0.112323      -0.044878      -0.238001
+  18       0.110186      -0.056678       0.149842
+---------------------------------------------------
+---------------------------------------------------
+CIS Force Matrix Element
+  Atom         X              Y              Z     
+---------------------------------------------------
+   1       0.009445      -0.004338       0.000483
+   2       0.001216      -0.000427       0.002336
+   3      -0.007907      -0.006953      -0.008460
+   4       0.010055      -0.011171       0.009723
+   5      -0.007547       0.030408      -0.001972
+   6      -0.004988      -0.019550      -0.006939
+   7       0.005303       0.016412      -0.001343
+   8      -0.008517      -0.005394       0.002140
+   9       0.013591       0.002454      -0.004526
+  10      -0.013038       0.003033       0.006638
+  11      -0.001789       0.000205       0.000353
+  12      -0.000477      -0.001153       0.000417
+  13      -0.000463       0.000101      -0.001839
+  14       0.001470       0.000444       0.002485
+  15       0.003259      -0.003266       0.001329
+  16       0.000423       0.000083      -0.000046
+  17      -0.000983      -0.000398      -0.002095
+  18       0.000950      -0.000489       0.001315
+---------------------------------------------------
+---------------------------------------------------
+CIS derivative coupling with ETF
+  Atom         X              Y              Z     
+---------------------------------------------------
+   1       1.087731      -0.499597       0.055583
+   2       0.139999      -0.049162       0.269084
+   3      -0.910599      -0.800751      -0.974339
+   4       1.158019      -1.286478       1.119793
+   5      -0.869148       3.501942      -0.227068
+   6      -0.574504      -2.251531      -0.799138
+   7       0.610736       1.890129      -0.154621
+   8      -0.980874      -0.621228       0.246478
+   9       1.565188       0.282563      -0.521259
+  10      -1.501558       0.349287       0.764492
+  11      -0.206051       0.023629       0.040673
+  12      -0.054936      -0.132786       0.048014
+  13      -0.053368       0.011649      -0.211772
+  14       0.169286       0.051164       0.286222
+  15       0.375272      -0.376148       0.153113
+  16       0.048699       0.009541      -0.005347
+  17      -0.113243      -0.045875      -0.241297
+  18       0.109353      -0.056347       0.151391
+---------------------------------------------------
+ Derivative coupling time:  CPU 1631.29 s  wall 590.04 s
+ Total job time:  916.14s(wall), 2532.63s(cpu) 
+ Sat Feb 28 10:44:06 2026
+
+        *************************************************************
+        *                                                           *
+        *  Thank you very much for using Q-Chem.  Have a nice day.  *
+        *                                                           *
+        *************************************************************
+
+
