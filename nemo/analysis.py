@@ -879,7 +879,6 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
         sigma = np.hstack((sigma, sigma_ic))
         couplings = np.hstack((socs_complete, np.sqrt(h_ic)))
         gap = np.hstack((delta_isc,delta_ic))
-        print('Shape',gap.shape, y_axis.shape)
     else:
         mean_soc = 1000 * means(socs_complete, y_axis, ensemble_average)[:, np.newaxis]
         gap = delta_isc
