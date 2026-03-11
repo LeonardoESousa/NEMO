@@ -77,6 +77,10 @@ def analysis(files, n_state, get_energies):
             ind_t,
             ss_s,
             ss_t,
+            theta_s,
+            phi_s,
+            theta_t,
+            phi_t,
             ground_pol,
             y_s,
             y_t,
@@ -86,6 +90,10 @@ def analysis(files, n_state, get_energies):
         oscs = np.array([oscs[:n_state]])
         ss_s = np.array([ss_s[:n_state]])
         ss_t = np.array([ss_t[:n_state]])
+        theta_s = np.array([theta_s[:n_state]])
+        phi_s = np.array([phi_s[:n_state]])
+        theta_t = np.array([theta_t[:n_state]])
+        phi_t = np.array([phi_t[:n_state]])
         ind_s = np.array([ind_s[:n_state]])
         ind_t = np.array([ind_t[:n_state]])
         y_s = np.array([y_s[:n_state]])
@@ -97,6 +105,10 @@ def analysis(files, n_state, get_energies):
             total_oscs = np.vstack((total_oscs, oscs))
             total_ss_s = np.vstack((total_ss_s, ss_s))
             total_ss_t = np.vstack((total_ss_t, ss_t))
+            total_theta_s = np.vstack((total_theta_s, theta_s))
+            total_phi_s = np.vstack((total_phi_s, phi_s))
+            total_theta_t = np.vstack((total_theta_t, theta_t))
+            total_phi_t = np.vstack((total_phi_t, phi_t))
             total_ind_s = np.vstack((total_ind_s, ind_s))
             total_ind_t = np.vstack((total_ind_t, ind_t))
             total_y_s = np.vstack((total_y_s, y_s))
@@ -108,6 +120,10 @@ def analysis(files, n_state, get_energies):
             total_oscs = oscs
             total_ss_s = ss_s
             total_ss_t = ss_t
+            total_theta_s = theta_s
+            total_phi_s = phi_s
+            total_theta_t = theta_t
+            total_phi_t = phi_t
             total_ind_s = ind_s
             total_ind_t = ind_t
             total_y_s = y_s
@@ -122,6 +138,10 @@ def analysis(files, n_state, get_energies):
         total_oscs,
         total_ss_s,
         total_ss_t,
+        total_theta_s,
+        total_phi_s,
+        total_theta_t,
+        total_phi_t,
         total_ground_pol,
         total_ind_s,
         total_ind_t,
@@ -222,6 +242,10 @@ def gather_data(initial, save=True):
     oscs,
     ss_s,
     ss_t,
+    theta_s,
+    phi_s,
+    theta_t,
+    phi_t,
     ground_pol,
     ind_s,
     ind_t,
@@ -249,6 +273,18 @@ def gather_data(initial, save=True):
     for i in range(ss_t.shape[1]):
         data[f"chi_t{i+1}"] = ss_t[:, i]
         formats[f"chi_t{i+1}"] = "{:.4f}"
+    for i in range(theta_s.shape[1]):
+        data[f"theta_s{i+1}"] = theta_s[:, i]
+        formats[f"theta_s{i+1}"] = "{:.4f}"
+    for i in range(phi_s.shape[1]):
+        data[f"phi_s{i+1}"] = phi_s[:, i]
+        formats[f"phi_s{i+1}"] = "{:.4f}"
+    for i in range(theta_t.shape[1]):
+        data[f"theta_t{i+1}"] = theta_t[:, i]
+        formats[f"theta_t{i+1}"] = "{:.4f}"
+    for i in range(phi_t.shape[1]):
+        data[f"phi_t{i+1}"] = phi_t[:, i]
+        formats[f"phi_t{i+1}"] = "{:.4f}"
     for i in range(gamma_s.shape[1]):
         data[f"gamma_s{i+1}"] = gamma_s[:, i]
         formats[f"gamma_s{i+1}"] = "{:.4f}"
@@ -390,9 +426,6 @@ def gather_data(initial, save=True):
                 _, _, h = gather_data_derivative_couplings("s"+str(i), "s"+str(j), data, data_dc, data_V)
                 data[f"IC_{i}_{j}"] = h
                 formats[f"IC_{i}_{j}"] = "{:.5e}"
-        #header.extend([f"IC_{i}_{j}(eV)" for i, j in combinations(states, 2)])
-        #any({formats.update({f"IC_{i}_{j}(eV)": "{:.5e}"}) for i, j in combinations(states, 2)})
-        #data=np.hstack((data, h))
 
     arquivo = f"Ensemble_{initial.upper()}_.lx"
     data["ensemble"] = initial.upper()
@@ -680,10 +713,15 @@ def breakdown_emi(chi_s, chi_t, delta_emi, l_total, individual, labels):
     return breakdown
 
 
-def lambda_solvent(chi_i, chi_f, alphaopt, alphast):
-    chi_t = chi_i + chi_f - 2 * np.sqrt(chi_i * chi_f)
+def lambda_solvent(chi_i, theta_i, phi_i, chi_f, theta_f, phi_f, alphaopt, alphast):
+    cos = compute_cos(theta_i,phi_i, theta_f, phi_f)
+    chi_t = chi_i + chi_f - 2 * np.sqrt(chi_i * chi_f) * cos
     lambda_b = chi_t * (alphast - alphaopt)  #chi_f * (alphast - alphaopt)
     return lambda_b
+
+def compute_cos(theta_i, theta_f, phi_i, phi_f):
+    cos = np.cos(theta_i) * np.cos(theta_f) + np.sin(theta_i) * np.sin(theta_f) * np.cos(phi_i - phi_f)
+    return cos
 
 
 ###CALCULATES ISC AND EMISSION RATES & SPECTRA#########################################
@@ -713,6 +751,14 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
     gamma_s = fetch(data, ["^gamma_s(?!0)"])
     gamma_t = fetch(data, ["^gamma_t"])
 
+    #excited state normalized electron dipole moment differences (mu-mu_0)/|mu-mu_0|
+    #  ---- elevation angle
+    theta_s = fetch(data, ["^theta_s"])
+    theta_t = fetch(data, ["^theta_t"])
+    # ---- azimuthal angle
+    phi_s = fetch(data, ["^phi_s"])
+    phi_t = fetch(data, ["^phi_t"])
+
     # oscillator strengths
     oscs = fetch(data, ["^osce_"])
     
@@ -738,6 +784,8 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
         triplets = np.zeros_like(singlets)
         chi_t = np.zeros_like(chi_s)
         gamma_t = np.zeros_like(gamma_s)
+        theta_t = np.zeros_like(theta_s)
+        phi_t = np.zeros_like(phi_s)
     if socs_complete.size == 0:
         socs_complete = np.zeros((singlets.shape[0], singlets.shape[1]**2))
     if h_ic.size == 0:
@@ -754,11 +802,13 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
     energies = singlets if "s" in initial else triplets
     chis = chi_s if "s" in initial else chi_t
     gammas = gamma_s if "s" in initial else gamma_t
+    thetas = theta_s if "s" in initial else theta_t
+    phis = phi_s if "s" in initial else phi_t
 
     initial_energy = energies - (gammas + chis) * alphast2
-    initial_energy, energies, oscs, chis, gammas, socs_complete, h_ic, socs_s0 = sorting_parameters(initial_energy, energies, oscs, chis, gammas, socs_complete, h_ic, socs_s0)
+    initial_energy, energies, oscs, chis, gammas, thetas, phis, socs_complete, h_ic, socs_s0 = sorting_parameters(initial_energy, energies, oscs, chis, gammas, thetas, phis, socs_complete, h_ic, socs_s0)
     
-    lambda_emission = lambda_solvent(chis, 0, alphaopt2, alphast2)
+    lambda_emission = lambda_solvent(chis, thetas, phis, 0, 0, 0, alphaopt2, alphast2)
     final_energy_emission = - gamma_s0 * alphast2
     delta_emi = final_energy_emission - initial_energy + lambda_emission    
     delta_emi *= -1
@@ -814,8 +864,8 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
     if "s" in initial:
         # Sm to Tn ISC
         final_energy_isc = triplets - (gamma_t + chi_t) * alphast2
-        final_energy_isc, triplets, chi_t, gamma_t, socs_complete = sorting_parameters(final_energy_isc, triplets, chi_t, gamma_t, socs_complete)
-        lambda_b_isc = lambda_solvent(chis, chi_t, alphaopt2, alphast2)
+        final_energy_isc, triplets, chi_t, gamma_t, theta_t, phi_t, socs_complete = sorting_parameters(final_energy_isc, triplets, chi_t, gamma_t, theta_t, phi_t, socs_complete)
+        lambda_b_isc = lambda_solvent(chis, thetas, phis, chi_t, theta_t, phi_t, alphaopt2, alphast2)
         delta_isc = final_energy_isc - initial_energy[:, np.newaxis] + lambda_b_isc
         sigma_int = np.std(delta_isc, axis=0)
         final = [
@@ -825,8 +875,8 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
         ]
         # Sm to Sn IC
         final_energy_ic = singlets - (gamma_s + chi_s) * alphast2
-        final_energy_ic, singlets, chi_s, gamma_s, h_ic = sorting_parameters(final_energy_ic, singlets, chi_s, gamma_s, h_ic)
-        lambda_b_ic = lambda_solvent(chis, chi_s, alphaopt2, alphast2)
+        final_energy_ic, singlets, chi_s, gamma_s, theta_s, phi_s, h_ic = sorting_parameters(final_energy_ic, singlets, chi_s, gamma_s, theta_s, phi_s, h_ic)
+        lambda_b_ic = lambda_solvent(chis, thetas, phis, chi_s, theta_s, phi_s, alphaopt2, alphast2)
         delta_ic = final_energy_ic - initial_energy[:, np.newaxis] + lambda_b_ic
         #remove column corresponding to the initial state
         delta_ic = np.delete(delta_ic, n_state, axis=1)
@@ -844,8 +894,8 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
     elif "t" in initial:
         # Tn to Sm ISC
         final_energy_isc = singlets - (gamma_s + chi_s) * alphast2
-        final_energy_isc, singlets, chi_s, gamma_s, socs_complete = sorting_parameters(final_energy_isc, singlets, chi_s, gamma_s, socs_complete)
-        lambda_b_isc = lambda_solvent(chis, chi_s, alphaopt2, alphast2)
+        final_energy_isc, singlets, chi_s, gamma_s, theta_s, phi_s, socs_complete = sorting_parameters(final_energy_isc, singlets, chi_s, gamma_s, theta_s, phi_s, socs_complete)
+        lambda_b_isc = lambda_solvent(chis, thetas, phis, chi_s, theta_s, phi_s, alphaopt2, alphast2)
         delta_isc = final_energy_isc - initial_energy[:, np.newaxis] + lambda_b_isc
         
         final = [
@@ -1033,6 +1083,12 @@ def absorption(initial, dielec, data=None, save=False, detailed=False, nstates=-
     chis = fetch(data, [f"^chi_{spin}(?!0)"])
     gammas = fetch(data, [f"^gamma_{spin}(?!0)"])
 
+    #excited state normalized electron dipole moment differences (mu-mu_0)/|mu-mu_0|
+    #  ---- elevation angle
+    thetas = fetch(data, [f"^theta_{spin}"])
+    # ---- azimuthal angle
+    phis = fetch(data, [f"^phi_{spin}"])
+
     #oscillator strengths
     oscs = fetch(data, ["^osc_"])
 
@@ -1047,19 +1103,23 @@ def absorption(initial, dielec, data=None, save=False, detailed=False, nstates=-
     if initial == "s0":
         initial_energy = - gamma_s0 * alphast2
         final_energy = engs - gammas * alphast2 - chis * alphaopt2
-        lambda_b = lambda_solvent(0, chis, alphaopt2, alphast2)
+        lambda_b = lambda_solvent(0, 0, 0, chis, thetas, phis, alphaopt2, alphast2)
         deltae = final_energy - initial_energy
     else:
         initial_energy = engs - (gammas + chis) * alphast2
         initial_energy = initial_energy[:, n_state-1]
         chi_initial = chis[:, n_state-1]
+        theta_initial = thetas[:, n_state-1]
+        phi_initial = phis[:, n_state-1]
         engs = engs[:, n_state:]
         chis = chis[:, n_state:]
+        thetas = thetas[:, n_state:]
+        phis = phis[:, n_state:]
         gammas = gammas[:, n_state:]
 
         final_energy = engs - gammas * alphast2 - chis * alphaopt2
         deltae = final_energy - initial_energy[:,np.newaxis]
-        lambda_b = lambda_solvent(chi_initial[:, np.newaxis], chis, alphaopt2, alphast2)
+        lambda_b = lambda_solvent(chi_initial[:, np.newaxis], theta_initial[:, np.newaxis], phi_initial[:, np.newaxis], chis, thetas, phis, alphaopt2, alphast2)
 
 
     l_total = total_reorganization_energy(lambda_b, kbt, np.std(deltae, axis=0))
