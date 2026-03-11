@@ -3,7 +3,10 @@
 *out
 *log
 __pycache__
-*test*
+*teste*
 build
 *egg*
 venv
+!tests/*lx
+!tests/*log
+!tests/Geometries/*

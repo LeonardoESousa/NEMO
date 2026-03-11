@@ -35,3 +35,8 @@ exclude = ["tests", "*.tests", "*.tests.*", "tests.*"]
 
 [tool.setuptools.dynamic]
 version = { attr = "nemo.__version__.__version__" }
+
+[project.optional-dependencies]
+test = [
+  "pytest"
+]
