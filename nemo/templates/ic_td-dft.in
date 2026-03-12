@@ -6,6 +6,7 @@ calc_soc                {soc}
 STS_MOM                 true
 MAX_CIS_CYCLES          200
 MAX_SCF_CYCLES          200
+SYM_IGNORE              TRUE
 $end
 
 
@@ -29,6 +30,7 @@ CIS_RELAXED_DENSITY     TRUE
 solvent_method          PCM
 MAX_CIS_CYCLES          200
 MAX_SCF_CYCLES          200
+SYM_IGNORE              TRUE
 $end
 
 $pcm
@@ -57,6 +59,7 @@ MAX_CIS_CYCLES          200
 MAX_SCF_CYCLES          200
 CIS_DER_NUMSTATE        {cis_der}
 CALC_NAC                true
+SYM_IGNORE              TRUE
 $end
 
 $derivative_coupling
