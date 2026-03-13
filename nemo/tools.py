@@ -900,3 +900,13 @@ def B_to_vec(data_dc, lower, higher):
     b_matrix[data_dc["initial_state"], data_dc["final_state"], data_dc["geometry"]-1, data_dc["mode"]-1] = data_dc["B"]
     b=b_matrix[lower][higher]
     return b
+
+
+def cartesian_to_spherical(vec):
+    x=vec[0]
+    y=vec[1]
+    z=vec[2]
+    r = np.sqrt(x**2 + y**2 + z**2)
+    theta = np.arccos(z / r) if r != 0 else 0
+    phi = np.arctan2(y, x)
+    return r, theta, phi

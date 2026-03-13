@@ -2,6 +2,7 @@ import sys
 import re
 import numpy as np
 import pandas as pd
+import nemo.tools
 
 ##SOME CONSTANTS##############################################
 EPSILON_0 = 8.854187817e-12  # F/m
@@ -470,13 +471,21 @@ def parse_block(block, collect_corrections=False):
         'indices': [],
         'correction': [],
         'correction2': [],
+        'theta_s': [],
+        'phi_s': [],
+        'theta_t': [],
+        'phi_t': [],
         'total_energy': [],
         'composition': [],
     }
     exc = False  # Flag for excited state section.
     corr = False # Flag for PCM correction section.
     current_comp = None  # To hold composition dict for each state.
-
+    
+    fetch_0 = False       #Flag for electronic dipole moment of ground state
+    fetch_singlet = False #Flag for electronic dipole moment section of singlet states
+    fetch_triplet = False #Flag for electronic dipole moment section of triplet states
+    strike = 0
     for line in block.splitlines():
         # Start a new excited state section.
         if "TDDFT/TDA Excitation Energies" in line or "TDDFT Excitation Energies" in line:
@@ -536,6 +545,54 @@ def parse_block(block, collect_corrections=False):
                     data['correction2'].append(-1 * np.nan_to_num(val))
                 if "------------------------ END OF SUMMARY -----------------------" in line:
                     corr = False
+
+
+        # Transition moment orientations: mu-mu_0
+        # Define the state multiplicity
+        if 'Electron Dipole Moments of Ground State' in line:
+            fetch_0 = True
+            continue
+        if 'Electron Dipole Moments of Singlet Excited State' in line:
+            fetch_singlet = True
+            continue
+        if 'Electron Dipole Moments of Triplet Excited State' in line:
+            fetch_triplet = True
+            continue
+
+        if fetch_0:
+            try:
+                vec0 = np.array([float(line.split()[1]),float(line.split()[2]), float(line.split()[3])])
+            except (ValueError, IndexError):
+                strike += 1
+                if strike > 3: 
+                    fetch_0 = False
+                    strike = 0
+            continue
+        if fetch_triplet:
+            try:
+                vecT = np.array([float(line.split()[1]), float(line.split()[2]), float(line.split()[3])])
+                _, theta, phi = nemo.tools.cartesian_to_spherical(vecT-vec0)
+                data['theta_t'].append(theta)
+                data['phi_t'].append(phi)
+            except (ValueError, IndexError):
+                strike += 1
+                if strike > 3: 
+                    fetch_triplet = False
+                    strike = 0
+            continue
+        if fetch_singlet:
+            try:
+                vecS = np.array([float(line.split()[1]),float(line.split()[2]), float(line.split()[3])])
+                _, theta, phi = nemo.tools.cartesian_to_spherical(vecS-vec0)
+                data['theta_s'].append(theta)
+                data['phi_s'].append(phi)
+            except (ValueError, IndexError):
+                strike += 1
+                if strike > 3: 
+                    fetch_singlet = False
+                    strike = 0
+            continue
+
 
         # Total energy in final basis set
         if "Total energy" in line and "=" in line:
@@ -614,14 +671,15 @@ def pega_energias(file):
     The log file is expected to contain two calculations separated by the marker "Have a nice day".
     The first calculation provides vacuum (reference) excited-state energies, and the second includes
     PCM corrections. The function returns sorted arrays of singlet and triplet energies (vacuum),
-    their oscillator strengths and state indices (for singlets), the calculated solvent shifts, and
-    the total energy (and its difference between the two calculations) in eV.
+    their oscillator strengths and state indices (for singlets), the calculated solvent shifts, 
+    the spherical angles of the electronic dipole moments, and the total energy (and its difference 
+    between the two calculations) in eV.
 
     Parameters:
         file (str): Path to the log file.
 
     Returns:
-        tuple: (singlets, triplets, oscs, ind_s, ind_t, ss_s, ss_t, total_energy, energy_diff)
+        tuple: (singlets, triplets, oscs, ind_s, ind_t, ss_s, ss_t, theta_s, phi_s, theta_t, phi_t, total_energy, energy_diff)
             where:
               - singlets (np.array): Vacuum energies for singlet excited states.
               - triplets (np.array): Vacuum energies for triplet excited states.
@@ -630,6 +688,10 @@ def pega_energias(file):
               - ind_t (np.array): State indices for triplet states.
               - ss_s (np.array): Solvent shifts for singlet states.
               - ss_t (np.array): Solvent shifts for triplet states.
+              - theta_s (np.array): Elevation angle for singlet states.
+              - phi_s (np.array): Azimuthal angle for singlet states.
+              - theta_t (np.array): Elevation angle for triplet states.
+              - phi_t (np.array): Azimuthal angle for triplet states.
               - total_energy (float): Total energy of S0.
               - s0_corr (float): Solvent correction to S0.
     """
@@ -664,11 +726,16 @@ def pega_energias(file):
     s0_corr = s0_vac - s0_pcm
     ss_s = corr_data['ss_s'][match_singlets][:min_len]
     ss_t = corr_data['ss_t'][match_triplets][:min_len]
+    theta_s = vac_data['theta_s']
+    phi_s = vac_data['phi_s']
+    theta_t = vac_data['theta_t']
+    phi_t = vac_data['phi_t']
+
     y_s = (singlets_vac - singlets_pcm) + s0_corr
     y_t = (triplets_vac - triplets_pcm) + s0_corr
     y_s[y_s < 0] = 0
     y_t[y_t < 0] = 0
-    return singlets_vac, triplets_vac, oscs, ind_s, ind_t, ss_s, ss_t, s0_corr, y_s, y_t
+    return singlets_vac, triplets_vac, oscs, ind_s, ind_t, ss_s, ss_t, theta_s, theta_t, phi_s, phi_t, s0_corr, y_s, y_t
 
 #########################################################################################
 
