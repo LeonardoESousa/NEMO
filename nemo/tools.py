@@ -4,7 +4,7 @@ import subprocess
 import sys
 import time
 import requests
-import pkg_resources
+from importlib.metadata import version
 from subprocess import Popen
 import numpy as np
 import pandas as pd
@@ -797,7 +797,7 @@ def andamento():
 def check_for_updates(package_name):
     try:
         # Get the currently installed version
-        installed_version = pkg_resources.get_distribution(package_name).version
+        installed_version = version(package_name)
 
         # Fetch the latest version from PyPI
         response = requests.get(f'https://pypi.org/pypi/{package_name}/json')
