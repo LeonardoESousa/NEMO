@@ -419,14 +419,23 @@ def gather_data(initial, save=True):
                     temp_data_dc[column] = temp_data_dc[column].map(fmt.format)
             temp_data_dc.to_csv(arquivo_dc, index=False)
 
+        ic_cols = {}
         for i in states:
             for j in states:
-                if i== j:
+                if i == j:
                     continue
-                _, _, h = gather_data_derivative_couplings("s"+str(i), "s"+str(j), data, data_dc, data_V)
-                data[f"IC_{i}_{j}"] = h
+                
+                _, _, h = gather_data_derivative_couplings(
+                    "s" + str(i), "s" + str(j), data, data_dc, data_V
+                )
+        
+                ic_cols[f"IC_{i}_{j}"] = h[:, 0]
                 formats[f"IC_{i}_{j}"] = "{:.5e}"
-
+        
+        if ic_cols:
+            ic_df = pd.DataFrame(ic_cols, index=data.index)
+            data = pd.concat([data, ic_df], axis=1)
+        
     arquivo = f"Ensemble_{initial.upper()}_.lx"
     data["ensemble"] = initial.upper()
     formats["ensemble"] = "{:s}"
@@ -716,7 +725,7 @@ def breakdown_emi(chi_s, chi_t, delta_emi, l_total, individual, labels):
 def lambda_solvent(chi_i, theta_i, phi_i, chi_f, theta_f, phi_f, alphaopt, alphast):
     cos = compute_cos(theta_i,phi_i, theta_f, phi_f)
     chi_t = chi_i + chi_f - 2 * np.sqrt(chi_i * chi_f) * cos
-    lambda_b = chi_t * (alphast - alphaopt) 
+    lambda_b = chi_t * (alphast - alphaopt)
     return lambda_b
 
 def compute_cos(theta_i, theta_f, phi_i, phi_f):
