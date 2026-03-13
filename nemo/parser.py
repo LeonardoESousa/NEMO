@@ -547,8 +547,7 @@ def parse_block(block, collect_corrections=False):
                     corr = False
 
 
-##########################################################################
-
+        # Transition moment orientations: mu-mu_0
         # Define the state multiplicity
         if 'Electron Dipole Moments of Ground State' in line:
             fetch_0 = True
