@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+
+import warnings
+
 import os
 import re
 import warnings
@@ -423,9 +426,11 @@ def gather_data(initial, save=True):
             for j in states:
                 if i== j:
                     continue
-                _, _, h = gather_data_derivative_couplings("s"+str(i), "s"+str(j), data, data_dc, data_V)
+                _, _, h, hw_eff = gather_data_derivative_couplings("s"+str(i), "s"+str(j), data, data_dc, data_V)
                 data[f"IC_{i}_{j}"] = h
                 formats[f"IC_{i}_{j}"] = "{:.5e}"
+                data[f"hw_eff_{i}_{j}"] = hw_eff
+                formats[f"hw_eff_{i}_{j}"] = "{:.5e}"
 
     arquivo = f"Ensemble_{initial.upper()}_.lx"
     data["ensemble"] = initial.upper()
@@ -485,15 +490,8 @@ def gather_data_derivative_couplings(initial, final, data=None, data_dc=None, da
 
         # Compute the geometry dependent rate for the ith transition
         # ----- Get the transition energy for the ith transition
-        #e_col = fetch(data, [f"^e_{initial.lower()[0]}"])[:,i] # eV
-        #e_col = e_col[:,np.newaxis]
-        #e_col *= -1.0
         e_col = delta[:, int(final[1])][:, np.newaxis] # eV
-        # ----- Get oscillator strength for the ith transition
-        #osc_col = fetch(data, [f"^osce_{initial.lower()[0]}"])[:,i] #
-        #osc_col = osc_col[:,np.newaxis]
-        #constante = E_CHARGE**2 / (2.0 * np.pi * HBAR_EV * MASS_E * (LIGHT_SPEED**3.0) * EPSILON_0)
-        #espectro = constante * ((e_col) ** 2 ) * osc_col
+
         #gammas_lorentz = espectro / 2.0# nemo.tools.detect_sigma()# espectro / 2.0
         sigma = np.std(e_col, axis=0)
 
@@ -504,44 +502,53 @@ def gather_data_derivative_couplings(initial, final, data=None, data_dc=None, da
         #np.savetxt(f"debug_dc.csv", b, delimiter=",", fmt='%10.5e')
 
         # ----- Calculate h_IC
-        # ----- Gaussian line shape
-        # argument_pos =  (e_col * HBAR_EV * freq_row)/(s**2)-(HBAR_EV * freq_row)**2/(2.0*s**2)
-        # argument_neg = -(e_col * HBAR_EV * freq_row)/(s**2)-(HBAR_EV * freq_row)**2/(2.0*s**2)
-        # term_pos= np.exp((argument_pos))
-        # term_neg= np.exp((argument_neg))
-
-        # debugging: print the arguments before exponentiation to check for overflow issues
-        # print the numpy array argument to a file
-        # np.savetxt("debug_argument_pos.csv", argument_pos, delimiter=",", fmt='%10.5f')
-        # np.savetxt("debug_argument_neg.csv", argument_neg, delimiter=",", fmt='%10.5f')
-        # print(argument_pos)
-        # np.savetxt("debug_exp_pos.csv", term_pos, delimiter=",", fmt='%10.5f')
-        # np.savetxt("debug_exp_neg.csv", term_neg, delimiter=",", fmt='%10.5f')
-        #print(term_pos)
-
         # ------ Lorentzian line shape
         #term_pos = nemo.tools.voigt(-e_col+HBAR_EV*freq_row,0.0,gammas_lorentz) / nemo.tools.voigt(-e_col,0.0,gammas_lorentz)
         #term_neg = nemo.tools.voigt(-e_col-HBAR_EV*freq_row,0.0,gammas_lorentz) / nemo.tools.voigt(-e_col,0.0,gammas_lorentz)
+
+        # ----- Gaussian line shape
         term_pos = nemo.tools.gauss(e_col-HBAR_EV*freq_row,sigma) 
         term_neg = nemo.tools.gauss(e_col+HBAR_EV*freq_row,sigma) 
-        #print(final)
-        # np.savetxt(f"debug_exp_pos_{final}.csv", term_pos, delimiter=",", fmt='%10.5e')
-        # np.savetxt(f"debug_exp_neg_{final}.csv", term_neg, delimiter=",", fmt='%10.5e')
-        # np.savetxt(f"debug_exp_den_{final}.csv", nemo.tools.gauss(e_col,sigma), delimiter=",", fmt='%10.5e')
-        # np.savetxt(f"debug_exp_ratio_pos_{final}.csv", term_pos/nemo.tools.gauss(e_col,sigma), delimiter=",", fmt='%10.5e')
-        # np.savetxt(f"debug_exp_ratio_neg_{final}.csv", term_neg/nemo.tools.gauss(e_col,sigma), delimiter=",", fmt='%10.5e')
 
-        h = b * (v1 * term_pos + v2 * term_neg) / (nemo.tools.gauss(e_col,sigma)) # J^2
-        # ----- sum on normal modes
-        h=np.sum(h, axis=1)[:,np.newaxis]
+        # ----- Normal mode resolved rate analysis        
 
-        # ----- Add H for this transition pair
-        try:
-            total_H = np.hstack((total_H, h))
-        except NameError:
-            total_H = h
-    #np.savetxt("debug.csv", total_H/ (E_CHARGE**2), delimiter=",", fmt='%10.5e') #
-    return data_dc, data_V, total_H / (E_CHARGE**2) # J**2 to eV**2
+        # ----- Phonon absorption spectrum
+        vac_rate_p = b * v1 * term_pos / E_CHARGE**2 # eV
+        rate_p = (2.0*np.pi/HBAR_EV) * vac_rate_p    # s^-1
+        # ----- Ensemble averaged rate
+        rate_p = np.sum(rate_p, axis=0)/len(e_col)
+        freq_rate_p = np.hstack((freq_V[:,np.newaxis], rate_p[:, np.newaxis]))
+
+        # ----- Phonon emission spectrum
+        vac_rate_n = b * v2 * term_neg / E_CHARGE**2 # eV
+        rate_n = (2.0*np.pi/HBAR_EV) * vac_rate_n    # s^-1
+        # ----- Ensemble averaged rate
+        rate_n = np.sum(rate_n, axis=0)/len(e_col)
+        freq_rate_n = np.hstack((freq_V[:,np.newaxis], rate_n[:, np.newaxis]))
+
+        # ----- save to file
+        if not os.path.exists("phonon_spectra"):
+            os.makedirs("phonon_spectra")
+        np.savetxt(f"phonon_spectra/phonon_emission_spectrum_{initial}_to_{final}_.csv", freq_rate_p, delimiter=',', fmt='%10.5e')
+        np.savetxt(f"phonon_spectra/phonon_absorption_spectrum_{initial}_to_{final}_.csv", freq_rate_n, delimiter=',', fmt='%10.5e')
+
+        # ----- Average couplings
+        hw_eff = HBAR_EV*np.average(np.hstack((freq_row, -freq_row)).flatten(), weights=np.hstack((rate_n, rate_p))) # eV
+        # ---- sum on normal modes
+        vac_rate = np.sum(vac_rate_n+vac_rate_p, axis=1)[:,np.newaxis] # eV
+        # vac_rate = coup^2 * lineshape(E-hw_eff)
+        coup_squared = vac_rate / (nemo.tools.gauss(e_col+hw_eff, sigma) + 1e-300) # eV^2 
+        print(f"{initial} to {final}: {hw_eff:.5f} eV, vac_rate = {np.mean(vac_rate):.5e} s^-1, coup_squared = {np.mean(coup_squared):.5e} eV^2")
+
+        # Old method
+        # vac_rate = b * (v1 * term_pos + v2 * term_neg) / E_CHARGE**2 # vaccum rate times hbar/2pi (eV)
+        # print("---------------")
+        # print(f"Vacuum rate for {initial} to {final} transition (eV): {np.sum(vac_rate) / len(e_col)*2*np.pi/HBAR_EV:.5e}")
+        # h = vac_rate / (nemo.tools.gauss(e_col,sigma) + 1e-300) # eV^2
+        # # ----- sum on normal modes
+        # h=np.sum(h, axis=1)[:,np.newaxis]
+    return data_dc, data_V, coup_squared, hw_eff 
+    #return data_dc, data_V, h
 #######################################################################################
 
 ###PRINTS RATES AND EMISSION SPECTRUM##################################################
@@ -773,6 +780,7 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
 
     #internal conversion
     h_ic = fetch(data, ["^IC_(?!0)"])    
+    hw_eff = fetch(data, ["^hw_eff_(?!0)"])    
 
     #ground state susceptibility
     gamma_s0 = data['gamma_s0'].to_numpy()
@@ -790,12 +798,14 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
         socs_complete = np.zeros((singlets.shape[0], singlets.shape[1]**2))
     if h_ic.size == 0:
         h_ic = np.zeros((singlets.shape[0], singlets.shape[1]**2))   
+        hw_eff = np.zeros((singlets.shape[0], singlets.shape[1]**2))
     if socs_s0.size == 0:
         socs_s0 = np.zeros_like(triplets)
 
     #reshape socs_complete to have dimensions (number of geometries, number of initial states, number of final states)
     socs_complete = socs_complete.reshape((socs_complete.shape[0], singlets.shape[1], triplets.shape[1]))
     h_ic = h_ic.reshape((h_ic.shape[0], singlets.shape[1], singlets.shape[1]))
+    hw_eff = hw_eff.reshape((hw_eff.shape[0], singlets.shape[1], singlets.shape[1]))
 
     # Emission Calculations
 
@@ -806,7 +816,7 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
     phis = phi_s if "s" in initial else phi_t
 
     initial_energy = energies - (gammas + chis) * alphast2
-    initial_energy, energies, oscs, chis, gammas, thetas, phis, socs_complete, h_ic, socs_s0 = sorting_parameters(initial_energy, energies, oscs, chis, gammas, thetas, phis, socs_complete, h_ic, socs_s0)
+    initial_energy, energies, oscs, chis, gammas, thetas, phis, socs_complete, h_ic, hw_eff, socs_s0 = sorting_parameters(initial_energy, energies, oscs, chis, gammas, thetas, phis, socs_complete, h_ic, hw_eff, socs_s0)
     
     lambda_emission = lambda_solvent(chis, thetas, phis, 0, 0, 0, alphaopt2, alphast2)
     final_energy_emission = - gamma_s0 * alphast2
@@ -860,6 +870,7 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
     #select columns corresponding to the initial state
     socs_complete = socs_complete[:, n_state, :]
     h_ic = h_ic[:, n_state, :]
+    hw_eff = hw_eff[:, n_state, :]
     
     if "s" in initial:
         # Sm to Tn ISC
@@ -875,7 +886,7 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
         ]
         # Sm to Sn IC
         final_energy_ic = singlets - (gamma_s + chi_s) * alphast2
-        final_energy_ic, singlets, chi_s, gamma_s, theta_s, phi_s, h_ic = sorting_parameters(final_energy_ic, singlets, chi_s, gamma_s, theta_s, phi_s, h_ic)
+        final_energy_ic, singlets, chi_s, gamma_s, theta_s, phi_s, h_ic, hw_eff = sorting_parameters(final_energy_ic, singlets, chi_s, gamma_s, theta_s, phi_s, h_ic, hw_eff)
         lambda_b_ic = lambda_solvent(chis, thetas, phis, chi_s, theta_s, phi_s, alphaopt2, alphast2)
         delta_ic = final_energy_ic - initial_energy[:, np.newaxis] + lambda_b_ic
         #remove column corresponding to the initial state
@@ -890,6 +901,7 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
         lambda_b_ic = lambda_b_ic[:, :n_state+1]
         sigma_int_ic = sigma_int_ic[:n_state+1]
         h_ic = h_ic[:, :n_state+1]
+        hw_eff = hw_eff[:, :n_state+1]
         final = final + [f"S0"] + [f"S{j}" for j in range(1, 1 + delta_ic.shape[1]) if j != n_state+1]
     elif "t" in initial:
         # Tn to Sm ISC
@@ -921,7 +933,7 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
         sigma_ic = total_reorganization_energy(lambda_b_ic, kbt, sigma_int_ic)
         #check for 0 in sigma_ic
         y_axis_ic = (
-            (2 * np.pi / HBAR_EV) * (h_ic) * nemo.tools.gauss(delta_ic, sigma_ic)
+            (2 * np.pi / HBAR_EV) * (h_ic) * nemo.tools.gauss(delta_ic+hw_eff, sigma_ic)
         )
 
         # hstack y and espectro

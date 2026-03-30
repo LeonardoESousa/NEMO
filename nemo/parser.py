@@ -1320,7 +1320,7 @@ def get_V(mag_file, files, v_option="Exact"):#     'quantum'):
     v2 = []
 
     #--------------------------------------------#
-    #Exact expression
+    #Option for debugging
     if v_option == "debug":
         print("")
         print("Attention!")
