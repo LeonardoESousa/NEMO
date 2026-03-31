@@ -529,16 +529,16 @@ def gather_data_derivative_couplings(initial, final, data=None, data_dc=None, da
         # ----- save to file
         if not os.path.exists("phonon_spectra"):
             os.makedirs("phonon_spectra")
-        np.savetxt(f"phonon_spectra/phonon_emission_spectrum_{initial}_to_{final}_.csv", freq_rate_p, delimiter=',', fmt='%10.5e')
-        np.savetxt(f"phonon_spectra/phonon_absorption_spectrum_{initial}_to_{final}_.csv", freq_rate_n, delimiter=',', fmt='%10.5e')
+        np.savetxt(f"phonon_spectra/phonon_absorption_spectrum_{initial}_to_{final}_.csv", freq_rate_p, delimiter=',', fmt='%10.5e')
+        np.savetxt(f"phonon_spectra/phonon_emission_spectrum_{initial}_to_{final}_.csv", freq_rate_n, delimiter=',', fmt='%10.5e')
 
         # ----- Average couplings
-        hw_eff = HBAR_EV*np.average(np.hstack((freq_row, -freq_row)).flatten(), weights=np.hstack((rate_n, rate_p))) # eV
+        hw_eff = HBAR_EV*np.average(np.hstack((freq_row, -freq_row)).flatten(), weights=np.hstack((rate_n+1e-300, rate_p+1e-300))) # eV
         # ---- sum on normal modes
         vac_rate = np.sum(vac_rate_n+vac_rate_p, axis=1)[:,np.newaxis] # eV
         # vac_rate = coup^2 * lineshape(E-hw_eff)
         coup_squared = vac_rate / (nemo.tools.gauss(e_col+hw_eff, sigma) + 1e-300) # eV^2 
-        print(f"{initial} to {final}: {hw_eff:.5f} eV, vac_rate = {np.mean(vac_rate):.5e} s^-1, coup_squared = {np.mean(coup_squared):.5e} eV^2")
+        print(f"{initial} to {final}: {hw_eff:.5f} eV, vac_rate = {(2.0*np.pi/HBAR_EV)*np.mean(vac_rate):.5e} s^-1, coup_squared = {np.mean(coup_squared):.5e} eV^2")
 
         # Old method
         # vac_rate = b * (v1 * term_pos + v2 * term_neg) / E_CHARGE**2 # vaccum rate times hbar/2pi (eV)
