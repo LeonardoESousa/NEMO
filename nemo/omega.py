@@ -49,7 +49,7 @@ def gera_file(rem, relax, omega, cm, atomos, geometry, filename=None):
     basic_rem = extract_basic_rem(rem)
 
 
-    template = load_template("omega.in")
+    template = load_template("omega")
     header = template.format(
         opt=opt,
         omega=omega,
@@ -63,11 +63,11 @@ def gera_file(rem, relax, omega, cm, atomos, geometry, filename=None):
     if filename:
         file = filename
     elif cm != "0 1":
-        file = f"OPT_{omega}_.com"
+        file = f"OPT-{omega}-.com"
     elif "-" in cm:
-        file = f"sp_neg_{omega}_.com"
+        file = f"neg-{omega}-sp-.com"
     else:
-        file = f"sp_pos_{omega}_.com"
+        file = f"pos-{omega}-sp-.com"
 
     nemo.tools.write_input(atomos, geometry, header, bottom, file)
 
@@ -191,7 +191,7 @@ def rodar_omega(atomos, geom, nproc, omega, batch_file, relax, rem, numjobs):
     file = gera_file(rem, relax, omega, "0 1", atomos, geom)
     files.append(file)
     if relax:
-        the_watcher = nemo.tools.Watcher('.',key="OPT_")
+        the_watcher = nemo.tools.Watcher('.',key="OPT-")
         the_watcher.run(batch_file, nproc, 1)
         the_watcher.hold_watch()
         geom, atomos = nemo.parser.pega_geom(file[:-3] + "log")
@@ -199,7 +199,7 @@ def rodar_omega(atomos, geom, nproc, omega, batch_file, relax, rem, numjobs):
         files.append(file2)
         files3 = gera_file(rem, False, omega, "-1 2", atomos, geom)
         files.append(files3)
-        the_watcher = nemo.tools.Watcher('.',key="sp_")
+        the_watcher = nemo.tools.Watcher('.',key="sp-")
         the_watcher.run(batch_file, nproc, min(numjobs,2))
         the_watcher.hold_watch()
     else:
@@ -220,12 +220,12 @@ def rodar_omega(atomos, geom, nproc, omega, batch_file, relax, rem, numjobs):
     logs = files + [file]
     for file in logs:
         remover.append(file)
-        if "pos_" in file:
+        if "pos-" in file:
             cation = pega_energia(file[:-3] + "log")
-        elif "neg_" in file:
+        elif "neg-" in file:
             anion = pega_energia(file[:-3] + "log")
             homo_anion = pega_homo(file[:-3] + "log")
-        elif "OPT_" in file:
+        elif "OPT-" in file:
             neutro = pega_energia(file[:-3] + "log")
             homo_neutro = pega_homo(file[:-3] + "log")
 

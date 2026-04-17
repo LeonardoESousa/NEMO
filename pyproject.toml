@@ -28,6 +28,9 @@ nemo_tuning = "nemo.omega:main"
 [tool.setuptools]
 include-package-data = true
 
+[tool.setuptools.package-data]
+nemo = ["templates/*.in"]
+
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["nemo*"]
