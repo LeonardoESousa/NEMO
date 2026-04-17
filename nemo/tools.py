@@ -813,7 +813,7 @@ def check_for_updates(package_name):
         print(f"An error occurred while checking for updates: {e}")
 
 ##RUNS W TUNING################################################
-def empirical_tuning():
+def tuning():
     geomlog = fetch_file("input or log", [".in"])
     omega1 = "0.1"
     passo = "0.025"

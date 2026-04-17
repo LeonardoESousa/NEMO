@@ -395,7 +395,7 @@ def main():
 
     write_tolog(omegas, Js, "#Done! Optimized value:")
     menor = omegas[Js.index(min(Js, key=abs))] 
-    log = f"Logs/SP-{menor:03d}-.log"
+    log = f"Logs/OPT-{menor:.0f}-.log"
     G, atomos = nemo.parser.pega_geom(log)
     header = nemo.tools.add_header(rem, 5, 'false', 3.0, 1.4, "0 1")
     header = header.split("#GGG#")
@@ -406,9 +406,9 @@ def main():
         G,
         header,
         bottom,
-        f"sp.com",
+        f"tddft.com",
     )
-    gera_file(rem, True, menor, "0 1", atomos, G, filename="freqs0.com")
+    gera_file(rem, True, menor, "0 1", atomos, G, filename="tuned_w.com")
 
 
 if __name__ == "__main__":
