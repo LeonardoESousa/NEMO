@@ -850,7 +850,7 @@ def empirical_tuning():
             passo,
             relax,
             script,
-            parallel
+            parallel,
             "&",
         ]
     )
