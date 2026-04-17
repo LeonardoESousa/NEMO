@@ -815,23 +815,9 @@ def check_for_updates(package_name):
 ##RUNS W TUNING################################################
 def empirical_tuning():
     geomlog = fetch_file("input or log", [".com", ".log"])
-    rem, _, extra = nemo.parser.busca_input(geomlog)
-    print(f"QChem template file: {geomlog}")
-    rem += extra + "\n"
-    #iterate over lines of rem
-    for line in rem.split("\n"):
-        if "method" in line.lower() or 'exchange' in line.lower():
-            functional = line.split()[-1]
-        if "basis" in line.lower():
-            basis = line.split()[-1]
-        if  'mem_total' in line.lower():
-            mem = line.split()[-1]
     omega1 = "0.1"
     passo = "0.025"
     relax = 'yes'
-    print(f"Total memory: {mem}")
-    print(f"Functional: {functional}")
-    print(f"Basis: {basis}")
     print(f"Initial Omega: {omega1} bohr^-1")
     print(f"Step: {passo} bohr^-1")
     print(f'Optimize at each step? {relax}')
@@ -851,9 +837,7 @@ def empirical_tuning():
         )
     script = fetch_file("batch script", ["batch.sh"])
     nproc = input("Number of threads for each calculation\n")
-    e_exp = input("Experimental vacuum energy and uncertainty in eV? (space separated)\n")
-    chi_exp = input("Experimental susceptibility and uncertainty in eV? (space separated)?\n")
-
+    parallel = input("Minimize submission of jobs: y/n\n")
     with open("limit.lx", "w",encoding="utf-8") as f:
         f.write("10")
     subprocess.Popen(
@@ -861,16 +845,12 @@ def empirical_tuning():
             "nohup",
             "nemo_tuning",
             geomlog,
-            functional,
-            basis,
             nproc,
             omega1,
             passo,
             relax,
             script,
-            e_exp,
-            chi_exp,
-            mem,
+            parallel
             "&",
         ]
     )

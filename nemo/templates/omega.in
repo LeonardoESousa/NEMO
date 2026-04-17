@@ -1,0 +1,10 @@
+{basic}
+jobtype               {opt}
+omega                 {omega}
+MAX_SCF_CYCLES          200
+$end
+
+$molecule
+{cm}
+#GGG#
+$end

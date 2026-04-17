@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import os
+import re
 import sys
 import shutil
 import numpy as np
@@ -7,115 +8,236 @@ import nemo.tools
 
 ###############################################################
 
-def gera_file(atomos, G, basis, functional, omega, mem):
-    header = f'''$rem
-mem_total             {mem}
-mem_static            500
-jobtype               opt
-GEOM_OPT_MAX_CYCLES   100
-exchange              {functional}
-omega                 {omega}
-basis                 {basis}
-cis_n_roots             3
-cis_singlets            true
-cis_triplets            false
-CIS_STATE_DERIV         1
-CIS_MAX_CYCLES          200
-MAX_SCF_CYCLES          200
-RPA                     false
-$end
+def gera_file(rem, relax, omega, cm, atomos, geometry, filename=None):
+    """
+    Generates a Q-Chem input header by reading a template file and substituting placeholders.
 
-$molecule
-0 1
-'''
+    Parameters:
+    rem (str): The $rem section from the Q-Chem input.
+    opt (str): The optimization method.
+    omega (float): The frequency for the TDA calculation.
+    cm (str, optional): Charge and multiplicity information. Defaults to "{cm}".
+    geometry (str, optional): Molecular geometry. Defaults to "{geometry}".
 
-    bottom = f"$end\n"
+    Returns:
+    str: The formatted Q-Chem input header.
+    """
+
+    def load_template(template):
+        """Loads the Q-Chem template file."""
+        template_dir = os.path.join(os.path.dirname(__file__), "templates")
+        template_file = os.path.join(template_dir, f"{template}.in")
+
+        if not os.path.exists(template_file):
+            raise FileNotFoundError(f"Template file not found: {template_file}")
+
+        with open(template_file, "r", encoding="utf-8") as f:
+            return f.read()
+
+    def extract_basic_rem(rem):
+        """Extracts relevant information from the rem section and removes $end."""
+        return rem.replace("$end", "").strip()
+
+    if relax:
+        opt = "opt\nGEOM_OPT_MAX_CYCLES   100"
+    else:
+        opt = "sp"
+
+    rem = rem.lower().strip()
     
-    #generate qchem input for single point tda calculation
-    nemo.tools.write_input(
-            atomos,
-            G,
-            header,
-            bottom,
-            f'OPT-{omega}-.com',
+    # Extract relevant part of rem
+    basic_rem = extract_basic_rem(rem)
+
+
+    template = load_template("omega.in")
+    header = template.format(
+        opt=opt,
+        omega=omega,
+        basic=basic_rem,
+        cm=cm
+    )
+    
+    header = header.split("#GGG#")
+    bottom = header[1]
+    header = header[0]
+    if filename:
+        file = filename
+    elif cm != "0 1":
+        file = f"OPT_{omega}_.com"
+    elif "-" in cm:
+        file = f"sp_neg_{omega}_.com"
+    else:
+        file = f"sp_pos_{omega}_.com"
+
+    nemo.tools.write_input(atomos, geometry, header, bottom, file)
+
+    return file
+
+
+def pega_energia(log_file):
+    """
+    Extract the final SCF total energy from a Q-Chem output file.
+
+    It looks for lines containing:
+        Convergence criterion met
+
+    and returns the energy on that line.
+    """
+    energia = None
+
+    with open(log_file, "r", encoding="utf-8", errors="ignore") as f:
+        for line in f:
+            if "Convergence criterion met" in line:
+                nums = re.findall(r"[-+]?\d+\.\d+(?:[Ee][-+]?\d+)?", line)
+                if nums:
+                    energia = float(nums[0])
+
+    if energia is None:
+        raise ValueError(f"Energy not found in {log_file}")
+
+    return energia
+
+
+def pega_homo(log_file):
+    """
+    Extract the HOMO energy from a Q-Chem output file.
+
+    Logic:
+    - Read number of alpha/beta electrons from:
+          There are X alpha and Y beta electrons
+    - If closed shell (X == Y):
+          HOMO = alpha orbital number X
+    - If open shell:
+          HOMO = max(HOMO_alpha, HOMO_beta)
+
+    It parses the sections:
+          Final Alpha MO Eigenvalues
+          Final Beta MO Eigenvalues
+    """
+    n_alpha = None
+    n_beta = None
+
+    with open(log_file, "r", encoding="utf-8", errors="ignore") as f:
+        lines = f.readlines()
+
+    # Find number of alpha and beta electrons
+    for line in lines:
+        m = re.search(r"There are\s+(\d+)\s+alpha and\s+(\d+)\s+beta electrons", line)
+        if m:
+            n_alpha = int(m.group(1))
+            n_beta = int(m.group(2))
+            break
+
+    if n_alpha is None or n_beta is None:
+        raise ValueError(f"Could not find the number of electrons in {log_file}")
+
+    def pegar_orbital(orb_type, orb_num):
+        """
+        Return energy of orbital number orb_num from either
+        'Final Alpha MO Eigenvalues' or 'Final Beta MO Eigenvalues'.
+        """
+        header = f"Final {orb_type} MO Eigenvalues"
+
+        for i, line in enumerate(lines):
+            if header in line:
+                j = i + 1
+                while j < len(lines):
+                    nums_line = lines[j].strip()
+                    if not nums_line:
+                        j += 1
+                        continue
+
+                    # stop if another section begins
+                    if "Final " in nums_line and "MO Eigenvalues" in nums_line and header not in nums_line:
+                        break
+
+                    orb_indices = re.findall(r"\d+", nums_line)
+                    if orb_indices and str(orb_num) in orb_indices:
+                        if j + 1 >= len(lines):
+                            break
+
+                        energies_line = lines[j + 1]
+                        orb_list = [int(x) for x in orb_indices]
+                        energy_list = [
+                            float(x)
+                            for x in re.findall(r"[-+]?\d+\.\d+(?:[Ee][-+]?\d+)?", energies_line)
+                        ]
+
+                        for k, idx in enumerate(orb_list):
+                            if idx == orb_num:
+                                if k < len(energy_list):
+                                    return energy_list[k]
+                                break
+                    j += 1
+
+        raise ValueError(
+            f"Could not find the energy of orbital {orb_num} ({orb_type}) in {log_file}"
         )
-    return f'OPT-{omega}-.com'
 
-def gera_sp_file(atomos, G, basis, functional, omega, mem):
-    header = f'''$rem
-mem_total             {mem}
-mem_static            500
-jobtype               sp
-exchange              {functional}
-omega                 {omega}
-basis                 {basis}
-cis_n_roots             3
-cis_singlets            true
-cis_triplets            false
-CIS_STATE_DERIV         1
-RPA                     false
-CIS_RELAXED_DENSITY     TRUE
-CIS_MAX_CYCLES          200
-MAX_SCF_CYCLES          200
-solvent_method          PCM
-$end
+    if n_alpha == n_beta:
+        # closed shell
+        return pegar_orbital("Alpha", n_alpha)
 
-$pcm
-theory                  IEFPCM
-ChargeSeparation        Marcus
-StateSpecific           Perturb
-$end
-
-$solvent
-Dielectric              3.00
-OpticalDielectric       2.22
-$end
-
-$molecule
-0 1
-'''
-    bottom = f"$end\n"    
-    #generate qchem input for single point tda calculation
-    nemo.tools.write_input(
-            atomos,
-            G,
-            header,
-            bottom,
-            f'SP-{omega}-.com',
-        )
-    return f'SP-{omega}-.com'
+    # open shell
+    homo_alpha = pegar_orbital("Alpha", n_alpha)
+    homo_beta = pegar_orbital("Beta", n_beta)
+    return max(homo_alpha, homo_beta)
 
 
 ##RUNS CALCULATIONS############################################
-def rodar_omega(atomos, geom, nproc, basis, functional, omega, batch_file, e_exp, de_exp, chi_exp, dchi_exp, relax, mem):
+def rodar_omega(atomos, geom, nproc, omega, batch_file, relax, rem, numjobs):
     omega = f"{omega:03.0f}"
-    files = []
+    files, remover = [], []
+    file = gera_file(rem, relax, omega, "0 1", atomos, geom)
+    files.append(file)
     if relax:
-        file = gera_file(atomos, geom, basis, functional, omega, mem)
-        files.append(file)
-        the_watcher = nemo.tools.Watcher('.',key="OPT-")
+        the_watcher = nemo.tools.Watcher('.',key="OPT_")
         the_watcher.run(batch_file, nproc, 1)
         the_watcher.hold_watch()
         geom, atomos = nemo.parser.pega_geom(file[:-3] + "log")
-    
-    file2 = gera_sp_file(atomos, geom, basis, functional, omega, mem)
-    files.append(file2)   
-    the_watcher = nemo.tools.Watcher('.',key="SP-")
-    the_watcher.run(batch_file, nproc, 1)
-    the_watcher.hold_watch()
-    e_vac, chi = nemo.tools.susceptibility_check(file2[:-3] + "log", tuning=True) 
+        file2 = gera_file(rem, False, omega, "+1 2", atomos, geom)
+        files.append(file2)
+        files3 = gera_file(rem, False, omega, "-1 2", atomos, geom)
+        files.append(files3)
+        the_watcher = nemo.tools.Watcher('.',key="sp_")
+        the_watcher.run(batch_file, nproc, min(numjobs,2))
+        the_watcher.hold_watch()
+    else:
+        file2 = gera_file(rem, False, omega, "+1 2", atomos, geom)
+        files.append(file2)
+        files3 = gera_file(rem, False, omega, "-1 2", atomos, geom)
+        files.append(files3)
+        the_watcher = nemo.tools.Watcher('.',key=f"_{omega}_")
+        the_watcher.run(batch_file, nproc, min(numjobs,3))
+        the_watcher.hold_watch()
+
+
     try:
         os.mkdir("Logs")
     except FileExistsError:
         pass
-    for file in files:
+    
+    logs = files + [file]
+    for file in logs:
+        remover.append(file)
+        if "pos_" in file:
+            cation = pega_energia(file[:-3] + "log")
+        elif "neg_" in file:
+            anion = pega_energia(file[:-3] + "log")
+            homo_anion = pega_homo(file[:-3] + "log")
+        elif "OPT_" in file:
+            neutro = pega_energia(file[:-3] + "log")
+            homo_neutro = pega_homo(file[:-3] + "log")
+
+    for file in remover:
         shutil.move(file, "Logs/" + file)
         shutil.move(file[:-3] + "log", "Logs/" + file[:-3] + "log")
-    delta_e = e_vac - e_exp
-    delta_chi = chi  - chi_exp
-    J = abs(delta_e/de_exp) + abs(delta_chi/dchi_exp)
+    J = np.sqrt(
+        ((homo_neutro + cation - neutro) ** 2 + (homo_anion + neutro - anion) ** 2)
+    ) * (27.2114)
     return J
-
+    
+    
 
 ###############################################################
 
@@ -143,38 +265,31 @@ def write_tolog(omegas, Js, frase):
 
 def fetch_grad(x, f, i):
     """
-    Estimate the first and second derivatives at x[i] using finite differences
-    and Lagrange interpolation.
+    Estimate the gradient at x[i] using finite differences and Lagrange interpolation.
 
     Parameters:
     x (list or array): x values.
     f (list or array): Corresponding f(x) values.
-    i (int): Index of the point to estimate derivatives.
+    i (int): Index of the point to estimate the gradient.
 
     Returns:
-    tuple: (first_derivative, second_derivative) at x[i].
+    float: Estimated gradient at x[i].
     """
     if len(x) == 1:
-        # Only one point; derivatives are undefined
-        return 0.0, 0.0
+        # Only one point; gradient is undefined, return 0
+        return 0.0
 
     if len(x) == 2:
-        # Two points; compute simple finite differences for gradient
-        grad = (f[1] - f[0]) / (x[1] - x[0])
-        hessian = 0.0  # Insufficient data for second derivative
-        return grad, hessian
+        # Two points; compute simple finite difference
+        return (f[1] - f[0]) / (x[1] - x[0])
 
     if i == 0:
         # Forward finite difference for the first point
-        grad = (f[1] - f[0]) / (x[1] - x[0])
-        hessian = 0.0  # Insufficient data for second derivative
-        return grad, hessian
+        return (f[1] - f[0]) / (x[1] - x[0])
 
     if i == len(x) - 1:
         # Backward finite difference for the last point
-        grad = (f[-1] - f[-2]) / (x[-1] - x[-2])
-        hessian = 0.0  # Insufficient data for second derivative
-        return grad, hessian
+        return (f[-1] - f[-2]) / (x[-1] - x[-2])
 
     # General case: Use Lagrange interpolation for three points
     x0, x1, x2 = x[i - 1], x[i], x[i + 1]
@@ -191,39 +306,31 @@ def fetch_grad(x, f, i):
     l2p = (x1 - x0) / denom2
     grad = f0 * l0p + f1 * l1p + f2 * l2p
 
-    # Second derivative (Hessian) using corrected Lagrange formula
-    l0pp = 2 / denom0
-    l1pp = 2 / denom1
-    l2pp = 2 / denom2
-    hessian = f0 * l0pp + f1 * l1pp + f2 * l2pp
+    return grad
 
-    return grad, hessian
 
 
 def main():
     geomlog = sys.argv[1]
-    functional = sys.argv[2]
-    basis = sys.argv[3]
-    nproc = sys.argv[4]
-    omega1 = sys.argv[5]
-    passo = sys.argv[6]
-    relax = sys.argv[7].lower()
-    script = sys.argv[8]
-    e_exp = sys.argv[9].split()
-    chi_exp = sys.argv[10].split()
-    mem = sys.argv[11]
-    if len(e_exp) == 2 and len(chi_exp) == 2:
-        e_exp, de_exp = float(e_exp[0]), float(e_exp[1])
-        chi_exp, dchi_exp = float(chi_exp[0]), float(chi_exp[1])
-    else:
-        e_exp = float(e_exp[0])
-        chi_exp = float(chi_exp[0])
-        de_exp = 1
-        dchi_exp = 1
+    nproc = sys.argv[2]
+    omega1 = sys.argv[3]
+    passo = sys.argv[4]
+    relax = sys.argv[5].lower()
+    script = sys.argv[6]
+    parallel = sys.argv[7].lower()
+    rem, _, extra = nemo.parser.busca_input(geomlog)
+    rem += extra + "\n"
+
     if relax != 'yes':
         relax = False
     else:
-        relax = True    
+        relax = True  
+
+    if parallel.lower() == "y":
+        numjobs = 10
+    else:
+        numjobs = 1
+
     try:
         int(nproc)
         passo = float(passo) * 1000
@@ -255,21 +362,20 @@ def main():
             except (ValueError, FileNotFoundError):
                 G, atomos = nemo.parser.pega_geom(geomlog)   
             J = rodar_omega(
-                atomos, G, nproc, basis, functional, omega1, script, e_exp, de_exp, chi_exp, dchi_exp, relax, mem)
+                atomos, G, nproc, omega1, script, relax, rem, numjobs
+                )
             omegas.append(omega1)
             Js.append(J)
         omegas, Js = map(list, zip(*sorted(zip(omegas, Js))))
         #index of min J
         ind = Js.index(min(Js))
         omega1 = omegas[ind]
-        grad, hessian = fetch_grad(omegas, Js, ind)
+        grad = fetch_grad(omegas, Js, ind)
 
         if grad == 0:
             delta_omega = passo
-        elif hessian == 0:
-            delta_omega = -1*Js[ind] / grad
         else:
-            delta_omega = -grad / hessian
+            delta_omega = -1*Js[ind] / grad
 
         if ind == len(Js) - 1:
             max_omega = 500
@@ -290,15 +396,27 @@ def main():
         if max_omega - min_omega <= 2:
             break
     
-        write_tolog(omegas, Js, f"#E_vac: {e_exp:.3f} ± {de_exp:.3f} eV\n#\u03C7_exp: {chi_exp:.3f} ± {dchi_exp:.3f} eV\n#Best value so far:")
+        write_tolog(omegas, Js, f"#Best value so far:")
         iteration += 1
         
 
-    write_tolog(omegas, Js, f"#E_vac: {e_exp:.3f} ± {de_exp:.3f} eV\n#\u03C7_exp: {chi_exp:.3f} ± {dchi_exp:.3f} eV\n#Done! Optimized value:")
+    write_tolog(omegas, Js, "#Done! Optimized value:")
     menor = omegas[Js.index(min(Js, key=abs))] 
     log = f"Logs/SP-{menor:03d}-.log"
-    #copy log file
-    shutil.copy(log, "tuned.log")
+    G, atomos = nemo.parser.pega_geom(log)
+    header = nemo.tools.add_header(rem, 5, 'false', 3.0, 1.4, "0 1")
+    header = header.split("#GGG#")
+    bottom = header[1]
+    header = header[0]
+    nemo.tools.write_input(
+        atomos,
+        G,
+        header,
+        bottom,
+        f"sp.com",
+    )
+    gera_file(rem, True, menor, "0 1", atomos, G, filename="freqs0.com")
+
 
 if __name__ == "__main__":
     sys.exit(main())
