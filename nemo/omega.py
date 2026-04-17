@@ -62,7 +62,7 @@ def gera_file(rem, relax, omega, cm, atomos, geometry, filename=None):
     header = header[0]
     if filename:
         file = filename
-    elif cm != "0 1":
+    elif cm == "0 1":
         file = f"OPT-{omega}-.com"
     elif "-" in cm:
         file = f"neg-{omega}-sp-.com"
@@ -76,111 +76,105 @@ def gera_file(rem, relax, omega, cm, atomos, geometry, filename=None):
 
 def pega_energia(log_file):
     """
-    Extract the final SCF total energy from a Q-Chem output file.
-
-    It looks for lines containing:
-        Convergence criterion met
-
-    and returns the energy on that line.
+    Returns the last total energy reported on a line containing
+    'Convergence criterion met'.
     """
     energia = None
 
     with open(log_file, "r", encoding="utf-8", errors="ignore") as f:
         for line in f:
             if "Convergence criterion met" in line:
-                nums = re.findall(r"[-+]?\d+\.\d+(?:[Ee][-+]?\d+)?", line)
-                if nums:
-                    energia = float(nums[0])
+                vals = re.findall(r"[-+]?\d+\.\d+(?:[Ee][-+]?\d+)?", line)
+                if vals:
+                    energia = float(vals[0])
 
     if energia is None:
-        raise ValueError(f"Energy not found in {log_file}")
+        raise ValueError(f"Could not find total energy in {log_file}")
 
     return energia
 
 
 def pega_homo(log_file):
     """
-    Extract the HOMO energy from a Q-Chem output file.
+    Returns the HOMO energy from the LAST 'Alpha MOs' / 'Beta MOs' section.
 
     Logic:
-    - Read number of alpha/beta electrons from:
+    - Reads the last occurrence of:
           There are X alpha and Y beta electrons
-    - If closed shell (X == Y):
-          HOMO = alpha orbital number X
-    - If open shell:
-          HOMO = max(HOMO_alpha, HOMO_beta)
-
-    It parses the sections:
-          Final Alpha MO Eigenvalues
-          Final Beta MO Eigenvalues
+    - Parses the last 'Alpha MOs' block
+    - Parses the last 'Beta MOs' block if present
+    - Closed shell: HOMO = alpha[n_alpha - 1]
+    - Open shell: HOMO = max(alpha[n_alpha - 1], beta[n_beta - 1])
     """
-    n_alpha = None
-    n_beta = None
 
     with open(log_file, "r", encoding="utf-8", errors="ignore") as f:
         lines = f.readlines()
 
-    # Find number of alpha and beta electrons
+    n_alpha = None
+    n_beta = None
+
+    # use the last reported alpha/beta electron count
     for line in lines:
         m = re.search(r"There are\s+(\d+)\s+alpha and\s+(\d+)\s+beta electrons", line)
         if m:
             n_alpha = int(m.group(1))
             n_beta = int(m.group(2))
-            break
 
     if n_alpha is None or n_beta is None:
-        raise ValueError(f"Could not find the number of electrons in {log_file}")
+        raise ValueError(f"Could not find alpha/beta electron counts in {log_file}")
 
-    def pegar_orbital(orb_type, orb_num):
-        """
-        Return energy of orbital number orb_num from either
-        'Final Alpha MO Eigenvalues' or 'Final Beta MO Eigenvalues'.
-        """
-        header = f"Final {orb_type} MO Eigenvalues"
+    def parse_last_spin_block(spin_name):
+        starts = [i for i, line in enumerate(lines) if line.strip() == f"{spin_name} MOs"]
+        if not starts:
+            return []
 
-        for i, line in enumerate(lines):
-            if header in line:
-                j = i + 1
-                while j < len(lines):
-                    nums_line = lines[j].strip()
-                    if not nums_line:
-                        j += 1
-                        continue
+        start = starts[-1]
+        energies = []
 
-                    # stop if another section begins
-                    if "Final " in nums_line and "MO Eigenvalues" in nums_line and header not in nums_line:
-                        break
+        for i in range(start + 1, len(lines)):
+            stripped = lines[i].strip()
 
-                    orb_indices = re.findall(r"\d+", nums_line)
-                    if orb_indices and str(orb_num) in orb_indices:
-                        if j + 1 >= len(lines):
-                            break
+            # stop when another spin block begins
+            if stripped in ("Alpha MOs", "Beta MOs") and stripped != f"{spin_name} MOs":
+                break
 
-                        energies_line = lines[j + 1]
-                        orb_list = [int(x) for x in orb_indices]
-                        energy_list = [
-                            float(x)
-                            for x in re.findall(r"[-+]?\d+\.\d+(?:[Ee][-+]?\d+)?", energies_line)
-                        ]
+            # skip labels and separators
+            if (
+                not stripped
+                or "Occupied" in stripped
+                or "Virtual" in stripped
+                or set(stripped) == {"-"}
+            ):
+                continue
 
-                        for k, idx in enumerate(orb_list):
-                            if idx == orb_num:
-                                if k < len(energy_list):
-                                    return energy_list[k]
-                                break
-                    j += 1
+            vals = re.findall(r"[-+]?\d+\.\d+(?:[Ee][-+]?\d+)?", lines[i])
+            if vals:
+                energies.extend(float(v) for v in vals)
 
+        return energies
+
+    alpha_energies = parse_last_spin_block("Alpha")
+    beta_energies = parse_last_spin_block("Beta")
+
+    if len(alpha_energies) < n_alpha:
         raise ValueError(
-            f"Could not find the energy of orbital {orb_num} ({orb_type}) in {log_file}"
+            f"Found only {len(alpha_energies)} alpha orbital energies in the last Alpha MOs block, "
+            f"but need at least {n_alpha} in {log_file}"
         )
 
+    # closed shell
     if n_alpha == n_beta:
-        # closed shell
-        return pegar_orbital("Alpha", n_alpha)
+        return alpha_energies[n_alpha - 1]
 
     # open shell
-    homo_alpha = pegar_orbital("Alpha", n_alpha)
-    homo_beta = pegar_orbital("Beta", n_beta)
+    if len(beta_energies) < n_beta:
+        raise ValueError(
+            f"Found only {len(beta_energies)} beta orbital energies in the last Beta MOs block, "
+            f"but need at least {n_beta} in {log_file}"
+        )
+
+    homo_alpha = alpha_energies[n_alpha - 1]
+    homo_beta = beta_energies[n_beta - 1]
     return max(homo_alpha, homo_beta)
 
 
@@ -207,7 +201,7 @@ def rodar_omega(atomos, geom, nproc, omega, batch_file, relax, rem, numjobs):
         files.append(file2)
         files3 = gera_file(rem, False, omega, "-1 2", atomos, geom)
         files.append(files3)
-        the_watcher = nemo.tools.Watcher('.',key=f"_{omega}_")
+        the_watcher = nemo.tools.Watcher('.',key=f"-{omega}-")
         the_watcher.run(batch_file, nproc, min(numjobs,3))
         the_watcher.hold_watch()
 
