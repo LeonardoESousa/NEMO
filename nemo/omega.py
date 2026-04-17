@@ -181,7 +181,7 @@ def pega_homo(log_file):
 ##RUNS CALCULATIONS############################################
 def rodar_omega(atomos, geom, nproc, omega, batch_file, relax, rem, numjobs):
     omega = f"{omega:03.0f}"
-    files, remover = [], []
+    files = []
     file = gera_file(rem, relax, omega, "0 1", atomos, geom)
     files.append(file)
     if relax:
@@ -211,9 +211,8 @@ def rodar_omega(atomos, geom, nproc, omega, batch_file, relax, rem, numjobs):
     except FileExistsError:
         pass
     
-    logs = files + [file]
-    for file in logs:
-        remover.append(file)
+
+    for file in files:
         if "pos-" in file:
             cation = pega_energia(file[:-3] + "log")
         elif "neg-" in file:
@@ -223,7 +222,7 @@ def rodar_omega(atomos, geom, nproc, omega, batch_file, relax, rem, numjobs):
             neutro = pega_energia(file[:-3] + "log")
             homo_neutro = pega_homo(file[:-3] + "log")
 
-    for file in remover:
+    for file in files:
         shutil.move(file, "Logs/" + file)
         shutil.move(file[:-3] + "log", "Logs/" + file[:-3] + "log")
     J = np.sqrt(
@@ -240,14 +239,14 @@ def rodar_omega(atomos, geom, nproc, omega, batch_file, relax, rem, numjobs):
 def write_tolog(omegas, Js, frase):
     with open("omega.lx", "w", encoding='utf-8') as f:
         # Align headers appropriately
-        f.write(f"{'#w(10^3 bohr^-1)':<15}{'J':<10}\n")
+        f.write(f"{'#w(10^3 bohr^-1)':<22}{'J':<12}\n")
         
         # Sort the values by omega
         list1, list2 = zip(*sorted(zip(omegas, Js)))
         
         for i in range(len(list1)):
             # Format the columns with proper alignment
-            f.write(f"{list1[i]:<15.0f}{list2[i]:<10.4f}\n")
+            f.write(f"{list1[i]:<22.0f}{list2[i]:<12.4f}\n")
         
         # Find the minimum J and its corresponding omega
         min_index = list2.index(min(list2, key=abs))

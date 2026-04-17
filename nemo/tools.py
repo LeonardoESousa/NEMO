@@ -814,7 +814,7 @@ def check_for_updates(package_name):
 
 ##RUNS W TUNING################################################
 def empirical_tuning():
-    geomlog = fetch_file("input or log", [".com", ".log"])
+    geomlog = fetch_file("input or log", [".in"])
     omega1 = "0.1"
     passo = "0.025"
     relax = 'yes'
