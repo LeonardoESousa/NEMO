@@ -5,6 +5,7 @@ import sys
 import shutil
 import numpy as np
 import nemo.tools
+from contextlib import redirect_stdout
 
 ###############################################################
 
@@ -409,7 +410,16 @@ def main():
         f"tddft.com",
     )
     gera_file(rem, True, menor, "0 1", atomos, G, filename="tuned_w.com")
+    the_watcher = nemo.tools.Watcher('.',key="tddft.com")
+    the_watcher.run(script, nproc, 1)
+    the_watcher.hold_watch()
 
+    with open("state_analysis.txt", "w") as f:
+        with redirect_stdout(f):
+            try:
+                nemo.tools.susceptibility_check('tddft.log')
+            except:
+                print("Could not perform susceptibility check. Please check tddft.log for details.")
 
 if __name__ == "__main__":
     sys.exit(main())
