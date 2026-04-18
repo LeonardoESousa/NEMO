@@ -8,71 +8,27 @@ import nemo.tools
 from contextlib import redirect_stdout
 
 ###############################################################
-
-def gera_file(rem, relax, omega, cm, atomos, geometry, filename=None):
-    """
-    Generates a Q-Chem input header by reading a template file and substituting placeholders.
-
-    Parameters:
-    rem (str): The $rem section from the Q-Chem input.
-    opt (str): The optimization method.
-    omega (float): The frequency for the TDA calculation.
-    cm (str, optional): Charge and multiplicity information. Defaults to "{cm}".
-    geometry (str, optional): Molecular geometry. Defaults to "{geometry}".
-
-    Returns:
-    str: The formatted Q-Chem input header.
-    """
-
-    def load_template(template):
-        """Loads the Q-Chem template file."""
-        template_dir = os.path.join(os.path.dirname(__file__), "templates")
-        template_file = os.path.join(template_dir, f"{template}.in")
-
-        if not os.path.exists(template_file):
-            raise FileNotFoundError(f"Template file not found: {template_file}")
-
-        with open(template_file, "r", encoding="utf-8") as f:
-            return f.read()
-
-    def extract_basic_rem(rem):
-        """Extracts relevant information from the rem section and removes $end."""
-        return rem.replace("$end", "").strip()
-
-    if relax:
-        opt = "opt\nGEOM_OPT_MAX_CYCLES   100"
-    else:
-        opt = "sp"
-
+def gera_file(template, rem, atomos, geometry, filename, **kwargs):
     rem = rem.lower().strip()
     
     # Extract relevant part of rem
-    basic_rem = extract_basic_rem(rem)
+    basic_rem = nemo.tools.extract_basic_rem(rem)
 
-
-    template = load_template("omega")
-    header = template.format(
-        opt=opt,
-        omega=omega,
-        basic=basic_rem,
-        cm=cm
-    )
+    template = nemo.tools.load_template(template)
     
-    header = header.split("#GGG#")
-    bottom = header[1]
-    header = header[0]
-    if filename:
-        file = filename
-    elif cm == "0 1":
-        file = f"OPT-{omega}-.com"
-    elif "-" in cm:
-        file = f"neg-{omega}-sp-.com"
-    else:
-        file = f"pos-{omega}-sp-.com"
+    # Inject computed + user-provided kwargs into format
+    format_dict = {
+        "basic": basic_rem,
+        **kwargs
+    }
 
-    nemo.tools.write_input(atomos, geometry, header, bottom, file)
+    header = template.format(**format_dict)
+    
+    header, bottom = header.split("#GGG#")
+    
+    nemo.tools.write_input(atomos, geometry, header, bottom, filename)
 
-    return file
+    return filename
 
 
 def pega_energia(log_file):
@@ -183,24 +139,74 @@ def pega_homo(log_file):
 def rodar_omega(atomos, geom, nproc, omega, batch_file, relax, rem, numjobs):
     omega = f"{omega:03.0f}"
     files = []
-    file = gera_file(rem, relax, omega, "0 1", atomos, geom)
-    files.append(file)
     if relax:
+        file = gera_file(
+            'omega_opt',
+            rem,
+            atomos,
+            geom,
+            f"OPT-{omega}-.com",
+            omega=omega,
+            cm="0 1",
+        )
+        files.append(file)
         the_watcher = nemo.tools.Watcher('.',key="OPT-")
         the_watcher.run(batch_file, nproc, 1)
         the_watcher.hold_watch()
         geom, atomos = nemo.parser.pega_geom(file[:-3] + "log")
-        file2 = gera_file(rem, False, omega, "+1 2", atomos, geom)
+        file2 = gera_file(
+            'omega_sp',
+            rem,
+            atomos,
+            geom,
+            f"pos-{omega}-sp-.com",
+            omega=omega,
+            cm="+1 2",
+        )
         files.append(file2)
-        files3 = gera_file(rem, False, omega, "-1 2", atomos, geom)
+        files3 = gera_file(
+            'omega_sp',
+            rem,
+            atomos,
+            geom,
+            f"neg-{omega}-sp-.com",
+            omega=omega,
+            cm="-1 2",
+        )
         files.append(files3)
         the_watcher = nemo.tools.Watcher('.',key="sp-")
         the_watcher.run(batch_file, nproc, min(numjobs,2))
         the_watcher.hold_watch()
     else:
-        file2 = gera_file(rem, False, omega, "+1 2", atomos, geom)
+        file = gera_file(
+            'omega_sp',
+            rem,
+            atomos,
+            geom,
+            f"OPT-{omega}-.com",
+            omega=omega,
+            cm="0 1",
+        )
+        files.append(file)
+        file2 = gera_file(
+            'omega_sp',
+            rem,
+            atomos,
+            geom,
+            f"pos-{omega}-sp-.com",
+            omega=omega,
+            cm="+1 2",
+        )
         files.append(file2)
-        files3 = gera_file(rem, False, omega, "-1 2", atomos, geom)
+        files3 = gera_file(
+            'omega_sp',
+            rem,
+            atomos,
+            geom,
+            f"neg-{omega}-sp-.com",
+            omega=omega,
+            cm="-1 2",
+        )
         files.append(files3)
         the_watcher = nemo.tools.Watcher('.',key=f"-{omega}-")
         the_watcher.run(batch_file, nproc, min(numjobs,3))
@@ -398,18 +404,18 @@ def main():
     menor = omegas[Js.index(min(Js, key=abs))] 
     log = f"Logs/OPT-{menor:.0f}-.log"
     G, atomos = nemo.parser.pega_geom(log)
-    header = nemo.tools.add_header(rem, 5, 'false', 3.0, 1.4, "0 1")
-    header = header.split("#GGG#")
-    bottom = header[1]
-    header = header[0]
-    nemo.tools.write_input(
+    gera_file("td-dft", rem+f"\n omega    {menor:.0f}", atomos, G, "tddft.com", cm="0 1", stat=3.0, optic=1.96, num_ex=5, soc="false")
+    
+    
+    gera_file(
+        "opt_td",
+        rem,
         atomos,
         G,
-        header,
-        bottom,
-        f"tddft.com",
+        "freqs1.com",
+        omega=f"{menor:.0f}",
+        cm="0 1",
     )
-    gera_file(rem, True, menor, "0 1", atomos, G, filename="tuned_w.com")
     the_watcher = nemo.tools.Watcher('.',key="tddft.com")
     the_watcher.run(script, nproc, 1)
     the_watcher.hold_watch()
