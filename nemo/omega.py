@@ -404,7 +404,8 @@ def main():
     menor = omegas[Js.index(min(Js, key=abs))] 
     log = f"Logs/OPT-{menor:.0f}-.log"
     G, atomos = nemo.parser.pega_geom(log)
-    gera_file("td-dft", rem+f"\n omega    {menor:.0f}", atomos, G, "tddft.com", cm="0 1", stat=3.0, optic=1.96, num_ex=5, soc="false")
+    rem = nemo.tools.extract_basic_rem(rem)
+    gera_file("td-dft", rem+f"\nomega    {menor:.0f}", atomos, G, "tddft.com", cm="0 1", stat=3.0, optic=1.96, num_ex=5, soc="false")
     
     
     gera_file(
