@@ -1,7 +1,4 @@
 #!/usr/bin/env python3
-
-import warnings
-
 import os
 import re
 import warnings
@@ -22,6 +19,18 @@ E_CHARGE = nemo.parser.E_CHARGE
 MASS_E = nemo.parser.MASS_E
 EPSILON_0 = nemo.parser.EPSILON_0
 
+##Defines the standard deviation used for IC and ISC rates ##############################
+FREQ_EFF=0.0 #Global variable that is changed in gather_data_derivative_couplings
+def sigma_function(e_col):
+    sigma = 0.026         # Emission standard
+    sigma = np.std(e_col, axis=0) # old option
+    sigma = (1.0/(2.0*0.026))*np.var(e_col, axis=0)
+    sigma = (1.0/(3.0*0.026))*np.var(e_col, axis=0)
+
+    coth=1.0/np.tanh(HBAR_EV*FREQ_EFF/(2.0*0.026))
+    sigma = (1.0/(HBAR_EV*FREQ_EFF*coth))*np.var(e_col, axis=0)
+    return sigma
+#########################################################################################
 
 ##RETURNS LIST OF LOG FILES WITH NORMAL TERMINATION######################################
 def check_normal(folder):
@@ -493,7 +502,15 @@ def gather_data_derivative_couplings(initial, final, data=None, data_dc=None, da
         e_col = delta[:, int(final[1])][:, np.newaxis] # eV
 
         #gammas_lorentz = espectro / 2.0# nemo.tools.detect_sigma()# espectro / 2.0
-        sigma = np.std(e_col, axis=0)
+
+
+        # sigma options
+        # sigma = np.std(e_col, axis=0)   # option 1
+        # sigma = (1.0/(2.0*0.025))*np.var(e_col,axis=0) # option 2
+        # print(freq_V[0])
+        global FREQ_EFF
+        FREQ_EFF = freq_V[0]
+        sigma = sigma_function(e_col)
 
 
 
@@ -878,7 +895,7 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
         final_energy_isc, triplets, chi_t, gamma_t, theta_t, phi_t, socs_complete = sorting_parameters(final_energy_isc, triplets, chi_t, gamma_t, theta_t, phi_t, socs_complete)
         lambda_b_isc = lambda_solvent(chis, thetas, phis, chi_t, theta_t, phi_t, alphaopt2, alphast2)
         delta_isc = final_energy_isc - initial_energy[:, np.newaxis] + lambda_b_isc
-        sigma_int = np.std(delta_isc, axis=0)
+        sigma_int = sigma_function(delta_isc)
         final = [
             i.split("_")[2].upper()
             for i in data.columns.values
@@ -895,7 +912,7 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
         # add emission energy as the first column
         delta_ic = np.hstack((-1 * delta_emi[:, np.newaxis], delta_ic))
         lambda_b_ic = np.hstack((lambda_emission[:, np.newaxis], lambda_b_ic))
-        sigma_int_ic = np.std(delta_ic, axis=0)
+        sigma_int_ic = sigma_function(delta_ic)
         #remove columns for states higher than n_state
         delta_ic = delta_ic[:, :n_state+1]
         lambda_b_ic = lambda_b_ic[:, :n_state+1]
@@ -920,7 +937,7 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
         socs_complete = np.hstack((socs_s0[:, np.newaxis], socs_complete))
         delta_isc = np.hstack((-1 * delta_emi[:, np.newaxis], delta_isc))
         lambda_b_isc = np.hstack((lambda_emission[:, np.newaxis], lambda_b_isc))
-        sigma_int = np.std(delta_isc, axis=0)
+        sigma_int = sigma_function(delta_isc)
 
     sigma = total_reorganization_energy(lambda_b_isc, kbt, sigma_int)
     y_axis = (
