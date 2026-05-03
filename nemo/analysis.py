@@ -432,16 +432,23 @@ def gather_data(initial, save=True):
                     temp_data_dc[column] = temp_data_dc[column].map(fmt.format)
             temp_data_dc.to_csv(arquivo_dc, index=False)
 
+        ic_cols = {}
         for i in states:
             for j in states:
-                if i== j:
+                if i == j:
                     continue
-                _, _, h, hw_eff = gather_data_derivative_couplings("s"+str(i), "s"+str(j), data, data_dc, data_V)
-                data[f"IC_{i}_{j}"] = h
+                
+                _, _, h = gather_data_derivative_couplings(
+                    "s" + str(i), "s" + str(j), data, data_dc, data_V
+                )
+        
+                ic_cols[f"IC_{i}_{j}"] = h[:, 0]
                 formats[f"IC_{i}_{j}"] = "{:.5e}"
-                data[f"hw_eff_{i}_{j}"] = hw_eff
-                formats[f"hw_eff_{i}_{j}"] = "{:.5e}"
-
+        
+        if ic_cols:
+            ic_df = pd.DataFrame(ic_cols, index=data.index)
+            data = pd.concat([data, ic_df], axis=1)
+        
     arquivo = f"Ensemble_{initial.upper()}_.lx"
     data["ensemble"] = initial.upper()
     formats["ensemble"] = "{:s}"
@@ -744,7 +751,7 @@ def breakdown_emi(chi_s, chi_t, delta_emi, l_total, individual, labels):
 def lambda_solvent(chi_i, theta_i, phi_i, chi_f, theta_f, phi_f, alphaopt, alphast):
     cos = compute_cos(theta_i,phi_i, theta_f, phi_f)
     chi_t = chi_i + chi_f - 2 * np.sqrt(chi_i * chi_f) * cos
-    lambda_b = chi_t * (alphast - alphaopt)  #chi_f * (alphast - alphaopt)
+    lambda_b = chi_t * (alphast - alphaopt)
     return lambda_b
 
 def compute_cos(theta_i, theta_f, phi_i, phi_f):
@@ -762,9 +769,6 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
     eps, refractive_index = dielec[0], dielec[1]
     alphast2 = nemo.tools.get_alpha(eps)
     alphaopt2 = nemo.tools.get_alpha(refractive_index**2)
-
-    #data = fix_absent_triplets(data)
-    #data = fix_absent_soc(data)
 
     n_state = int(initial[1:]) - 1
     initial = initial.lower()
@@ -883,9 +887,6 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
     emi.rate = emi_rate
     emi.error = emi_error
 
-    # Checks number of logs
-    if data is None:
-        check_number_geoms(data)
     # Intersystem Crossing Rates
 
     #select columns corresponding to the initial state

@@ -4,7 +4,7 @@ import subprocess
 import sys
 import time
 import requests
-import pkg_resources
+from importlib.metadata import version
 from subprocess import Popen
 import numpy as np
 import pandas as pd
@@ -296,7 +296,23 @@ def check_dielectric(eps,nr):
         nemo.parser.fatal_error("Dielectric constant must be higher than 1 and the refractive index squared must be lower than the static dielectric constant! Goodbye!")
 
 
-def add_header(rem, num_ex, soc, static, refrac, cm):
+def load_template(method):
+    """Loads the Q-Chem template file."""
+    template_dir = os.path.join(os.path.dirname(__file__), "templates")
+    template_file = os.path.join(template_dir, f"{method}.in")
+
+    if not os.path.exists(template_file):
+        raise FileNotFoundError(f"Template file not found: {template_file}")
+
+    with open(template_file, "r", encoding="utf-8") as f:
+        return f.read()
+
+def extract_basic_rem(rem):
+    """Extracts relevant information from the rem section and removes $end."""
+    return rem.replace("$end", "").strip()
+
+
+def add_header(rem, num_ex, soc, static, refrac, cm, ic=False):
     """
     Generates a Q-Chem input header by reading a template file and substituting placeholders.
 
@@ -311,21 +327,6 @@ def add_header(rem, num_ex, soc, static, refrac, cm):
     Returns:
     str: The formatted Q-Chem input header.
     """
-
-    def load_template(method):
-        """Loads the Q-Chem template file."""
-        template_dir = os.path.join(os.path.dirname(__file__), "templates")
-        template_file = os.path.join(template_dir, f"{method}.in")
-
-        if not os.path.exists(template_file):
-            raise FileNotFoundError(f"Template file not found: {template_file}")
-
-        with open(template_file, "r", encoding="utf-8") as f:
-            return f.read()
-
-    def extract_basic_rem(rem):
-        """Extracts relevant information from the rem section and removes $end."""
-        return rem.replace("$end", "").strip()
 
     rem = rem.lower().strip()
     method = rem.split()
@@ -349,17 +350,28 @@ def add_header(rem, num_ex, soc, static, refrac, cm):
             soc=soc
         )
     else:
-        template = load_template('ic_td-dft')
-        header = template.format(
-            num_ex=num_ex,
-            stat=static,
-            optic=refrac**2,
-            basic=basic_rem,
-            cm=cm,
-            soc=soc,
-            cis_der=num_ex +1,
-            state_couplings=" ".join([str(i) for i in range(num_ex+1)])
-        )
+        if ic:
+            template = load_template('ic_td-dft')
+            header = template.format(
+                num_ex=num_ex,
+                stat=static,
+                optic=refrac**2,
+                basic=basic_rem,
+                cm=cm,
+                soc=soc,
+                cis_der=num_ex +1,
+                state_couplings=" ".join([str(i) for i in range(num_ex+1)])
+            )
+        else:
+            template = load_template('td-dft')
+            header = template.format(
+                num_ex=num_ex,
+                stat=static,
+                optic=refrac**2,
+                basic=basic_rem,
+                cm=cm,
+                soc=soc
+            )    
     return header
 
 def single_molecule_ensemble(atomos, geom, header, bottom):
@@ -410,12 +422,16 @@ def setup_ensemble():
             ("Ok, calculations will only be suitable for absorption "
              "or fluorescence spectrum simulations!\n")
         )
-        header = add_header(rem, num_ex, 'false', static, refrac, charge_multiplicity)
+        header = add_header(rem, num_ex, 'false', static, refrac, charge_multiplicity, False)
     else:
         print(
             "Ok, calculations will be suitable for all spectra and ISC rate estimates!\n"
         )
-        header = add_header(rem, num_ex, 'true', static, refrac, charge_multiplicity)
+        ic = input("Do you want to include internal conversion (IC) in the calculations? y or n?\n")
+        if ic.lower() == "y": 
+            header = add_header(rem, num_ex, 'true', static, refrac, charge_multiplicity, True)
+        else:
+            header = add_header(rem, num_ex, 'true', static, refrac, charge_multiplicity, False)
     header = header.split("#GGG#")
     bottom = header[1]
     header = header[0]
@@ -587,8 +603,7 @@ def fetch_nr(file):
 
 def susceptibility_check(file, tuning=False):
     # Fetch energy levels and other data
-    s_vac, t_vac, _, _, _, ss_s, ss_t, ss_g, y_s, y_t = nemo.parser.pega_energias(file)
-
+    s_vac, t_vac, _, _, _, ss_s, ss_t, _, _, _, _, ss_g, y_s, y_t = nemo.parser.pega_energias(file)
     eps, nr = fetch_nr(file)
 
     # Calculate alpha and susceptibility chi values
@@ -672,7 +687,10 @@ class Watcher:
         self.folder = folder
         self.key = key
         self.files = [i[:-4] for i in os.listdir(folder) if i.endswith('.com') and key in i]
-        self.files = sorted(self.files, key=lambda pair: float(pair.split("-")[1]))
+        try:
+            self.files = sorted(self.files, key=lambda pair: float(pair.split("-")[1]))
+        except (ValueError, IndexError):
+            pass
         self.number_inputs = len(self.files)
         self.done = []
         self.license_error = []
@@ -797,7 +815,7 @@ def andamento():
 def check_for_updates(package_name):
     try:
         # Get the currently installed version
-        installed_version = pkg_resources.get_distribution(package_name).version
+        installed_version = version(package_name)
 
         # Fetch the latest version from PyPI
         response = requests.get(f'https://pypi.org/pypi/{package_name}/json')
@@ -813,25 +831,11 @@ def check_for_updates(package_name):
         print(f"An error occurred while checking for updates: {e}")
 
 ##RUNS W TUNING################################################
-def empirical_tuning():
-    geomlog = fetch_file("input or log", [".com", ".log"])
-    rem, _, extra = nemo.parser.busca_input(geomlog)
-    print(f"QChem template file: {geomlog}")
-    rem += extra + "\n"
-    #iterate over lines of rem
-    for line in rem.split("\n"):
-        if "method" in line.lower() or 'exchange' in line.lower():
-            functional = line.split()[-1]
-        if "basis" in line.lower():
-            basis = line.split()[-1]
-        if  'mem_total' in line.lower():
-            mem = line.split()[-1]
+def tuning():
+    geomlog = fetch_file("input or log", [".in"])
     omega1 = "0.1"
     passo = "0.025"
     relax = 'yes'
-    print(f"Total memory: {mem}")
-    print(f"Functional: {functional}")
-    print(f"Basis: {basis}")
     print(f"Initial Omega: {omega1} bohr^-1")
     print(f"Step: {passo} bohr^-1")
     print(f'Optimize at each step? {relax}')
@@ -851,9 +855,7 @@ def empirical_tuning():
         )
     script = fetch_file("batch script", ["batch.sh"])
     nproc = input("Number of threads for each calculation\n")
-    e_exp = input("Experimental vacuum energy and uncertainty in eV? (space separated)\n")
-    chi_exp = input("Experimental susceptibility and uncertainty in eV? (space separated)?\n")
-
+    parallel = input("Minimize submission of jobs: y/n\n")
     with open("limit.lx", "w",encoding="utf-8") as f:
         f.write("10")
     subprocess.Popen(
@@ -861,16 +863,12 @@ def empirical_tuning():
             "nohup",
             "nemo_tuning",
             geomlog,
-            functional,
-            basis,
             nproc,
             omega1,
             passo,
             relax,
             script,
-            e_exp,
-            chi_exp,
-            mem,
+            parallel,
             "&",
         ]
     )

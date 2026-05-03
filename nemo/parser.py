@@ -25,7 +25,7 @@ def check_software(freqlog):
         content = freq_file.read()
         if "Entering Gaussian System" in content:
             return 'Gaussian'
-        elif "Q-Chem" in content:
+        elif "$rem" in content:
             return 'QChem'
         else:
             fatal_error("Unknown log file format! Goodbye!")
