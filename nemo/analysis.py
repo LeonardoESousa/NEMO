@@ -24,11 +24,12 @@ FREQ_EFF=0.0 #Global variable that is changed in gather_data_derivative_coupling
 def sigma_function(e_col):
     sigma = 0.026         # Emission standard
     sigma = np.std(e_col, axis=0) # old option
-    sigma = (1.0/(2.0*0.026))*np.var(e_col, axis=0)
-    sigma = (1.0/(3.0*0.026))*np.var(e_col, axis=0)
-
+#    sigma = (1.0/(2.0*0.026))*np.var(e_col, axis=0)
+#    sigma = (1.0/(3.0*0.026))*np.var(e_col, axis=0)
+#
+    ratio=1.5
     coth=1.0/np.tanh(HBAR_EV*FREQ_EFF/(2.0*0.026))
-    sigma = (1.0/(HBAR_EV*FREQ_EFF*coth))*np.var(e_col, axis=0)
+    sigma = (1.0/(HBAR_EV*FREQ_EFF*coth))*np.var(e_col, axis=0)/ratio
     return sigma
 #########################################################################################
 
@@ -509,7 +510,10 @@ def gather_data_derivative_couplings(initial, final, data=None, data_dc=None, da
         # sigma = (1.0/(2.0*0.025))*np.var(e_col,axis=0) # option 2
         # print(freq_V[0])
         global FREQ_EFF
-        FREQ_EFF = freq_V[0]
+        #print(freq_V[np.newaxis,:].shape, v1.shape)
+        #FREQ_EFF = np.average(freq_V[np.newaxis,:], weights=v1)
+        FREQ_EFF = np.average(np.sum(freq_V*v1, axis=1)/np.sum(v1, axis=1))
+        #print(f"{FREQ_EFF:.2e}")
         sigma = sigma_function(e_col)
 
 
