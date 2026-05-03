@@ -1,0 +1,32 @@
+{basic}
+jobtype               opt
+omega                 {omega}
+MAX_SCF_CYCLES          200
+GEOM_OPT_MAX_CYCLES   100
+state_follow           true
+set_state_deriv        1
+cis_n_roots             5
+cis_singlets            true
+cis_triplets            false
+$end
+
+$molecule
+{cm}
+#GGG#
+$end
+
+@@@
+
+$molecule
+read
+$end
+
+{basic}
+jobtype               freq
+omega                 {omega}
+MAX_SCF_CYCLES          200
+set_state_deriv        1
+cis_n_roots             5
+cis_singlets            true
+cis_triplets            false
+$end
