@@ -438,12 +438,14 @@ def gather_data(initial, save=True):
                 if i == j:
                     continue
                 
-                _, _, h = gather_data_derivative_couplings(
+                _, _, h, hw_eff = gather_data_derivative_couplings(
                     "s" + str(i), "s" + str(j), data, data_dc, data_V
                 )
         
                 ic_cols[f"IC_{i}_{j}"] = h[:, 0]
                 formats[f"IC_{i}_{j}"] = "{:.5e}"
+                data[f"hw_eff_{i}_{j}"] = hw_eff
+                formats[f"hw_eff_{i}_{j}"] = "{:.5e}"
         
         if ic_cols:
             ic_df = pd.DataFrame(ic_cols, index=data.index)
