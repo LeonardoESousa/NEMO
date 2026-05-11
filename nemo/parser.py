@@ -1199,11 +1199,22 @@ def transform_dR_to_dQ(normal_modes, DC_real):
     A = transform_cartesian_to_normal_modes(normal_modes)
     # compute transpose of A
     A_T = np.transpose(A)
-    #print(A@A_T)
+
+    # ---- don't assume orthogonality due to Gaussian16 simplification
+
     # compute inverse of AA_T
-    AA_T_inv = np.linalg.inv(np.dot(A, A_T))
+    #AA_T_inv = np.linalg.inv(np.dot(A, A_T))
+
     # compute d/dQ
-    DC_normal = AA_T_inv @ np.dot(A, DC_real.flatten())
+    #DC_normal = AA_T_inv @ np.dot(A, DC_real.flatten())
+
+    # -----------------------
+
+    # ---- assume ortogonality
+    # compute d/dQ
+    DC_normal = np.dot(A, DC_real.flatten()) 
+
+
     return DC_normal
 
 ######################################################################################################

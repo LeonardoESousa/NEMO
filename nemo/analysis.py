@@ -21,15 +21,71 @@ EPSILON_0 = nemo.parser.EPSILON_0
 
 ##Defines the standard deviation used for IC and ISC rates ##############################
 FREQ_EFF=0.0 #Global variable that is changed in gather_data_derivative_couplings
-def sigma_function(e_col):
-    sigma = 0.026         # Emission standard
-    sigma = np.std(e_col, axis=0) # old option
+def sigma_function(e_col, freq=None):
+    kbt = 0.026
+    sigma = kbt         # Emission standard
+#    sigma = np.std(e_col, axis=0) # old option
 #    sigma = (1.0/(2.0*0.026))*np.var(e_col, axis=0)
 #    sigma = (1.0/(3.0*0.026))*np.var(e_col, axis=0)
 #
-    ratio=1.5
-    coth=1.0/np.tanh(HBAR_EV*FREQ_EFF/(2.0*0.026))
-    sigma = (1.0/(HBAR_EV*FREQ_EFF*coth))*np.var(e_col, axis=0)/ratio
+    if not(freq):
+        freq=FREQ_EFF
+    hw = HBAR_EV*freq
+    coth=1.0/np.tanh(hw/(2.0*kbt))
+    print('hw=', hw)
+    print('coth=', coth)
+
+    ratio=1.1572036113
+
+    if len(e_col.shape)==1:
+        e_col=e_col[:,np.newaxis]
+    
+    thresh=0.025
+    sigma=[]
+    print('states=',e_col.shape[1])
+    for i in range(e_col.shape[1]): # number of states
+        energy=e_col[:,i]
+        mean = np.average(energy)
+        var = np.var(energy)
+        skew = np.average((energy - mean)**3)
+        print('mean=',mean )
+        print('var=',var )
+        print('skew=',skew)
+
+        coeffs = [4.0, 0, -6.0*var, skew]# 4u³ + 0u² - 6varu + skew=0
+        roots = np.roots(coeffs)
+        print('coeffs=',coeffs)
+        print('roots=',roots)
+        
+        # find last physical root (later, criterion should be implemented)
+        lamb_f=-10.0
+        a_sf = 1.0
+        for root in roots:
+            a_s = 1.0 + 4.0*root/(hw*coth)
+            print('a_s=',a_s)
+            if a_s<0.0: 
+                continue
+            lamb = (var - 2.0*root**2)/(a_s*hw*coth)
+            print('lamb=',lamb)
+            if lamb <= 0.0: 
+                continue
+            a_sf = a_s
+            lamb_f=lamb
+
+        if abs(a_sf)<thresh:               # --- change a_sf in formula for thresh
+            lamb_f=lamb_f*abs(a_sf)/thresh # --- abs(a_sf) is used no to change the sign of lamb_f
+
+        if lamb_f<=0:
+            print("roots not found, sigma=", sigma)
+            sigma.append(kbt)
+        if lamb_f>0:
+            sigma.append(lamb_f)
+
+    print(sigma)
+    sigma=np.array(sigma)
+
+    if e_col.shape[1]==1:
+        sigma=sigma[0]
     return sigma
 #########################################################################################
 
@@ -919,13 +975,13 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
         # add emission energy as the first column
         delta_ic = np.hstack((-1 * delta_emi[:, np.newaxis], delta_ic))
         lambda_b_ic = np.hstack((lambda_emission[:, np.newaxis], lambda_b_ic))
-        sigma_int_ic = sigma_function(delta_ic)
+        #sigma_int_ic = sigma_function(delta_ic)
         #remove columns for states higher than n_state
         delta_ic = delta_ic[:, :n_state+1]
         lambda_b_ic = lambda_b_ic[:, :n_state+1]
-        sigma_int_ic = sigma_int_ic[:n_state+1]
         h_ic = h_ic[:, :n_state+1]
         hw_eff = hw_eff[:, :n_state+1]
+        sigma_int_ic = sigma_function(delta_ic)
         final = final + [f"S0"] + [f"S{j}" for j in range(1, 1 + delta_ic.shape[1]) if j != n_state+1]
     elif "t" in initial:
         # Tn to Sm ISC
