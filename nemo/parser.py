@@ -1246,7 +1246,7 @@ def transform_dR_to_dQ(normal_modes, DC_real):
     # compute inverse of AA_T
     #AA_T_inv = np.linalg.inv(np.dot(A, A_T))
 
-    # compute d/dQ
+    ## compute d/dQ
     #DC_normal = AA_T_inv @ np.dot(A, DC_real.flatten())
 
     # -----------------------

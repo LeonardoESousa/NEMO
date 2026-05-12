@@ -40,7 +40,7 @@ def sigma_function(e_col, freq=None):
     if len(e_col.shape)==1:
         e_col=e_col[:,np.newaxis]
     
-    thresh=0.025
+    thresh=0.0#25
     sigma=[]
     print('states=',e_col.shape[1])
     for i in range(e_col.shape[1]): # number of states
