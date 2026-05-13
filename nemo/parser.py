@@ -3,6 +3,8 @@ import re
 import numpy as np
 import pandas as pd
 import nemo.tools
+from scipy.optimize import linear_sum_assignment
+
 
 ##SOME CONSTANTS##############################################
 EPSILON_0 = 8.854187817e-12  # F/m
@@ -453,17 +455,6 @@ def pega_modos(G, freqlog):
 
 
 def parse_block(block, collect_corrections=False):
-    """
-    Parses a calculation block from a quantum chemistry log file, including composition.
-
-    Parameters:
-        block (str): The text block corresponding to one calculation.
-        collect_corrections (bool): Whether to parse SS corrections.
-
-    Returns:
-        dict: Contains excited-state energies, spins, oscillator strengths, state indices,
-              corrections, total energies, and composition.
-    """
     data = {
         'energies': [],
         'spins': [],
@@ -478,16 +469,20 @@ def parse_block(block, collect_corrections=False):
         'total_energy': [],
         'composition': [],
     }
-    exc = False  # Flag for excited state section.
-    corr = False # Flag for PCM correction section.
-    current_comp = None  # To hold composition dict for each state.
-    
-    fetch_0 = False       #Flag for electronic dipole moment of ground state
-    fetch_singlet = False #Flag for electronic dipole moment section of singlet states
-    fetch_triplet = False #Flag for electronic dipole moment section of triplet states
+
+    exc = False
+    corr = False
+    current_comp = None
+
+    fetch_0 = False
+    fetch_singlet = False
+    fetch_triplet = False
     strike = 0
+    vec0 = None
+
     for line in block.splitlines():
-        # Start a new excited state section.
+
+        # Excited-state section
         if "TDDFT/TDA Excitation Energies" in line or "TDDFT Excitation Energies" in line:
             data['energies'] = []
             data['spins'] = []
@@ -495,38 +490,41 @@ def parse_block(block, collect_corrections=False):
             data['indices'] = []
             data['composition'] = []
             exc = True
-        elif exc:
+            current_comp = None
+            continue
+
+        if exc:
             if "Excited state" in line:
-                # Save previous state's composition before starting a new one
                 if current_comp is not None:
                     data['composition'].append(current_comp)
-                current_comp = {}  # Start a new composition dict
+
+                current_comp = {}
 
                 parts = line.split()
                 state_index = int(parts[2].replace(":", ""))
-                data['indices'].append(state_index)
-
                 energy_val = float(line.split()[-1])
+
+                data['indices'].append(state_index)
                 data['energies'].append(energy_val)
 
             elif "Multiplicity" in line:
                 data['spins'].append(line.split()[-1])
 
-            elif "Strength " in line:
-                osc_val = float(line.split()[-1])
-                data['oscillator'].append(osc_val)
+            elif "Strength" in line:
+                data['oscillator'].append(float(line.split()[-1]))
 
-            elif re.match(r'\s*X:\s*D\(', line):
-                # Composition line: parse D, V, amplitude
-                match = re.search(r'D\(\s*(\d+)\)\s*-->\s*V\(\s*(\d+)\)\s*amplitude\s*=\s*([-\d\.Ee]+)', line)
-                if match:
+            elif re.match(r'\s*D\(', line):
+                match = re.search(
+                    r'D\(\s*(\d+)\)\s*-->\s*V\(\s*(\d+)\)\s*amplitude\s*=\s*([+-]?\d*\.?\d+(?:[Ee][+-]?\d+)?)',
+                    line
+                )
+                if match and current_comp is not None:
                     d_idx = int(match.group(1))
                     v_idx = int(match.group(2))
                     amp = float(match.group(3))
                     current_comp[(d_idx, v_idx)] = amp
 
             elif "---------------------------------------------------" in line and len(data['energies']) > 0:
-                # End of excited state section: append last composition
                 if current_comp is not None:
                     data['composition'].append(current_comp)
                     current_comp = None
@@ -536,206 +534,249 @@ def parse_block(block, collect_corrections=False):
         if collect_corrections:
             if "Excited-state properties with   relaxed density" in line:
                 corr = True
+
             if corr:
                 if "SS-PCM correction" in line:
                     val = float(line.split()[-2])
-                    data['correction'].append(-1 * np.nan_to_num(val))
+                    data['correction'].append(-np.nan_to_num(val))
+
                 elif "LR-PCM correction" in line:
                     val = float(line.split()[-2])
-                    data['correction2'].append(-1 * np.nan_to_num(val))
-                if "------------------------ END OF SUMMARY -----------------------" in line:
+                    data['correction2'].append(-np.nan_to_num(val))
+
+                elif "------------------------ END OF SUMMARY -----------------------" in line:
                     corr = False
 
-
-        # Transition moment orientations: mu-mu_0
-        # Define the state multiplicity
+        # Dipole moment sections
         if 'Electron Dipole Moments of Ground State' in line:
             fetch_0 = True
+            fetch_singlet = False
+            fetch_triplet = False
+            strike = 0
             continue
+
         if 'Electron Dipole Moments of Singlet Excited State' in line:
             fetch_singlet = True
+            fetch_0 = False
+            fetch_triplet = False
+            strike = 0
             continue
+
         if 'Electron Dipole Moments of Triplet Excited State' in line:
             fetch_triplet = True
+            fetch_0 = False
+            fetch_singlet = False
+            strike = 0
             continue
 
         if fetch_0:
             try:
-                vec0 = np.array([float(line.split()[1]),float(line.split()[2]), float(line.split()[3])])
+                vec0 = np.array([
+                    float(line.split()[1]),
+                    float(line.split()[2]),
+                    float(line.split()[3])
+                ])
             except (ValueError, IndexError):
                 strike += 1
-                if strike > 3: 
+                if strike > 3:
                     fetch_0 = False
                     strike = 0
             continue
-        if fetch_triplet:
-            try:
-                vecT = np.array([float(line.split()[1]), float(line.split()[2]), float(line.split()[3])])
-                _, theta, phi = nemo.tools.cartesian_to_spherical(vecT-vec0)
-                data['theta_t'].append(theta)
-                data['phi_t'].append(phi)
-            except (ValueError, IndexError):
-                strike += 1
-                if strike > 3: 
-                    fetch_triplet = False
-                    strike = 0
-            continue
+
         if fetch_singlet:
             try:
-                vecS = np.array([float(line.split()[1]),float(line.split()[2]), float(line.split()[3])])
-                _, theta, phi = nemo.tools.cartesian_to_spherical(vecS-vec0)
-                data['theta_s'].append(theta)
-                data['phi_s'].append(phi)
+                if vec0 is not None:
+                    vecS = np.array([
+                        float(line.split()[1]),
+                        float(line.split()[2]),
+                        float(line.split()[3])
+                    ])
+                    _, theta, phi = nemo.tools.cartesian_to_spherical(vecS - vec0)
+                    data['theta_s'].append(theta)
+                    data['phi_s'].append(phi)
             except (ValueError, IndexError):
                 strike += 1
-                if strike > 3: 
+                if strike > 3:
                     fetch_singlet = False
                     strike = 0
             continue
 
+        if fetch_triplet:
+            try:
+                if vec0 is not None:
+                    vecT = np.array([
+                        float(line.split()[1]),
+                        float(line.split()[2]),
+                        float(line.split()[3])
+                    ])
+                    _, theta, phi = nemo.tools.cartesian_to_spherical(vecT - vec0)
+                    data['theta_t'].append(theta)
+                    data['phi_t'].append(phi)
+            except (ValueError, IndexError):
+                strike += 1
+                if strike > 3:
+                    fetch_triplet = False
+                    strike = 0
+            continue
 
-        # Total energy in final basis set
+        # Total ground-state energy
         if "Total energy" in line and "=" in line:
             parts = line.split()
             data['total_energy'].append(float(parts[-1]) * 27.21139)
 
-    # If the last state's composition wasn't added yet
     if current_comp is not None:
         data['composition'].append(current_comp)
 
-    # Postprocessing
     spins = np.array(data['spins'])
+    indices = np.array(data['indices'])
+    energies = np.array(data['energies'])
+    oscillator = np.array(data['oscillator'])
+    composition = np.array(data['composition'], dtype=object)
+
     singlet_idx = np.where(spins == "Singlet")[0]
     triplet_idx = np.where(spins == "Triplet")[0]
-    data['ind_s'] = np.array(data['indices'])[singlet_idx]
-    data['ind_t'] = np.array(data['indices'])[triplet_idx]
-    data['singlets'] = np.array(data['energies'])[singlet_idx]
-    data['triplets'] = np.array(data['energies'])[triplet_idx]
-    data['osc_singlets'] = np.array(data['oscillator'])[singlet_idx]
-    data['comp_singlets'] = np.array(data['composition'])[singlet_idx]
-    data['comp_triplets'] = np.array(data['composition'])[triplet_idx]
+
+    data['ind_s'] = indices[singlet_idx]
+    data['ind_t'] = indices[triplet_idx]
+    data['singlets'] = energies[singlet_idx]
+    data['triplets'] = energies[triplet_idx]
+    data['osc_singlets'] = oscillator[singlet_idx]
+    data['comp_singlets'] = composition[singlet_idx]
+    data['comp_triplets'] = composition[triplet_idx]
+
     del data['composition']
+
     if collect_corrections:
-        data['ss_s'] = np.array(data['correction'])[singlet_idx] + np.array(data['correction2'])[singlet_idx]
-        data['ss_t'] = np.array(data['correction'])[triplet_idx] + np.array(data['correction2'])[triplet_idx]
-    data['len'] = len(data['singlets'])
+        correction = np.array(data['correction'])
+        correction2 = np.array(data['correction2'])
+
+        data['ss_s'] = correction[singlet_idx] + correction2[singlet_idx]
+        data['ss_t'] = correction[triplet_idx] + correction2[triplet_idx]
+
+    data['len_s'] = len(data['singlets'])
+    data['len_t'] = len(data['triplets'])
 
     return data
 
 
 def compute_similarity(comp1, comp2):
     """
-    Compute cosine similarity between two compositions (dict of (D,V): amplitude).
-    Only overlapping keys are compared.
+    Cosine similarity between two excitation compositions.
+
+    Uses squared amplitudes as weights.
+    Missing transitions are treated as zero.
     """
-    keys = set(comp1.keys()) & set(comp2.keys())
+    keys = set(comp1.keys()) | set(comp2.keys())
+
     if not keys:
         return 0.0
-    v1 = np.array([comp1[k] for k in keys])**2
-    v2 = np.array([comp2[k] for k in keys])**2
-    return np.dot(v1, v2)
 
-def match_compositions(comp_singlets_1, comp_singlets_2):
+    v1 = np.array([comp1.get(k, 0.0) ** 2 for k in keys])
+    v2 = np.array([comp2.get(k, 0.0) ** 2 for k in keys])
+
+    denom = np.linalg.norm(v1) * np.linalg.norm(v2)
+
+    if denom == 0:
+        return 0.0
+
+    return np.dot(v1, v2) / denom
+
+
+def match_compositions(comp_list_1, comp_list_2):
     """
-    Matches each state in comp_singlets_1 to a unique state in comp_singlets_2
-    by highest composition similarity (greedy one-to-one match, always assigns).
-
-    Parameters:
-        comp_singlets_1: array/list of dicts for case 1
-        comp_singlets_2: array/list of dicts for case 2
-
-    Returns:
-        list of indices: index i gives index in comp_singlets_2 matching state i in comp_singlets_1
+    Globally matches states from comp_list_1 to comp_list_2
+    using maximum composition similarity.
     """
-    available = list(range(len(comp_singlets_1)))  # indices of available states in comp_singlets_2
-    match_indices = []
+    n1 = len(comp_list_1)
+    n2 = len(comp_list_2)
 
-    for comp1 in comp_singlets_1:
-        best_idx = available[0]  # fallback: pick first available
-        best_sim = -1
-        for j in available:
-            sim = compute_similarity(comp1, comp_singlets_2[j])
-            if sim > best_sim:
-                best_sim = sim
-                best_idx = j
-        match_indices.append(best_idx)
-        available.remove(best_idx)
+    if n1 == 0 or n2 == 0:
+        return np.array([], dtype=int)
+
+    sim_matrix = np.zeros((n1, n2))
+
+    for i, comp1 in enumerate(comp_list_1):
+        for j, comp2 in enumerate(comp_list_2):
+            sim_matrix[i, j] = compute_similarity(comp1, comp2)
+
+    rows, cols = linear_sum_assignment(-sim_matrix)
+
+    match_indices = np.full(n1, -1, dtype=int)
+    match_indices[rows] = cols
 
     return match_indices
 
 
 def pega_energias(file):
-    """
-    Extracts excited-state and total energy properties from a quantum chemistry log file.
-
-    The log file is expected to contain two calculations separated by the marker "Have a nice day".
-    The first calculation provides vacuum (reference) excited-state energies, and the second includes
-    PCM corrections. The function returns sorted arrays of singlet and triplet energies (vacuum),
-    their oscillator strengths and state indices (for singlets), the calculated solvent shifts, 
-    the spherical angles of the electronic dipole moments, and the total energy (and its difference 
-    between the two calculations) in eV.
-
-    Parameters:
-        file (str): Path to the log file.
-
-    Returns:
-        tuple: (singlets, triplets, oscs, ind_s, ind_t, ss_s, ss_t, theta_s, phi_s, theta_t, phi_t, total_energy, energy_diff)
-            where:
-              - singlets (np.array): Vacuum energies for singlet excited states.
-              - triplets (np.array): Vacuum energies for triplet excited states.
-              - oscs (np.array): Oscillator strengths for singlet states.
-              - ind_s (np.array): State indices for singlet states.
-              - ind_t (np.array): State indices for triplet states.
-              - ss_s (np.array): Solvent shifts for singlet states.
-              - ss_t (np.array): Solvent shifts for triplet states.
-              - theta_s (np.array): Elevation angle for singlet states.
-              - phi_s (np.array): Azimuthal angle for singlet states.
-              - theta_t (np.array): Elevation angle for triplet states.
-              - phi_t (np.array): Azimuthal angle for triplet states.
-              - total_energy (float): Total energy of S0.
-              - s0_corr (float): Solvent correction to S0.
-    """
     with open(file, "r", encoding="utf-8") as f:
         content = f.read()
 
-    # Split the file into two calculation blocks.
     blocks = content.split("Have a nice day")
-    if len(blocks) < 3: # Only one calculation
+
+    if len(blocks) < 3:
         vac_data = parse_block(blocks[0], collect_corrections=False)
         corr_data = parse_block(blocks[0], collect_corrections=True)
-    else: # Two calculations
-        # Parse the vacuum (first) and PCM-corrected (second) calculation blocks.
+    else:
         vac_data = parse_block(blocks[0], collect_corrections=False)
         corr_data = parse_block(blocks[1], collect_corrections=True)
 
-    min_len = min(vac_data['len'], corr_data['len'])
-    match_singlets = match_compositions(vac_data['comp_singlets'][:min_len], corr_data['comp_singlets'][:min_len])
-    match_triplets = match_compositions(vac_data['comp_triplets'][:min_len], corr_data['comp_triplets'][:min_len])
+    min_len_s = min(vac_data['len_s'], corr_data['len_s'])
+    min_len_t = min(vac_data['len_t'], corr_data['len_t'])
 
+    match_singlets = match_compositions(
+        vac_data['comp_singlets'][:min_len_s],
+        corr_data['comp_singlets'][:min_len_s]
+    )
 
-    singlets_vac = vac_data['singlets'][:min_len]
-    triplets_vac = vac_data['triplets'][:min_len]
-    singlets_pcm = corr_data['singlets'][match_singlets][:min_len]
-    triplets_pcm = corr_data['triplets'][match_triplets][:min_len]
+    match_triplets = match_compositions(
+        vac_data['comp_triplets'][:min_len_t],
+        corr_data['comp_triplets'][:min_len_t]
+    )
 
-    oscs = vac_data['osc_singlets'][:min_len]
-    ind_s = vac_data['ind_s'][:min_len]
-    ind_t = vac_data['ind_t'][:min_len]
+    singlets_vac = vac_data['singlets'][:min_len_s]
+    triplets_vac = vac_data['triplets'][:min_len_t]
+
+    singlets_pcm = corr_data['singlets'][match_singlets]
+    triplets_pcm = corr_data['triplets'][match_triplets]
+
+    oscs = vac_data['osc_singlets'][:min_len_s]
+    ind_s = vac_data['ind_s'][:min_len_s]
+    ind_t = vac_data['ind_t'][:min_len_t]
+
     s0_vac = vac_data['total_energy'][0]
     s0_pcm = corr_data['total_energy'][0]
     s0_corr = s0_vac - s0_pcm
-    ss_s = corr_data['ss_s'][match_singlets][:min_len]
-    ss_t = corr_data['ss_t'][match_triplets][:min_len]
-    theta_s = vac_data['theta_s']
-    phi_s = vac_data['phi_s']
-    theta_t = vac_data['theta_t']
-    phi_t = vac_data['phi_t']
+
+    ss_s = corr_data['ss_s'][match_singlets]
+    ss_t = corr_data['ss_t'][match_triplets]
+
+    theta_s = np.array(vac_data['theta_s'])
+    phi_s = np.array(vac_data['phi_s'])
+    theta_t = np.array(vac_data['theta_t'])
+    phi_t = np.array(vac_data['phi_t'])
 
     y_s = (singlets_vac - singlets_pcm) + s0_corr
     y_t = (triplets_vac - triplets_pcm) + s0_corr
+
     y_s[y_s < 0] = 0
     y_t[y_t < 0] = 0
-    return singlets_vac, triplets_vac, oscs, ind_s, ind_t, ss_s, ss_t, theta_s, theta_t, phi_s, phi_t, s0_corr, y_s, y_t
+
+    return (
+        singlets_vac,
+        triplets_vac,
+        oscs,
+        ind_s,
+        ind_t,
+        ss_s,
+        ss_t,
+        theta_s,
+        theta_t,
+        phi_s,
+        phi_t,
+        s0_corr,
+        y_s,
+        y_t,
+    )
 
 #########################################################################################
 

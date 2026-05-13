@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 import numpy as np
@@ -46,7 +47,6 @@ def generated_ensembles():
     old_cwd = Path.cwd()
     try:
         # gather_data should see ./Geometries and write ./Ensemble_*.lx here
-        import os
         os.chdir(TESTS_DIR)
 
         for state in ["s0", "s1", "t1"]:
@@ -57,13 +57,18 @@ def generated_ensembles():
             assert filepath.is_file(), f"Expected file was not created for {state}: {filepath}"
             assert filepath.stat().st_size > 0, f"Generated file is empty for {state}: {filepath.name}"
 
-        return {
+        ensembles = {
             state: Ensemble(str(filepath))
             for state, filepath in EXPECTED_ENSEMBLE_FILES.items()
         }
 
+        os.chdir(old_cwd)
+        yield ensembles
+
     finally:
         os.chdir(old_cwd)
+        for filepath in EXPECTED_ENSEMBLE_FILES.values():
+            filepath.unlink(missing_ok=True)
 
 
 def test_ensemble_files_are_generated(generated_ensembles):
