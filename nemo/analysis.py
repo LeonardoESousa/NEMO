@@ -887,7 +887,7 @@ def rates(initial, dielec, data=None, data_dc=None, data_v=None, ensemble_averag
     #internal conversion
     b = nemo.tools.B_to_vec_complete(data_dc) # J^2
     v1, v2 = nemo.tools.V_to_vec(data_v)
-    mag_file = [i for i in os.listdir(".") if "Magnitudes" in i and ".lx" in i][0] #C Read from ensemble.h5 
+    mag_file = nemo.tools.fetch_file("Magnitudes", ['Magnitudes'])
     data_f = pd.read_csv(mag_file)
     freq_V = data_f.filter(regex="freq").dropna().to_numpy().flatten()
     freq_row = freq_V[np.newaxis,:] #rad/s
