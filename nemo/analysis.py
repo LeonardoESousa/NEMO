@@ -423,8 +423,8 @@ def gather_data(initial, save=True):
         except IndexError:
             pass
 
-    #arquivo = f"Ensemble_{initial.upper()}_.lx"
-    arquivo = f"Ensemble_{initial.upper()}_.h5"
+    arquivo = f"Ensemble_{initial.upper()}_.lx"
+    #arquivo = f"Ensemble_{initial.upper()}_.h5"
     data["ensemble"] = initial.upper()
     formats["ensemble"] = "{:s}"
     data["kbT"] = kbt
