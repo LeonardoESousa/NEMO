@@ -442,6 +442,9 @@ def gather_data(initial, save=True):
         temp_data.to_hdf(arquivo, key='ensemble', mode='w', complevel=9)
 
 
+    Mag_file = nemo.tools.fetch_file("Magnitudes", ['Magnitudes'])
+    data_mag=pd.read_csv(Mag_file)
+    data_mag.to_hdf(arquivo, key='f', complevel=9)
     # Check if derivative coupling calculation was performed
     dc_computation, states = nemo.parser.check_derivative_couplings(files[0])
     if dc_computation:
@@ -471,7 +474,6 @@ def gather_data(initial, save=True):
         formats_dc["B"] = "{:.5e}"
 
         ###### OBTAINS THE V PARAMETERS ########
-        Mag_file = nemo.tools.fetch_file("Magnitudes", ['Magnitudes'])
         (
             geometry_V,
             mode_V,
@@ -525,8 +527,11 @@ def gather_data(initial, save=True):
         #if ic_cols:
         #    ic_df = pd.DataFrame(ic_cols, index=data.index)
         #    data = pd.concat([data, ic_df], axis=1)
+    else: 
+        data_dc = None
+        data_V = None
         
-    return data, data_dc, data_V
+    return data, data_dc, data_V, data_mag
 #######################################################################################
 
 
@@ -841,9 +846,9 @@ def compute_cos(theta_i, theta_f, phi_i, phi_f):
 
 
 ###CALCULATES ISC AND EMISSION RATES & SPECTRA#########################################
-def rates(initial, dielec, data=None, data_dc=None, data_v=None, ensemble_average=False, detailed=False):
+def rates(initial, dielec, data=None, data_dc=None, data_v=None, data_f=None, ensemble_average=False, detailed=False):
     if data is None:
-        data, data_dc, data_v = gather_data(initial, save=True)
+        data, data_dc, data_v, data_f = gather_data(initial, save=True)
         kbt = nemo.tools.detect_sigma()
     else:
         kbt = data["kbT"][0]
@@ -885,13 +890,12 @@ def rates(initial, dielec, data=None, data_dc=None, data_v=None, ensemble_averag
     socs_s0 = fetch(data, ["^soc_t.*_s0"])
 
     #internal conversion
-    b = nemo.tools.B_to_vec_complete(data_dc) # J^2
-    v1, v2 = nemo.tools.V_to_vec(data_v)
-    mag_file = nemo.tools.fetch_file("Magnitudes", ['Magnitudes'])
-    data_f = pd.read_csv(mag_file)
-    freq_V = data_f.filter(regex="freq").dropna().to_numpy().flatten()
-    freq_row = freq_V[np.newaxis,:] #rad/s
-    freq_eff = np.average(np.sum(freq_V*v1, axis=1)/np.sum(v1, axis=1)) #C change to bosonic average
+    if data_dc is not None:
+        b = nemo.tools.B_to_vec_complete(data_dc) # J^2
+        v1, v2 = nemo.tools.V_to_vec(data_v)
+        freq_V = data_f.filter(regex="freq").dropna().to_numpy().flatten()
+        freq_row = freq_V[np.newaxis,:] #rad/s
+        freq_eff = np.average(np.sum(freq_V*v1, axis=1)/np.sum(v1, axis=1)) #C change to bosonic average
     
 
     #ground state susceptibility
@@ -908,6 +912,8 @@ def rates(initial, dielec, data=None, data_dc=None, data_v=None, ensemble_averag
         phi_t = np.zeros_like(phi_s)
     if socs_complete.size == 0:
         socs_complete = np.zeros((singlets.shape[0], singlets.shape[1]**2))
+    if b.size == 0:
+        b = np.zeros((singlets.shape[0], singlets.shape[1], singlets.shape[1], 0)) # add a fourth dimension for the modes
     #r if h_ic.size == 0:
     #r     h_ic = np.zeros((singlets.shape[0], singlets.shape[1]**2))   
     #r     hw_eff = np.zeros((singlets.shape[0], singlets.shape[1]**2))
@@ -1187,7 +1193,7 @@ def another_dimension(nstates, *args):
 ###COMPUTES ABSORPTION SPECTRA###########################################################
 def absorption(initial, dielec, data=None, save=False, detailed=False, nstates=-1):
     if data is None:
-        data, _, _ = gather_data(initial, save=True)
+        data, _, _, _ = gather_data(initial, save=True)
         kbt = nemo.tools.detect_sigma()
     else:
         kbt = data["kbT"][0]
@@ -1294,9 +1300,11 @@ class Ensemble(object):
         data         = pd.read_hdf(file, key='ensemble')
         data_dc      = pd.read_hdf(file, key='dc')
         data_v       = pd.read_hdf(file, key='v')
+        data_f       = pd.read_hdf(file, key='f')
         self.data    = data
         self.data_dc = data_dc
         self.data_v  = data_v
+        self.data_f  = data_f
         initial      = data['ensemble'][0]
         self.initial = initial
         self.name    = name
@@ -1308,6 +1316,7 @@ class Ensemble(object):
             self.data,
             self.data_dc,
             self.data_v,
+            self.data_f,
             ensemble_average=ensemble_average,
             detailed=False
         )
@@ -1320,6 +1329,7 @@ class Ensemble(object):
             self.data,
             self.data_dc,
             self.data_v,
+            self.data_f,
             ensemble_average=False,
             detailed=False
         )
@@ -1334,6 +1344,7 @@ class Ensemble(object):
             self.data,
             self.data_dc,
             self.data_v,
+            self.data_f,
             ensemble_average=ensemble_average,
             detailed=True
         )
@@ -1369,6 +1380,7 @@ class Ensemble(object):
                         self.data,
                         self.data_dc,
                         self.data_v,
+                        self.data_f,
                         ensemble_average=False,
                         detailed=True
                         )
@@ -1383,6 +1395,7 @@ class Ensemble(object):
                     self.data,
                     self.data_dc,
                     self.data_v,
+                    self.data_f,
                     ensemble_average=False,
                     detailed=False
                     )
