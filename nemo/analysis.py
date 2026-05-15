@@ -20,53 +20,35 @@ MASS_E = nemo.parser.MASS_E
 EPSILON_0 = nemo.parser.EPSILON_0
 
 ##Defines the standard deviation used for IC and ISC rates ##############################
-FREQ_EFF=0.0 #Global variable that is changed in gather_data_derivative_couplings
 def sigma_function(e_col, freq=None):
     kbt = 0.026
-    sigma = kbt         # Emission standard
-#    sigma = np.std(e_col, axis=0) # old option
-#    sigma = (1.0/(2.0*0.026))*np.var(e_col, axis=0)
-#    sigma = (1.0/(3.0*0.026))*np.var(e_col, axis=0)
-#
-    if not(freq):
-        freq=FREQ_EFF
+    if not(freq): # --- emission or absorption
+        return kbt
     hw = HBAR_EV*freq
     coth=1.0/np.tanh(hw/(2.0*kbt))
-    print('hw=', hw)
-    print('coth=', coth)
-
-    ratio=1.1572036113
 
     if len(e_col.shape)==1:
         e_col=e_col[:,np.newaxis]
     
     thresh=0.0#25
     sigma=[]
-    print('states=',e_col.shape[1])
     for i in range(e_col.shape[1]): # number of states
         energy=e_col[:,i]
         mean = np.average(energy)
         var = np.var(energy)
         skew = np.average((energy - mean)**3)
-        print('mean=',mean )
-        print('var=',var )
-        print('skew=',skew)
 
         coeffs = [4.0, 0, -6.0*var, skew]# 4u³ + 0u² - 6varu + skew=0
         roots = np.roots(coeffs)
-        print('coeffs=',coeffs)
-        print('roots=',roots)
         
-        # find last physical root (later, criterion should be implemented)
+        #C find last physical root (later, criterion should be implemented)
         lamb_f=-10.0
         a_sf = 1.0
         for root in roots:
             a_s = 1.0 + 4.0*root/(hw*coth)
-            print('a_s=',a_s)
             if a_s<0.0: 
                 continue
             lamb = (var - 2.0*root**2)/(a_s*hw*coth)
-            print('lamb=',lamb)
             if lamb <= 0.0: 
                 continue
             a_sf = a_s
@@ -76,12 +58,11 @@ def sigma_function(e_col, freq=None):
             lamb_f=lamb_f*abs(a_sf)/thresh # --- abs(a_sf) is used no to change the sign of lamb_f
 
         if lamb_f<=0:
-            print("roots not found, sigma=", sigma)
             sigma.append(kbt)
+            print("roots not found, sigma=", sigma)
         if lamb_f>0:
             sigma.append(lamb_f)
 
-    print(sigma)
     sigma=np.array(sigma)
 
     if e_col.shape[1]==1:
@@ -425,31 +406,27 @@ def gather_data(initial, save=True):
 
     arquivo = f"Ensemble_{initial.upper()}_.lx"
     #arquivo = f"Ensemble_{initial.upper()}_.h5"
-    data["ensemble"] = initial.upper()
-    formats["ensemble"] = "{:s}"
-    data["kbT"] = kbt
-    formats["kbT"] = "{:.4f}"
-    # make these the first columns
-    cols = data.columns.tolist()
-    cols = cols[-2:] + cols[:-2]
-    data = data[cols]
-    if save:
-        # Create a temporary copy of the DataFrame
-        temp_data = data.copy()
-        #Apply formats
-        #for column, fmt in formats.items():
-        #    temp_data[column] = temp_data[column].map(fmt.format)
-        temp_data.to_hdf(arquivo, key='ensemble', mode='w', complevel=9)
+
+    # --- save Magnitudes
+    mag_file = nemo.tools.fetch_file("Magnitudes", ['Magnitudes'])
+    data_mag=pd.read_csv(mag_file)
+    # --------------------------------------------------
+
+    # --- Scalars dataframe
+    data_scalars = pd.DataFrame([initial.upper()], columns=["ensemble"])
+    data_scalars["kbT"] = kbt                 
+
+    freqs = data_mag.filter(regex="freq").dropna().to_numpy().flatten()
+    freq_eff = nemo.tools.boson_average(freqs, kbt)
+    data_scalars["freq"] = freq_eff
+    data_scalars["initial"] = initial.upper()
+    # --------------------------------------------------
 
 
-    Mag_file = nemo.tools.fetch_file("Magnitudes", ['Magnitudes'])
-    data_mag=pd.read_csv(Mag_file)
-    data_mag.to_hdf(arquivo, key='f', complevel=9)
     # Check if derivative coupling calculation was performed
     dc_computation, states = nemo.parser.check_derivative_couplings(files[0])
     if dc_computation:
         ###### OBTAINS THE B PARAMETERS ########
-        formats_dc = {}
         freq_log = nemo.tools.fetch_file("frequency", [".out", ".log"])
         (
             initial_state,
@@ -457,9 +434,8 @@ def gather_data(initial, save=True):
             geometry,
             mode,
             b
-        ) = nemo.parser.get_derivative_couplings(states, states, files, freq_log, debug=False)
+        ) = nemo.parser.get_derivative_couplings(states, states, files, freq_log)
 
-        arquivo_dc =f"Derivative_Couplings_{initial.upper()}_.lx"
         data_dc = pd.DataFrame()
         data_dc["initial_state"] = np.array(initial_state).astype(str)
         data_dc["final_state"] = np.array(final_state).astype(str)
@@ -467,182 +443,41 @@ def gather_data(initial, save=True):
         data_dc["mode"] = mode
         data_dc["B"] = b
 
-        formats_dc["initial_state"] = "{:s}"
-        formats_dc["final_state"] = "{:s}"
-        formats_dc["geometry"] = "{:.0f}"
-        formats_dc["mode"] = "{:.0f}"
-        formats_dc["B"] = "{:.5e}"
-
         ###### OBTAINS THE V PARAMETERS ########
         (
             geometry_V,
             mode_V,
             v1,
             v2
-        ) = nemo.parser.get_V(Mag_file, files)
+        ) = nemo.parser.get_V(mag_file, files)
 
-        formats_V = {}
-        arquivo_V =f"V_{initial.upper()}_.lx"
         data_V = pd.DataFrame()
         data_V["geometry"] = geometry_V
         data_V["mode"] = mode_V
         data_V["v1"] = v1
         data_V["v2"] = v2
 
-        formats_V["geometry"] = "{:.0f}"
-        formats_V["mode"] = "{:.0f}"
-        formats_V["v1"] = "{:.5e}"
-        formats_V["v2"] = "{:.5e}"
-        if save:
-            # Create a temporary copy of the DataFrame
-            temp_data_V = data_V.copy()
-            #Apply formats
-            #for column, fmt in formats_V.items():
-            #    if column in temp_data_V.columns:
-            #        temp_data_V[column] = temp_data_V[column].map(fmt.format)
-            temp_data_V.to_hdf(arquivo, key='v', complevel=9)
-            # Create a temporary copy of the DataFrame
-            temp_data_dc = data_dc.copy()
-            #Apply formats
-            #for column, fmt in formats_dc.items():
-            #    if column in temp_data_dc.columns:
-            #        temp_data_dc[column] = temp_data_dc[column].map(fmt.format)
-            temp_data_dc.to_hdf(arquivo, key='dc', complevel=9)
 
-        #ic_cols = {}
-        #for i in states:
-        #    for j in states:
-        #        if i == j:
-        #            continue
-        #        
-        #        _, _, h, hw_eff = gather_data_derivative_couplings(
-        #            "s" + str(i), "s" + str(j), data, data_dc, data_V
-        #        )
-        #
-        #        ic_cols[f"IC_{i}_{j}"] = h[:, 0]
-        #        formats[f"IC_{i}_{j}"] = "{:.5e}"
-        #        data[f"hw_eff_{i}_{j}"] = hw_eff
-        #        formats[f"hw_eff_{i}_{j}"] = "{:.5e}"
-        #
-        #if ic_cols:
-        #    ic_df = pd.DataFrame(ic_cols, index=data.index)
-        #    data = pd.concat([data, ic_df], axis=1)
     else: 
-        data_dc = None
-        data_V = None
+        data_dc = pd.DataFrame()
+        data_V = pd.DataFrame()
+
+    if save:
+        data.to_hdf(arquivo, key='ensemble', mode='w', complevel=9)
+        data_mag.to_hdf(arquivo, key='f', complevel=9) 
+        data_scalars.to_hdf(arquivo, key='scalars', complevel=9)
+        data_V.to_hdf(arquivo, key='v', complevel=9)
+        data_dc.to_hdf(arquivo, key='dc', complevel=9)
+
+    # Defines a dictionary with every dataframe
+    data_dict = {}
+    data_dict['ensemble']=data
+    data_dict['f']=data_mag
+    data_dict['scalars']=data_scalars
+    data_dict['v']=data_V
+    data_dict['dc']=data_dc
         
-    return data, data_dc, data_V, data_mag
-#######################################################################################
-
-
-def gather_data_derivative_couplings(initial, final, data=None, data_dc=None, data_V=None):
-
-    if int(initial[1])==0:
-        energies = fetch(data, [f"^e_{initial.lower()[0]}"])
-        delta= energies
-        delta = np.hstack((np.zeros_like(energies[:, -1])[:, np.newaxis], delta)) # add a second column with the same values for the ground state
-    else:
-        n_state = int(initial[1:]) - 1
-        energies = fetch(data, [f"^e_{initial.lower()[0]}"])
-        delta = energies - energies[:, n_state ][:, np.newaxis]
-        #remove column corresponding to the initial state
-        #In gather_data, the states are never the same
-        #delta = np.delete(delta, n_state, axis=1)
-        #add -energies[:, n_state][:, np.newaxis] as the first column
-        delta = np.hstack((-energies[:, n_state][:, np.newaxis], delta))
-    #------------------------------------#
-    # Computes the H parameters
-    h = 0.0
-    if data is not None:
-        v1, v2 = nemo.tools.V_to_vec(data_V)
-
-        # ----- Freq
-        mag_file = nemo.tools.fetch_file("Magnitudes", ['Magnitudes'])
-        data_f = pd.read_csv(mag_file)
-        freq_V = data_f.filter(regex="freq").dropna().to_numpy().flatten()
-        freq_row = freq_V[np.newaxis,:] #rad/s
-
-
-        if int(initial[1]) < int(final[1]):
-            lower=int(initial[1])
-            higher=int(final[1])
-        else:
-            higher=int(initial[1])
-            lower=int(final[1])
-
-
-        # Compute the geometry dependent rate for the ith transition
-        # ----- Get the transition energy for the ith transition
-        e_col = delta[:, int(final[1])][:, np.newaxis] # eV
-
-        #gammas_lorentz = espectro / 2.0# nemo.tools.detect_sigma()# espectro / 2.0
-
-
-        # sigma options
-        # sigma = np.std(e_col, axis=0)   # option 1
-        # sigma = (1.0/(2.0*0.025))*np.var(e_col,axis=0) # option 2
-        # print(freq_V[0])
-        global FREQ_EFF
-        #print(freq_V[np.newaxis,:].shape, v1.shape)
-        #FREQ_EFF = np.average(freq_V[np.newaxis,:], weights=v1)
-        FREQ_EFF = np.average(np.sum(freq_V*v1, axis=1)/np.sum(v1, axis=1))
-        #print(f"{FREQ_EFF:.2e}")
-        sigma = sigma_function(e_col)
-
-
-
-        # ----_ Get the corresponding coupling for the ith transition
-        b = nemo.tools.B_to_vec(data_dc, lower, higher) # J^2
-        #np.savetxt(f"debug_dc.csv", b, delimiter=",", fmt='%10.5e')
-
-        # ----- Calculate h_IC
-        # ------ Lorentzian line shape
-        #term_pos = nemo.tools.voigt(-e_col+HBAR_EV*freq_row,0.0,gammas_lorentz) / nemo.tools.voigt(-e_col,0.0,gammas_lorentz)
-        #term_neg = nemo.tools.voigt(-e_col-HBAR_EV*freq_row,0.0,gammas_lorentz) / nemo.tools.voigt(-e_col,0.0,gammas_lorentz)
-
-        # ----- Gaussian line shape
-        term_pos = nemo.tools.gauss(e_col-HBAR_EV*freq_row,sigma) 
-        term_neg = nemo.tools.gauss(e_col+HBAR_EV*freq_row,sigma) 
-
-        # ----- Normal mode resolved rate analysis        
-
-        # ----- Phonon absorption spectrum
-        vac_rate_p = b * v1 * term_pos / E_CHARGE**2 # eV
-        rate_p = (2.0*np.pi/HBAR_EV) * vac_rate_p    # s^-1
-        # ----- Ensemble averaged rate
-        rate_p = np.sum(rate_p, axis=0)/len(e_col)
-        freq_rate_p = np.hstack((freq_V[:,np.newaxis], rate_p[:, np.newaxis]))
-
-        # ----- Phonon emission spectrum
-        vac_rate_n = b * v2 * term_neg / E_CHARGE**2 # eV
-        rate_n = (2.0*np.pi/HBAR_EV) * vac_rate_n    # s^-1
-        # ----- Ensemble averaged rate
-        rate_n = np.sum(rate_n, axis=0)/len(e_col)
-        freq_rate_n = np.hstack((freq_V[:,np.newaxis], rate_n[:, np.newaxis]))
-
-        # ----- save to file
-        if not os.path.exists("phonon_spectra"):
-            os.makedirs("phonon_spectra")
-        np.savetxt(f"phonon_spectra/phonon_absorption_spectrum_{initial}_to_{final}_.csv", freq_rate_p, delimiter=',', fmt='%10.5e')
-        np.savetxt(f"phonon_spectra/phonon_emission_spectrum_{initial}_to_{final}_.csv", freq_rate_n, delimiter=',', fmt='%10.5e')
-
-        # ----- Average couplings
-        hw_eff = HBAR_EV*np.average(np.hstack((freq_row, -freq_row)).flatten(), weights=np.hstack((rate_n+1e-300, rate_p+1e-300))) # eV
-        # ---- sum on normal modes
-        vac_rate = np.sum(vac_rate_n+vac_rate_p, axis=1)[:,np.newaxis] # eV
-        # vac_rate = coup^2 * lineshape(E-hw_eff)
-        coup_squared = vac_rate / (nemo.tools.gauss(e_col+hw_eff, sigma) + 1e-300) # eV^2 
-        print(f"{initial} to {final}: {hw_eff:.5f} eV, vac_rate = {(2.0*np.pi/HBAR_EV)*np.mean(vac_rate):.5e} s^-1, coup_squared = {np.mean(coup_squared):.5e} eV^2")
-
-        # Old method
-        # vac_rate = b * (v1 * term_pos + v2 * term_neg) / E_CHARGE**2 # vaccum rate times hbar/2pi (eV)
-        # print("---------------")
-        # print(f"Vacuum rate for {initial} to {final} transition (eV): {np.sum(vac_rate) / len(e_col)*2*np.pi/HBAR_EV:.5e}")
-        # h = vac_rate / (nemo.tools.gauss(e_col,sigma) + 1e-300) # eV^2
-        # # ----- sum on normal modes
-        # h=np.sum(h, axis=1)[:,np.newaxis]
-    return data_dc, data_V, coup_squared, hw_eff 
-    #return data_dc, data_V, h
+    return data_dict
 #######################################################################################
 
 ###PRINTS RATES AND EMISSION SPECTRUM##################################################
@@ -846,12 +681,19 @@ def compute_cos(theta_i, theta_f, phi_i, phi_f):
 
 
 ###CALCULATES ISC AND EMISSION RATES & SPECTRA#########################################
-def rates(initial, dielec, data=None, data_dc=None, data_v=None, data_f=None, ensemble_average=False, detailed=False):
-    if data is None:
-        data, data_dc, data_v, data_f = gather_data(initial, save=True)
-        kbt = nemo.tools.detect_sigma()
-    else:
-        kbt = data["kbT"][0]
+def rates(initial, dielec, data_dict={}, ensemble_average=False, detailed=False):
+
+    # --- if data dictionary is empty, run gather_data
+    if not data_dict: 
+        data_dict = gather_data(initial, save=True)
+
+    data = data_dict['ensemble']
+    data_scalars = data_dict['scalars']
+    data_f = data_dict['f']
+    data_dc = data_dict['dc']
+    data_v = data_dict['v']
+
+    kbt = data_scalars['kbT'][0]
     eps, refractive_index = dielec[0], dielec[1]
     alphast2 = nemo.tools.get_alpha(eps)
     alphaopt2 = nemo.tools.get_alpha(refractive_index**2)
@@ -889,13 +731,16 @@ def rates(initial, dielec, data=None, data_dc=None, data_v=None, data_f=None, en
     #spin orbit couplings for Tn -> S0
     socs_s0 = fetch(data, ["^soc_t.*_s0"])
 
+    # --- effective pes frequency
+    freq_eff = data_scalars["freq"][0]
+
     #internal conversion
-    if data_dc is not None:
-        b = nemo.tools.B_to_vec_complete(data_dc) # J^2
-        v1, v2 = nemo.tools.V_to_vec(data_v)
+    b=np.array([])
+    if not data_dc.empty:
         freq_V = data_f.filter(regex="freq").dropna().to_numpy().flatten()
         freq_row = freq_V[np.newaxis,:] #rad/s
-        freq_eff = np.average(np.sum(freq_V*v1, axis=1)/np.sum(v1, axis=1)) #C change to bosonic average
+        b = nemo.tools.B_to_vec_complete(data_dc) # J^2
+        v1, v2 = nemo.tools.V_to_vec(data_v)
     
 
     #ground state susceptibility
@@ -910,20 +755,16 @@ def rates(initial, dielec, data=None, data_dc=None, data_v=None, data_f=None, en
         gamma_t = np.zeros_like(gamma_s)
         theta_t = np.zeros_like(theta_s)
         phi_t = np.zeros_like(phi_s)
+    if b.size == 0:
+        modes = data_f.shape[1]-2
+        b = np.zeros((singlets.shape[0], singlets.shape[1]+1, singlets.shape[1]+1, modes))
     if socs_complete.size == 0:
         socs_complete = np.zeros((singlets.shape[0], singlets.shape[1]**2))
-    if b.size == 0:
-        b = np.zeros((singlets.shape[0], singlets.shape[1], singlets.shape[1], 0)) # add a fourth dimension for the modes
-    #r if h_ic.size == 0:
-    #r     h_ic = np.zeros((singlets.shape[0], singlets.shape[1]**2))   
-    #r     hw_eff = np.zeros((singlets.shape[0], singlets.shape[1]**2))
     if socs_s0.size == 0:
         socs_s0 = np.zeros_like(triplets)
 
     #reshape socs_complete to have dimensions (number of geometries, number of initial states, number of final states)
     socs_complete = socs_complete.reshape((socs_complete.shape[0], singlets.shape[1], triplets.shape[1]))
-    #r h_ic = h_ic.reshape((h_ic.shape[0], singlets.shape[1], singlets.shape[1]))
-    #r hw_eff = hw_eff.reshape((hw_eff.shape[0], singlets.shape[1], singlets.shape[1]))
 
     # Emission Calculations
 
@@ -954,7 +795,7 @@ def rates(initial, dielec, data=None, data_dc=None, data_v=None, data_f=None, en
     b = b[:, n_state+1, :, :] #(geom, final_states, modes)
     b = b[:,:,np.newaxis,:]   #(geom, final_states, initial_sate, modes) b has to be 4 dimensional in the sorting function
 
-    sigma_int = kbt
+    sigma_int = sigma_function(delta_emi)
     l_total = total_reorganization_energy(lambda_emission, kbt, sigma_int)
     espectro = constante * (delta_emi ** 2) * oscs
     
@@ -987,8 +828,6 @@ def rates(initial, dielec, data=None, data_dc=None, data_v=None, data_f=None, en
 
     #select columns corresponding to the initial state
     socs_complete = socs_complete[:, n_state, :]
-    #r h_ic = h_ic[:, n_state, :]
-    #r hw_eff = hw_eff[:, n_state, :]
     
     if "s" in initial:
         # Sm to Tn ISC
@@ -1002,26 +841,29 @@ def rates(initial, dielec, data=None, data_dc=None, data_v=None, data_f=None, en
             for i in data.columns.values
             if "soc_" + initial.lower() + "_" in i
         ]
-        # Sm to Sn IC
-        final_energy_ic = singlets - (gamma_s + chi_s) * alphast2
-        final_energy_ic, singlets, chi_s, gamma_s, theta_s, phi_s, b = sorting_parameters(final_energy_ic, singlets, chi_s, gamma_s, theta_s, phi_s, b)
-        lambda_b_ic = lambda_solvent(chis, thetas, phis, chi_s, theta_s, phi_s, alphaopt2, alphast2)
-        delta_ic = final_energy_ic - initial_energy[:, np.newaxis] + lambda_b_ic
-        #remove column corresponding to the initial state
-        delta_ic = np.delete(delta_ic, n_state, axis=1)
-        lambda_b_ic = np.delete(lambda_b_ic, n_state, axis=1)
-        # add emission energy as the first column
-        delta_ic = np.hstack((-1 * delta_emi[:, np.newaxis], delta_ic))
-        lambda_b_ic = np.hstack((lambda_emission[:, np.newaxis], lambda_b_ic))
-        #remove columns for states higher than n_state and add normal mode dimension
-        delta_ic = delta_ic[:, np.newaxis, :n_state+1]
-        lambda_b_ic = lambda_b_ic[:, np.newaxis, :n_state+1]
-        b=b.transpose(0,3,2,1) #(geom, mode, initial_state, final_state)
-        b=b[:,:,0,:]           # select initial state (geom, mode, final_state)
-        b=b[:,:,:n_state+1]    
 
-        sigma_int_ic = sigma_function(delta_ic, freq_eff)
-        final = final + [f"S0"] + [f"S{j}" for j in range(1, 1 + delta_ic.shape[1]) if j != n_state+1]
+        if not data_dc.empty:
+            # Sm to Sn IC
+            final_energy_ic = singlets - (gamma_s + chi_s) * alphast2
+            final_energy_ic, singlets, chi_s, gamma_s, theta_s, phi_s, b = sorting_parameters(final_energy_ic, singlets, chi_s, gamma_s, theta_s, phi_s, b)
+            lambda_b_ic = lambda_solvent(chis, thetas, phis, chi_s, theta_s, phi_s, alphaopt2, alphast2)
+            delta_ic = final_energy_ic - initial_energy[:, np.newaxis] + lambda_b_ic
+            #remove column corresponding to the initial state
+            delta_ic = np.delete(delta_ic, n_state, axis=1)
+            lambda_b_ic = np.delete(lambda_b_ic, n_state, axis=1)
+            # add emission energy as the first column
+            delta_ic = np.hstack((-1 * delta_emi[:, np.newaxis], delta_ic))
+            lambda_b_ic = np.hstack((lambda_emission[:, np.newaxis], lambda_b_ic))
+            #remove columns for states higher than n_state and add normal mode dimension
+            delta_ic = delta_ic[:, np.newaxis, :n_state+1]
+            lambda_b_ic = lambda_b_ic[:, np.newaxis, :n_state+1]
+            b=b.transpose(0,3,2,1) #(geom, mode, initial_state, final_state)
+            b=b[:,:,0,:]           # select initial state (geom, mode, final_state)
+            b=b[:,:,:n_state+1]    
+
+            sigma_int_ic = sigma_function(delta_ic, freq_eff)
+            final = final + [f"S0"] + [f"S{j}" for j in range(1, 1 + delta_ic.shape[1]) if j != n_state+1]
+
     elif "t" in initial:
         # Tn to Sm ISC
         final_energy_isc = singlets - (gamma_s + chi_s) * alphast2
@@ -1048,7 +890,7 @@ def rates(initial, dielec, data=None, data_dc=None, data_v=None, data_f=None, en
     #tau_D = (refractive_index**2 / eps)*1e-12
     #g_ad = 0#np.nan_to_num((2 * np.pi * (socs_complete**2) * tau_D)/ (HBAR_EV * lambda_b_isc))
     #y_axis =  y_axis / (1 + g_ad)
-    if "s" in initial:
+    if not data_dc.empty:
         sigma_ic = total_reorganization_energy(lambda_b_ic, kbt, sigma_int_ic)
         term_pos = nemo.tools.gauss(delta_ic-HBAR_EV*freq_row[:,:,np.newaxis],sigma_ic)
         term_neg = nemo.tools.gauss(delta_ic+HBAR_EV*freq_row[:,:,np.newaxis],sigma_ic) 
@@ -1191,12 +1033,17 @@ def another_dimension(nstates, *args):
     return new_args
 
 ###COMPUTES ABSORPTION SPECTRA###########################################################
-def absorption(initial, dielec, data=None, save=False, detailed=False, nstates=-1):
-    if data is None:
-        data, _, _, _ = gather_data(initial, save=True)
-        kbt = nemo.tools.detect_sigma()
-    else:
-        kbt = data["kbT"][0]
+def absorption(initial, dielec, data_dict=None, save=False, detailed=False, nstates=-1):
+
+    # --- if data dictionary is empty, run gather_data
+    if not data_dict: 
+        data_dict = gather_data(initial, save=True)
+
+    data = data_dict['ensemble']
+    data_scalars = data_dict['scalars']
+
+    kbt = data_scalars['kbT'][0]
+
     eps, refractive_index = dielec[0], dielec[1]
     alphast2 = nemo.tools.get_alpha(eps)
     alphaopt2 = nemo.tools.get_alpha(refractive_index**2)
@@ -1255,7 +1102,8 @@ def absorption(initial, dielec, data=None, save=False, detailed=False, nstates=-
         lambda_b = lambda_solvent(chi_initial[:, np.newaxis], theta_initial[:, np.newaxis], phi_initial[:, np.newaxis], chis, thetas, phis, alphaopt2, alphast2)
 
 
-    l_total = total_reorganization_energy(lambda_b, kbt, np.std(deltae, axis=0))
+    sigma_int = sigma_function(deltae)
+    l_total = total_reorganization_energy(lambda_b, kbt, sigma_int)
     x_axis = x_values(deltae, l_total)
     if nstates == -1:
         nstates = deltae.shape[1]
@@ -1297,26 +1145,25 @@ def absorption(initial, dielec, data=None, save=False, detailed=False, nstates=-
 
 class Ensemble(object):
     def __init__(self, file, name=''):
-        data         = pd.read_hdf(file, key='ensemble')
-        data_dc      = pd.read_hdf(file, key='dc')
-        data_v       = pd.read_hdf(file, key='v')
-        data_f       = pd.read_hdf(file, key='f')
-        self.data    = data
-        self.data_dc = data_dc
-        self.data_v  = data_v
-        self.data_f  = data_f
-        initial      = data['ensemble'][0]
-        self.initial = initial
-        self.name    = name
+        data_dict             = {}
+        data_dict['ensemble'] = pd.read_hdf(file, key='ensemble')                
+        data_dict['dc']       = pd.read_hdf(file, key='dc')                   
+        data_dict['v']        = pd.read_hdf(file, key='v')                        
+        data_dict['f']        = pd.read_hdf(file, key='f')                        
+        data_dict['scalars']  = pd.read_hdf(file, key='scalars')                        
+
+        initial = data_dict['scalars']['initial'][0]
+
+        self.initial   = initial
+        self.name      = name
+        self.data_dict = data_dict
+
 
     def rate(self, dielec, ensemble_average=False):
         results, _ = rates(
             self.initial,
             dielec,
-            self.data,
-            self.data_dc,
-            self.data_v,
-            self.data_f,
+            self.data_dict,
             ensemble_average=ensemble_average,
             detailed=False
         )
@@ -1326,10 +1173,7 @@ class Ensemble(object):
         _, emi = rates(
             self.initial,
             dielec,
-            self.data,
-            self.data_dc,
-            self.data_v,
-            self.data_f,
+            self.data_dict,
             ensemble_average=False,
             detailed=False
         )
@@ -1341,10 +1185,7 @@ class Ensemble(object):
         results, emi, breakdown = rates(
             self.initial,
             dielec,
-            self.data,
-            self.data_dc,
-            self.data_v,
-            self.data_f,
+            self.data_dict,
             ensemble_average=ensemble_average,
             detailed=True
         )
@@ -1354,7 +1195,7 @@ class Ensemble(object):
         return results, emi, breakdown
 
     def complete_abs(self, dielec, nstates=-1, wavelength=False, extinction=False):
-        abs_spec, breakdown = absorption(self.initial, dielec, self.data, nstates=nstates, save=False, detailed=True)
+        abs_spec, breakdown = absorption(self.initial, dielec, self.data_dict, nstates=nstates, save=False, detailed=True)
         if wavelength:
             abs_spec = self.abs2wavelength(abs_spec)
         if extinction:
@@ -1363,7 +1204,7 @@ class Ensemble(object):
         return abs_spec, breakdown
 
     def absorption(self, dielec, nstates=-1, wavelength=False, extinction=False):
-        abs_spec = absorption(self.initial, dielec, data=self.data, nstates=nstates, save=False, detailed=False)
+        abs_spec = absorption(self.initial, dielec, data_dict=self.data_dict, nstates=nstates, save=False, detailed=False)
         if wavelength:
             abs_spec = self.abs2wavelength(abs_spec)
         if extinction:
@@ -1372,19 +1213,16 @@ class Ensemble(object):
 
     def breakdown(self, dielec):
         if self.initial == 'S0':
-            _, breakdown = absorption(self.initial, dielec, data=self.data, save=False, detailed=True)
+            _, breakdown = absorption(self.initial, dielec, data_dict=self.data_dict, save=False, detailed=True)
         else:
             _, _, breakdown = rates(
                         self.initial,
                         dielec,
-                        self.data,
-                        self.data_dc,
-                        self.data_v,
-                        self.data_f,
+                        self.data_dict,
                         ensemble_average=False,
                         detailed=True
                         )
-        breakdown.insert(0, 'Geometry', self.data['geometry'].astype(int))
+        breakdown.insert(0, 'Geometry', self.data_dict['ensemble']['geometry'].astype(int))
         return breakdown
 
     def save(self, dielec, mode):
@@ -1392,16 +1230,13 @@ class Ensemble(object):
             results, emi = rates(
                     self.initial,
                     dielec,
-                    self.data,
-                    self.data_dc,
-                    self.data_v,
-                    self.data_f,
+                    self.data_dict,
                     ensemble_average=False,
                     detailed=False
                     )
             export_results(results, emi, dielec)
         elif mode == 'abs':
-            _ = absorption(self.initial, dielec, data=self.data, save=True, detailed=False)
+            _ = absorption(self.initial, dielec, data_dict=self.data_dict, save=True, detailed=False)
 
     def emi2wavelength(self, emi):
         emi_energy = emi['Energy'].to_numpy()

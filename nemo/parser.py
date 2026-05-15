@@ -1253,7 +1253,7 @@ def transform_dR_to_dQ(normal_modes, DC_real):
 
     # ---- assume ortogonality
     # compute d/dQ
-    DC_normal = np.dot(A, DC_real.flatten()) 
+    DC_normal = A @ DC_real.flatten()
 
 
     return DC_normal
@@ -1261,7 +1261,7 @@ def transform_dR_to_dQ(normal_modes, DC_real):
 ######################################################################################################
 
 ## DEFINES THE B PARAMETERS FOR THE IC RATE ##########################################################
-def get_derivative_couplings(states_i, states_f, files, freqlog, debug=False):
+def get_derivative_couplings(states_i, states_f, files, freqlog):
     # get modes and frequencies
     Qchemfile=False
     with open(freqlog, 'r', encoding='utf-8') as file:
@@ -1313,12 +1313,9 @@ def get_derivative_couplings(states_i, states_f, files, freqlog, debug=False):
                     final_state.append(state_2)
                     geometry.append(i+1)
                     mode.append(k+1)
-                    if debug:
-                        B.append(1.0)
-                    else:
-                        B.append(
-                        (DC_normal[k]**2) * (HBAR_J**3) * (freqs[k]) / (2.0 * masses[k])
-                        )
+                    B.append(
+                    (DC_normal[k]**2) * (HBAR_J**3) * (freqs[k]) / (2.0 * masses[k])
+                    )
 
     return (
         initial_state,
