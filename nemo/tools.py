@@ -920,3 +920,7 @@ def cartesian_to_spherical(vec):
     theta = np.arccos(z / r) if r != 0 else 0
     phi = np.arctan2(y, x)
     return r, theta, phi
+
+def boson_average(freq, kbt):
+    w = 1.0/(np.exp(HBAR_EV*freq/kbt)-1.0)
+    return np.average(freq, weights=w)
