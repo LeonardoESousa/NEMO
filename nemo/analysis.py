@@ -891,19 +891,24 @@ def rates(initial, dielec, data_dict={}, ensemble_average=False, detailed=False)
     #g_ad = 0#np.nan_to_num((2 * np.pi * (socs_complete**2) * tau_D)/ (HBAR_EV * lambda_b_isc))
     #y_axis =  y_axis / (1 + g_ad)
     if not data_dc.empty:
-        sigma_ic = total_reorganization_energy(lambda_b_ic, kbt, sigma_int_ic)
-        term_pos = nemo.tools.gauss(delta_ic-HBAR_EV*freq_row[:,:,np.newaxis],sigma_ic)
-        term_neg = nemo.tools.gauss(delta_ic+HBAR_EV*freq_row[:,:,np.newaxis],sigma_ic) 
-        rate_abs = (2.0*np.pi/HBAR_EV) * b * v1[:,:,np.newaxis] * term_pos / E_CHARGE**2 # s-1
-        rate_emi = (2.0*np.pi/HBAR_EV) * b * v2[:,:,np.newaxis] * term_neg / E_CHARGE**2 # s-1
+        if 's' in initial:
+            sigma_ic = total_reorganization_energy(lambda_b_ic, kbt, sigma_int_ic)
+            term_pos = nemo.tools.gauss(delta_ic-HBAR_EV*freq_row[:,:,np.newaxis],sigma_ic)
+            term_neg = nemo.tools.gauss(delta_ic+HBAR_EV*freq_row[:,:,np.newaxis],sigma_ic) 
+            rate_abs = (2.0*np.pi/HBAR_EV) * b * v1[:,:,np.newaxis] * term_pos / E_CHARGE**2 # s-1
+            rate_emi = (2.0*np.pi/HBAR_EV) * b * v2[:,:,np.newaxis] * term_neg / E_CHARGE**2 # s-1
 
-        y_axis_ic = np.sum(rate_abs+rate_emi, axis=1) # sum over normal modes
+            y_axis_ic = np.sum(rate_abs+rate_emi, axis=1) # sum over normal modes
 
-        # hstack y and espectro
-        y_axis = np.hstack((y_axis, y_axis_ic))
-        sigma = np.hstack((sigma, sigma_ic[:,0,:]))
-        couplings = np.hstack((socs_complete, delta_ic[:,0,:])) #C change to actual coupling
-        gap = np.hstack((delta_isc,delta_ic[:,0,:]))
+            # hstack y and espectro
+            y_axis = np.hstack((y_axis, y_axis_ic))
+            sigma = np.hstack((sigma, sigma_ic[:,0,:]))
+            couplings = np.hstack((socs_complete, delta_ic[:,0,:])) #C change to actual coupling
+            gap = np.hstack((delta_isc,delta_ic[:,0,:]))
+        else:
+            mean_soc = 1000 * means(socs_complete, y_axis, ensemble_average)[:, np.newaxis]
+            gap = delta_isc
+            couplings = socs_complete
     else:
         mean_soc = 1000 * means(socs_complete, y_axis, ensemble_average)[:, np.newaxis]
         gap = delta_isc
