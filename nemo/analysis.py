@@ -44,6 +44,7 @@ def sigma_function(e_col, freq=None):
         #C find last physical root (later, criterion should be implemented)
         lamb_f=-10.0
         a_sf = 1.0
+        n_solutions=0
         for root in roots:
             a_s = 1.0 + 4.0*root/(hw*coth)
             if a_s<0.0: 
@@ -51,8 +52,13 @@ def sigma_function(e_col, freq=None):
             lamb = (var - 2.0*root**2)/(a_s*hw*coth)
             if lamb <= 0.0: 
                 continue
-            a_sf = a_s
-            lamb_f=lamb
+            if abs(lamb)<=abs(lamb_f):
+                n_solutions+=1
+                a_sf = a_s
+                lamb_f=lamb
+        if n_solutions>1:
+            print(f"Warning: more than one solution found for transition {i}.")
+            print(f"The smallest positive one is selected. a_sf={a_sf}, lamb_f={lamb_f}, n_solutions={n_solutions}")
 
         if abs(a_sf)<thresh:               # --- change a_sf in formula for thresh
             lamb_f=lamb_f*abs(a_sf)/thresh # --- abs(a_sf) is used no to change the sign of lamb_f
@@ -64,9 +70,6 @@ def sigma_function(e_col, freq=None):
             sigma.append(lamb_f)
 
     sigma=np.array(sigma)
-
-    if e_col.shape[1]==1:
-        sigma=sigma[0]
     return sigma
 #########################################################################################
 
@@ -854,15 +857,18 @@ def rates(initial, dielec, data_dict={}, ensemble_average=False, detailed=False)
             # add emission energy as the first column
             delta_ic = np.hstack((-1 * delta_emi[:, np.newaxis], delta_ic))
             lambda_b_ic = np.hstack((lambda_emission[:, np.newaxis], lambda_b_ic))
-            #remove columns for states higher than n_state and add normal mode dimension
-            delta_ic = delta_ic[:, np.newaxis, :n_state+1]
-            lambda_b_ic = lambda_b_ic[:, np.newaxis, :n_state+1]
+            #remove columns for states higher than n_state 
+            delta_ic = delta_ic[:, :n_state+1]
+            lambda_b_ic = lambda_b_ic[:, :n_state+1]
+            sigma_int_ic = sigma_function(delta_ic, freq_eff)
+            # --- add normal mode column
+            delta_ic = delta_ic[:, np.newaxis, :]
+            lambda_b_ic = lambda_b_ic[:, np.newaxis, :]
+            sigma_int_ic = sigma_int_ic[np.newaxis, np.newaxis, :]
             b=b.transpose(0,3,2,1) #(geom, mode, initial_state, final_state)
             b=b[:,:,0,:]           # select initial state (geom, mode, final_state)
-            b=b[:,:,:n_state+1]    
-
-            sigma_int_ic = sigma_function(delta_ic, freq_eff)
-            final = final + [f"S0"] + [f"S{j}" for j in range(1, 1 + delta_ic.shape[1]) if j != n_state+1]
+            b=b[:,:,:n_state+1]#b=np.delete(b, n_state+1, axis=2)
+            final = final + [f"S0"] + [f"S{j}" for j in range(1, 1 + delta_ic.shape[2]) if j != n_state+1]
 
     elif "t" in initial:
         # Tn to Sm ISC
