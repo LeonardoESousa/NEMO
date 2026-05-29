@@ -858,8 +858,8 @@ def rates(initial, dielec, data_dict={}, ensemble_average=False, detailed=False)
             delta_ic = np.hstack((-1 * delta_emi[:, np.newaxis], delta_ic))
             lambda_b_ic = np.hstack((lambda_emission[:, np.newaxis], lambda_b_ic))
             #remove columns for states higher than n_state 
-            delta_ic = delta_ic[:, :n_state+1]
-            lambda_b_ic = lambda_b_ic[:, :n_state+1]
+            #delta_ic = delta_ic[:, :n_state+1]
+            #lambda_b_ic = lambda_b_ic[:, :n_state+1]
             sigma_int_ic = sigma_function(delta_ic, freq_eff)
             # --- add normal mode column
             delta_ic = delta_ic[:, np.newaxis, :]
@@ -867,9 +867,9 @@ def rates(initial, dielec, data_dict={}, ensemble_average=False, detailed=False)
             sigma_int_ic = sigma_int_ic[np.newaxis, np.newaxis, :]
             b=b.transpose(0,3,2,1) #(geom, mode, initial_state, final_state)
             b=b[:,:,0,:]           # select initial state (geom, mode, final_state)
-            b=b[:,:,:n_state+1]#b=np.delete(b, n_state+1, axis=2)
+            #b=b[:,:,:n_state+1]#b=np.delete(b, n_state+1, axis=2)
+            b = np.delete(b, n_state+1, axis=2) # remove column corresponding to the initial state
             final = final + [f"S0"] + [f"S{j}" for j in range(1, 1 + delta_ic.shape[2]) if j != n_state+1]
-
     elif "t" in initial:
         # Tn to Sm ISC
         final_energy_isc = singlets - (gamma_s + chi_s) * alphast2
@@ -1168,7 +1168,10 @@ class Ensemble(object):
         self.initial   = initial
         self.name      = name
         self.data_dict = data_dict
+        self.data      = data_dict['ensemble']
 
+    def geometry(self):
+        return self.data['geometry'].astype(int)
 
     def rate(self, dielec, ensemble_average=False):
         results, _ = rates(
@@ -1202,7 +1205,7 @@ class Ensemble(object):
         )
         if wavelength:
             emi = self.emi2wavelength(emi)
-        breakdown.insert(0, 'Geometry', self.data['geometry'].astype(int))
+        breakdown.insert(0, 'Geometry', self.geometry())
         return results, emi, breakdown
 
     def complete_abs(self, dielec, nstates=-1, wavelength=False, extinction=False):
@@ -1211,7 +1214,7 @@ class Ensemble(object):
             abs_spec = self.abs2wavelength(abs_spec)
         if extinction:
             abs_spec = self.abs2extinction(abs_spec)
-        breakdown.insert(0, 'Geometry', self.data['geometry'].astype(int))
+        breakdown.insert(0, 'Geometry', self.geometry())
         return abs_spec, breakdown
 
     def absorption(self, dielec, nstates=-1, wavelength=False, extinction=False):
@@ -1233,7 +1236,7 @@ class Ensemble(object):
                         ensemble_average=False,
                         detailed=True
                         )
-        breakdown.insert(0, 'Geometry', self.data_dict['ensemble']['geometry'].astype(int))
+        breakdown.insert(0, 'Geometry', self.geometry())
         return breakdown
 
     def save(self, dielec, mode):
