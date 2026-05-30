@@ -1239,17 +1239,29 @@ def transform_dR_to_dQ(normal_modes, DC_real):
     """
     A = transform_cartesian_to_normal_modes(normal_modes)
     # compute transpose of A
-    # A_T = np.transpose(A)
+    A_T = np.transpose(A)
+
+    # ---- don't assume orthogonality due to Gaussian16 simplification
+
     # compute inverse of AA_T
     #AA_T_inv = np.linalg.inv(np.dot(A, A_T))
+
+    ## compute d/dQ
+    #DC_normal = AA_T_inv @ np.dot(A, DC_real.flatten())
+
+    # -----------------------
+
+    # ---- assume ortogonality
     # compute d/dQ
-    DC_normal = np.dot(A, DC_real.flatten())
+    DC_normal = A @ DC_real.flatten()
+
+
     return DC_normal
 
 ######################################################################################################
 
 ## DEFINES THE B PARAMETERS FOR THE IC RATE ##########################################################
-def get_derivative_couplings(states_i, states_f, files, freqlog, debug=False):
+def get_derivative_couplings(states_i, states_f, files, freqlog):
     # get modes and frequencies
     Qchemfile=False
     with open(freqlog, 'r', encoding='utf-8') as file:
@@ -1301,12 +1313,9 @@ def get_derivative_couplings(states_i, states_f, files, freqlog, debug=False):
                     final_state.append(state_2)
                     geometry.append(i+1)
                     mode.append(k+1)
-                    if debug:
-                        B.append(1.0)
-                    else:
-                        B.append(
-                        (DC_normal[k]**2) * (HBAR_J**3) * (freqs[k]) / (2.0 * masses[k])
-                        )
+                    B.append(
+                    (DC_normal[k]**2) * (HBAR_J**3) * (freqs[k]) / (2.0 * masses[k])
+                    )
 
     return (
         initial_state,
@@ -1361,7 +1370,7 @@ def get_V(mag_file, files, v_option="Exact"):#     'quantum'):
     v2 = []
 
     #--------------------------------------------#
-    #Exact expression
+    #Option for debugging
     if v_option == "debug":
         print("")
         print("Attention!")

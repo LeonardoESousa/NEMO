@@ -899,6 +899,18 @@ def B_to_vec(data_dc, lower, higher):
     b=b_matrix[lower][higher]
     return b
 
+def B_to_vec_complete(data_dc):
+    data_dc[['initial_state', 'final_state']] = data_dc[['initial_state', 'final_state']].astype(int)
+    shape=(
+           int(data_dc["geometry"].max()),
+           int(data_dc["final_state"].max())+1,
+           int(data_dc["final_state"].max())+1,
+           int(data_dc["mode"].max())
+           )
+    b_matrix=np.zeros(shape)
+    b_matrix[data_dc["geometry"]-1, data_dc["initial_state"], data_dc["final_state"], data_dc["mode"]-1] = data_dc["B"]
+    b_matrix = b_matrix + b_matrix.transpose(0,2,1,3)
+    return b_matrix
 
 def cartesian_to_spherical(vec):
     x=vec[0]
@@ -908,3 +920,7 @@ def cartesian_to_spherical(vec):
     theta = np.arccos(z / r) if r != 0 else 0
     phi = np.arctan2(y, x)
     return r, theta, phi
+
+def boson_average(freq, kbt):
+    w = 1.0/(np.exp(HBAR_EV*freq/kbt)-1.0)
+    return np.average(freq, weights=w)
