@@ -1189,7 +1189,10 @@ class Ensemble(object):
         self.initial   = initial
         self.name      = name
         self.data_dict = data_dict
+        self.data      = data_dict['ensemble']
 
+    def geometry(self):
+        return self.data['geometry'].astype(int)
 
     def rate(self, dielec, ensemble_average=False):
         results, _ = rates(
@@ -1225,7 +1228,7 @@ class Ensemble(object):
         )
         if wavelength:
             emi = self.emi2wavelength(emi)
-        breakdown.insert(0, 'Geometry', self.data['geometry'].astype(int))
+        breakdown.insert(0, 'Geometry', self.geometry())
         return results, emi, breakdown
 
     def complete_abs(self, dielec, nstates=-1, wavelength=False, extinction=False):
@@ -1234,7 +1237,7 @@ class Ensemble(object):
             abs_spec = self.abs2wavelength(abs_spec)
         if extinction:
             abs_spec = self.abs2extinction(abs_spec)
-        breakdown.insert(0, 'Geometry', self.data['geometry'].astype(int))
+        breakdown.insert(0, 'Geometry', self.geometry())
         return abs_spec, breakdown
 
     def absorption(self, dielec, nstates=-1, wavelength=False, extinction=False):
@@ -1257,7 +1260,7 @@ class Ensemble(object):
                         detailed=True,
                         save_phonon_spectra=True
                         )
-        breakdown.insert(0, 'Geometry', self.data_dict['ensemble']['geometry'].astype(int))
+        breakdown.insert(0, 'Geometry', self.geometry())
         return breakdown
 
     def save(self, dielec, mode):
