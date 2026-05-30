@@ -359,15 +359,27 @@ def pega_modosHP(G, freqlog):
     normal_modes = np.zeros((num_atoms, 3, len(F))) + np.nan
     mode = 0
     fetch = False
+    last_mode = False
     with open(freqlog, "r",encoding='utf-8') as f:
         for line in f:
             if "Coord Atom Element:" in line:
                 fetch = True
             elif fetch:
                 line = line.split()
-                if len(line) < 6 or "Harmonic" in line[0]:
-                    fetch = False
-                    mode += 5
+                if "Harmonic" in line[0]:
+                    fetch=False
+                    continue
+                if len(line) < 6:
+                    if last_mode:
+                        coord = int(line[0]) - 1
+                        atom = int(line[1]) - 1
+                        for j in range(3, len(line)):
+                            normal_modes[atom, coord, mode + j - 3] = float(line[j])
+                    if not last_mode:
+                        fetch = False
+                        mode += 5
+                        if len(line)<5: 
+                            last_mode=True
                 else:
                     coord = int(line[0]) - 1
                     atom = int(line[1]) - 1
@@ -770,8 +782,8 @@ def pega_energias(file):
         ss_s,
         ss_t,
         theta_s,
-        theta_t,
         phi_s,
+        theta_t,
         phi_t,
         s0_corr,
         y_s,
@@ -1215,46 +1227,19 @@ def pega_DC_real(normal_modes, DC_log, state_1, state_2):
 
 ######################################################################################################
 
-
-## Obtains the matrix A that transforms Cartesian coordinates to normal modes (Q = A * R)
-def transform_cartesian_to_normal_modes(normal_modes):
+##TRANSFORMS REAL COORDINATES TO NORMAL COORDINATES###################################################
+def transform_dR_to_dQ(normal_modes, DC_real):
     num_atoms = np.shape(normal_modes)[0]
     freqs = np.shape(normal_modes)[2]
-    A = np.zeros((freqs, 3 * num_atoms)) # 3N-6 x 3N
+    A = np.zeros((freqs, 3 * num_atoms)) + np.nan # 3N-6 x 3N
     for i in range(freqs):
         for j in range(num_atoms):
             A[i, 3 * j    ] = normal_modes[j, 0, i]
             A[i, 3 * j + 1] = normal_modes[j, 1, i]
             A[i, 3 * j + 2] = normal_modes[j, 2, i]
-    return A
 
-
-######################################################################################################
-
-##TRANSFORMS REAL COORDINATES TO NORMAL COORDINATES###################################################
-def transform_dR_to_dQ(normal_modes, DC_real):
-    """
-        If Q=AR, the derivatives will tranform as d/dQ = (AA_T)^-1 A d/dR.
-
-    """
-    A = transform_cartesian_to_normal_modes(normal_modes)
-    # compute transpose of A
-    A_T = np.transpose(A)
-
-    # ---- don't assume orthogonality due to Gaussian16 simplification
-
-    # compute inverse of AA_T
-    #AA_T_inv = np.linalg.inv(np.dot(A, A_T))
-
-    ## compute d/dQ
-    #DC_normal = AA_T_inv @ np.dot(A, DC_real.flatten())
-
-    # -----------------------
-
-    # ---- assume ortogonality
     # compute d/dQ
     DC_normal = A @ DC_real.flatten()
-
 
     return DC_normal
 
@@ -1263,25 +1248,9 @@ def transform_dR_to_dQ(normal_modes, DC_real):
 ## DEFINES THE B PARAMETERS FOR THE IC RATE ##########################################################
 def get_derivative_couplings(states_i, states_f, files, freqlog):
     # get modes and frequencies
-    Qchemfile=False
-    with open(freqlog, 'r', encoding='utf-8') as file:
-        for line in file:
-            if 'qchem' in line:
-                Qchemfile=True
-                break
-    try:
-        if Qchemfile:
-            print("Qchem frequency log detected.")
-            geom, _ = pega_geom(freqlog)
-            normal_modes = pega_modos(geom, freqlog)
-            freqs, masses = pega_freq(freqlog)
-        else:
-            geom, _ = pega_geom(freqlog)
-            normal_modes = pega_modos(geom, freqlog)
-            freqs, masses = pega_freq(freqlog)
-            print("Gaussian frequency log detected.")
-    except FileNotFoundError:
-        fatal_error("Compatible frequency log file not found! Goodbye!")
+    geom, _ = pega_geom(freqlog)
+    normal_modes = pega_modos(geom, freqlog)
+    freqs, masses = pega_freq(freqlog)
 
     #compute B
     initial_state = []
@@ -1350,7 +1319,7 @@ def check_derivative_couplings(file):
 #########################################################################################
 
 ##COMPUTES THE V PARAMETERS #####
-def get_V(mag_file, files, v_option="Exact"):#     'quantum'):
+def get_V(mag_file, files):
 
     temp = float(mag_file.split("_")[1].strip("K"))
 
@@ -1369,151 +1338,32 @@ def get_V(mag_file, files, v_option="Exact"):#     'quantum'):
     v1 = []
     v2 = []
 
-    #--------------------------------------------#
-    #Option for debugging
-    if v_option == "debug":
-        print("")
-        print("Attention!")
-        print("")
-        print("Performing the debug calculation of the V parameter.")
-        print("")
-        for geom in range(len(amplitudes)):
-            for m in range(len(amplitudes[0])):
-                geometry.append(geom+1)
-                mode.append(m+1)
-                
-                term1 = 1.0
-
-                term2 = 1.0
-
-                v1.append(term1)
-                v2.append(term2)
-        return(
-            geometry,
-            mode,
-            v1,
-            v2
-        )        
-
-    #--------------------------------------------#
-    #Exact expression
-    if v_option == "Exact":
-        print("")
-        print("Attention!")
-        print("")
-        print("Performing the Exact calculation of the V parameter.")
-        print("")
-        for geom in range(len(amplitudes)):
-            for m in range(len(amplitudes[0])):
-                geometry.append(geom+1)
-                mode.append(m+1)
-                
-                betahw = HBAR_EV * freq_V[m] / (BOLTZ_EV * temp)
-                amp = (masses_m[m] * (freq_V[m]) * (amplitudes[geom][m]**2)) / (2.0 * HBAR_J)
-                
-                term1 =(
-                 1.0/(2.0*np.sinh(betahw))
-                 +
-                 amp*(1.0 - np.tanh(betahw/2.0)**2)*np.exp(-betahw)
-                )
-
-                term2 =(
-                 1.0/(2.0*np.sinh(betahw))
-                 +
-                 amp*(1.0 - np.tanh(betahw/2.0)**2)*np.exp(betahw)
-                )
-
-                v1.append(term1)
-                v2.append(term2)
-        return(
-            geometry,
-            mode,
-            v1,
-            v2
-        )        
-
-
-    #--------------------------------------------#
-    #Semi-Classical expression
-    if v_option == "SemiClass":
-        print("")
-        print("Attention!")
-        print("")
-        print("Performing the SemiClass calculation of the V parameter.")
-        print("")
-        for geom in range(len(amplitudes)):
-            for m in range(len(amplitudes[0])):
-                geometry.append(geom+1)
-                mode.append(m+1)
-                term = (
-                 1.0/4.0 * (1.0/np.tanh(HBAR_EV * freq_V[m] / (2.0 * BOLTZ_EV * temp)))+
-                 (masses_m[m] * (freq_V[m]) * (amplitudes[geom][m]**2)) / (2.0 * HBAR_J)
-                 - 1.0/2.0
-                )
-                v1.append(term)
-                v2.append(term+1.0)
-        return(
-            geometry,
-            mode,
-            v1,
-            v2
-        )
-
-    #--------------------------------------------#
-    #Positive semi-classical expression
-    if v_option == "POSITIVESemiClass":
-        print("")
-        print("Attention!")
-        print("")
-        print("Performing the POSITIVESemiClass calculation of the V parameter.")
-        print("")
-        for geom in range(len(amplitudes)):
-            for m in range(len(amplitudes[0])):
-                geometry.append(geom+1)
-                mode.append(m+1)
-
-                term =(
-                 1.0/4.0 * (1.0/np.tanh(HBAR_EV * freq_V[m] / (2.0 * BOLTZ_EV * temp)))+
-                 (masses_m[m] * (freq_V[m]) * (amplitudes[geom][m]**2)) / (2.0 * HBAR_J)
-                 - 1.0/2.0
-                )
-
-                if term < 0.0:
-                    v1.append(0.0)
-                    v2.append(1.0)
-                else:
-                    v1.append(term)
-                    v2.append(term+1.0)
-        return(
-            geometry,
-            mode,
-            v1,
-            v2
-        )
-
-    #--------------------------------------------#
-    # If no valid option was chosen, the calculation performed is the Quantum statistical
-    print("")
-    print("Attention!")
-    print("")
-    print("Performing the quantum statistical calculation of the V parameter.")
-    print("")
-
-    #Quantum statistical expression
     for geom in range(len(amplitudes)):
         for m in range(len(amplitudes[0])):
             geometry.append(geom+1)
             mode.append(m+1)
-            term = (
-            1.0 / (np.exp(HBAR_EV * freq_V[m] / (BOLTZ_EV * temp)) - 1.0)
+            
+            betahw = HBAR_EV * freq_V[m] / (BOLTZ_EV * temp)
+            amp = (masses_m[m] * (freq_V[m]) * (amplitudes[geom][m]**2)) / (2.0 * HBAR_J)
+            
+            term1 =(
+             1.0/(2.0*np.sinh(betahw))
+             +
+             amp*(1.0 - np.tanh(betahw/2.0)**2)*np.exp(-betahw)
             )
 
-            v1.append(term)
-            v2.append(term+1.0) 
+            term2 =(
+             1.0/(2.0*np.sinh(betahw))
+             +
+             amp*(1.0 - np.tanh(betahw/2.0)**2)*np.exp(betahw)
+            )
 
+            v1.append(term1)
+            v2.append(term2)
     return(
         geometry,
         mode,
         v1,
         v2
-    )
+    )        
+
