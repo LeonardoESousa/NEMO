@@ -41,7 +41,7 @@ def sigma_function(e_col, freq=None):
         coeffs = [4.0, 0, -6.0*var, skew]# 4u³ + 0u² - 6varu + skew=0
         roots = np.roots(coeffs)
         
-        #C find last physical root (later, criterion should be implemented)
+        # --- find physical root with lowest reorganization energy
         lamb_f=-10.0
         a_sf = 1.0
         n_solutions=0
@@ -684,7 +684,7 @@ def compute_cos(theta_i, theta_f, phi_i, phi_f):
 
 
 ###CALCULATES ISC AND EMISSION RATES & SPECTRA#########################################
-def rates(initial, dielec, data_dict={}, ensemble_average=False, detailed=False):
+def rates(initial, dielec, data_dict={}, ensemble_average=False, detailed=False, save_phonon_spectra=False):
 
     # --- if data dictionary is empty, run gather_data
     if not data_dict: 
@@ -867,9 +867,10 @@ def rates(initial, dielec, data_dict={}, ensemble_average=False, detailed=False)
             sigma_int_ic = sigma_int_ic[np.newaxis, np.newaxis, :]
             b=b.transpose(0,3,2,1) #(geom, mode, initial_state, final_state)
             b=b[:,:,0,:]           # select initial state (geom, mode, final_state)
-            #b=b[:,:,:n_state+1]#b=np.delete(b, n_state+1, axis=2)
-            b = np.delete(b, n_state+1, axis=2) # remove column corresponding to the initial state
+            #b=b[:,:,:n_state+1]
+            b=np.delete(b, n_state+1, axis=2)
             final = final + [f"S0"] + [f"S{j}" for j in range(1, 1 + delta_ic.shape[2]) if j != n_state+1]
+
     elif "t" in initial:
         # Tn to Sm ISC
         final_energy_isc = singlets - (gamma_s + chi_s) * alphast2
@@ -904,6 +905,8 @@ def rates(initial, dielec, data_dict={}, ensemble_average=False, detailed=False)
             rate_abs = (2.0*np.pi/HBAR_EV) * b * v1[:,:,np.newaxis] * term_pos / E_CHARGE**2 # s-1
             rate_emi = (2.0*np.pi/HBAR_EV) * b * v2[:,:,np.newaxis] * term_neg / E_CHARGE**2 # s-1
 
+            if save_phonon_spectra:
+                phonon_spectra(initial, rate_abs, rate_emi, freq_row)
             y_axis_ic = np.sum(rate_abs+rate_emi, axis=1) # sum over normal modes
 
             # hstack y and espectro
@@ -1153,6 +1156,24 @@ def absorption(initial, dielec, data_dict=None, save=False, detailed=False, nsta
         return abs_spec, breakdown
     return abs_spec
 
+def phonon_spectra(initial, rate_abs, rate_emi, freq_row):
+    path = f"phonon_spectra_{initial.upper()}"
+    if not os.path.exists(path):
+        os.makedirs(path)
+
+    # --- ensemble average
+    rate_abs = np.average(rate_abs, axis=0)
+    rate_emi = np.average(rate_emi, axis=0)
+
+    for final_state in range(len(rate_abs[0])):
+        abs_spectrum=np.hstack((freq_row[0][:,np.newaxis], rate_abs[:,final_state][:,np.newaxis]))
+        emi_spectrum=np.hstack((freq_row[0][:,np.newaxis], rate_emi[:,final_state][:,np.newaxis]))
+        file_abs=f"{path}/phonon_abs_{initial.upper()}_to_{initial.upper()[0]}{final_state}.txt"
+        file_emi=f"{path}/phonon_emi_{initial.upper()}_to_{initial.upper()[0]}{final_state}.txt"
+        np.savetxt(file_abs, abs_spectrum, delimiter=' ', fmt='%10.5e')
+        np.savetxt(file_emi, emi_spectrum, delimiter=' ', fmt='%10.5e')
+
+    return
 
 class Ensemble(object):
     def __init__(self, file, name=''):
@@ -1179,7 +1200,8 @@ class Ensemble(object):
             dielec,
             self.data_dict,
             ensemble_average=ensemble_average,
-            detailed=False
+            detailed=False,
+            save_phonon_spectra=True
         )
         return results
 
@@ -1201,7 +1223,8 @@ class Ensemble(object):
             dielec,
             self.data_dict,
             ensemble_average=ensemble_average,
-            detailed=True
+            detailed=True,
+            save_phonon_spectra=True
         )
         if wavelength:
             emi = self.emi2wavelength(emi)
@@ -1234,7 +1257,8 @@ class Ensemble(object):
                         dielec,
                         self.data_dict,
                         ensemble_average=False,
-                        detailed=True
+                        detailed=True,
+                        save_phonon_spectra=True
                         )
         breakdown.insert(0, 'Geometry', self.geometry())
         return breakdown
@@ -1246,7 +1270,8 @@ class Ensemble(object):
                     dielec,
                     self.data_dict,
                     ensemble_average=False,
-                    detailed=False
+                    detailed=False,
+                    save_phonon_spectra=True
                     )
             export_results(results, emi, dielec)
         elif mode == 'abs':
