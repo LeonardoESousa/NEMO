@@ -20,7 +20,7 @@ MASS_E = nemo.parser.MASS_E
 EPSILON_0 = nemo.parser.EPSILON_0
 
 ##Defines the standard deviation used for IC and ISC rates ##############################
-def sigma_function(e_col, freq=None):
+def sigma_function(e_col, freq=None, debug=False):
     kbt = 0.026
     if not(freq): # --- emission or absorption
         return kbt
@@ -65,7 +65,8 @@ def sigma_function(e_col, freq=None):
 
         if lamb_f<=0:
             sigma.append(kbt)
-            print("roots not found, sigma=", sigma)
+            if debug:
+                print("roots not found, sigma=", sigma)
         if lamb_f>0:
             sigma.append(lamb_f)
 
@@ -899,11 +900,15 @@ def rates(initial, dielec, data_dict={}, ensemble_average=False, detailed=False,
     #y_axis =  y_axis / (1 + g_ad)
     if not data_dc.empty:
         if 's' in initial:
-            sigma_ic = total_reorganization_energy(lambda_b_ic, kbt, sigma_int_ic)
-            term_pos = nemo.tools.gauss(delta_ic-HBAR_EV*freq_row[:,:,np.newaxis],sigma_ic)
-            term_neg = nemo.tools.gauss(delta_ic+HBAR_EV*freq_row[:,:,np.newaxis],sigma_ic) 
-            rate_abs = (2.0*np.pi/HBAR_EV) * b * v1[:,:,np.newaxis] * term_pos / E_CHARGE**2 # s-1
-            rate_emi = (2.0*np.pi/HBAR_EV) * b * v2[:,:,np.newaxis] * term_neg / E_CHARGE**2 # s-1
+            sigma_ic        = total_reorganization_energy(lambda_b_ic, kbt, sigma_int_ic)
+            term_abs        = nemo.tools.gauss(delta_ic-HBAR_EV*freq_row[:,:,np.newaxis],sigma_ic)
+            term_emi        = nemo.tools.gauss(delta_ic+HBAR_EV*freq_row[:,:,np.newaxis],sigma_ic) 
+            ic_coupling_abs = b * v1[:,:,np.newaxis] / E_CHARGE**2 # eV**2
+            ic_coupling_emi = b * v2[:,:,np.newaxis] / E_CHARGE**2 # eV**2
+            rate_abs        = (2.0*np.pi/HBAR_EV) * ic_coupling_abs * term_abs # s-1
+            rate_emi        = (2.0*np.pi/HBAR_EV) * ic_coupling_emi * term_emi # s-1
+
+            ic_coupling = np.sum(ic_coupling_abs+ic_coupling_emi, axis=1)
 
             if save_phonon_spectra:
                 phonon_spectra(initial, rate_abs, rate_emi, freq_row)
@@ -912,7 +917,7 @@ def rates(initial, dielec, data_dict={}, ensemble_average=False, detailed=False,
             # hstack y and espectro
             y_axis = np.hstack((y_axis, y_axis_ic))
             sigma = np.hstack((sigma, sigma_ic[:,0,:]))
-            couplings = np.hstack((socs_complete, delta_ic[:,0,:])) #C change to actual coupling
+            couplings = np.hstack((socs_complete, ic_coupling))
             gap = np.hstack((delta_isc,delta_ic[:,0,:]))
         else:
             mean_soc = 1000 * means(socs_complete, y_axis, ensemble_average)[:, np.newaxis]
