@@ -474,8 +474,10 @@ def parse_block(block, collect_corrections=False):
         'indices': [],
         'correction': [],
         'correction2': [],
+        'r_s': [],
         'theta_s': [],
         'phi_s': [],
+        'r_t': [],
         'theta_t': [],
         'phi_t': [],
         'total_energy': [],
@@ -603,7 +605,8 @@ def parse_block(block, collect_corrections=False):
                         float(line.split()[2]),
                         float(line.split()[3])
                     ])
-                    _, theta, phi = nemo.tools.cartesian_to_spherical(vecS - vec0)
+                    r, theta, phi = nemo.tools.cartesian_to_spherical(vecS - vec0)
+                    data['r_s'].append(r)
                     data['theta_s'].append(theta)
                     data['phi_s'].append(phi)
             except (ValueError, IndexError):
@@ -621,7 +624,8 @@ def parse_block(block, collect_corrections=False):
                         float(line.split()[2]),
                         float(line.split()[3])
                     ])
-                    _, theta, phi = nemo.tools.cartesian_to_spherical(vecT - vec0)
+                    r, theta, phi = nemo.tools.cartesian_to_spherical(vecT - vec0)
+                    data['r_t'].append(r)
                     data['theta_t'].append(theta)
                     data['phi_t'].append(phi)
             except (ValueError, IndexError):
@@ -762,8 +766,10 @@ def pega_energias(file):
     ss_s = corr_data['ss_s'][match_singlets]
     ss_t = corr_data['ss_t'][match_triplets]
 
+    r_s = np.array(vac_data['r_s'])
     theta_s = np.array(vac_data['theta_s'])
     phi_s = np.array(vac_data['phi_s'])
+    r_t = np.array(vac_data['r_t'])
     theta_t = np.array(vac_data['theta_t'])
     phi_t = np.array(vac_data['phi_t'])
 
@@ -781,8 +787,10 @@ def pega_energias(file):
         ind_t,
         ss_s,
         ss_t,
+        r_s,
         theta_s,
         phi_s,
+        r_t,
         theta_t,
         phi_t,
         s0_corr,

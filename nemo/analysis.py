@@ -131,8 +131,10 @@ def analysis(files, n_state, get_energies):
             ind_t,
             ss_s,
             ss_t,
+            r_s,
             theta_s,
             phi_s,
+            r_t,
             theta_t,
             phi_t,
             ground_pol,
@@ -144,8 +146,10 @@ def analysis(files, n_state, get_energies):
         oscs = np.array([oscs[:n_state]])
         ss_s = np.array([ss_s[:n_state]])
         ss_t = np.array([ss_t[:n_state]])
+        r_s = np.array([r_s[:n_state]])
         theta_s = np.array([theta_s[:n_state]])
         phi_s = np.array([phi_s[:n_state]])
+        r_t = np.array([r_t[:n_state]])
         theta_t = np.array([theta_t[:n_state]])
         phi_t = np.array([phi_t[:n_state]])
         ind_s = np.array([ind_s[:n_state]])
@@ -159,8 +163,10 @@ def analysis(files, n_state, get_energies):
             total_oscs = np.vstack((total_oscs, oscs))
             total_ss_s = np.vstack((total_ss_s, ss_s))
             total_ss_t = np.vstack((total_ss_t, ss_t))
+            total_r_s = np.vstack((total_r_s, r_s))
             total_theta_s = np.vstack((total_theta_s, theta_s))
             total_phi_s = np.vstack((total_phi_s, phi_s))
+            total_r_t = np.vstack((total_r_t, r_t))
             total_theta_t = np.vstack((total_theta_t, theta_t))
             total_phi_t = np.vstack((total_phi_t, phi_t))
             total_ind_s = np.vstack((total_ind_s, ind_s))
@@ -174,8 +180,10 @@ def analysis(files, n_state, get_energies):
             total_oscs = oscs
             total_ss_s = ss_s
             total_ss_t = ss_t
+            total_r_s = r_s
             total_theta_s = theta_s
             total_phi_s = phi_s
+            total_r_t = r_t
             total_theta_t = theta_t
             total_phi_t = phi_t
             total_ind_s = ind_s
@@ -192,8 +200,10 @@ def analysis(files, n_state, get_energies):
         total_oscs,
         total_ss_s,
         total_ss_t,
+        total_r_s,
         total_theta_s,
         total_phi_s,
+        total_r_t,
         total_theta_t,
         total_phi_t,
         total_ground_pol,
@@ -296,8 +306,10 @@ def gather_data(initial, save=True):
     oscs,
     ss_s,
     ss_t,
+    r_s,
     theta_s,
     phi_s,
+    r_t,
     theta_t,
     phi_t,
     ground_pol,
@@ -327,12 +339,18 @@ def gather_data(initial, save=True):
     for i in range(ss_t.shape[1]):
         data[f"chi_t{i+1}"] = ss_t[:, i]
         formats[f"chi_t{i+1}"] = "{:.4f}"
+    for i in range(r_s.shape[1]):
+        data[f"r_s{i+1}"] = r_s[:, i]
+        formats[f"r_s{i+1}"] = "{:.4f}"
     for i in range(theta_s.shape[1]):
         data[f"theta_s{i+1}"] = theta_s[:, i]
         formats[f"theta_s{i+1}"] = "{:.4f}"
     for i in range(phi_s.shape[1]):
         data[f"phi_s{i+1}"] = phi_s[:, i]
         formats[f"phi_s{i+1}"] = "{:.4f}"
+    for i in range(r_t.shape[1]):
+        data[f"r_t{i+1}"] = r_t[:, i]
+        formats[f"r_t{i+1}"] = "{:.4f}"
     for i in range(theta_t.shape[1]):
         data[f"theta_t{i+1}"] = theta_t[:, i]
         formats[f"theta_t{i+1}"] = "{:.4f}"
