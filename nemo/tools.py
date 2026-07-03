@@ -623,7 +623,6 @@ def susceptibility_check(file, E_vac_fit=None, chi_fit=None):
 
     chi_symbol = '\u03C7(eV)'
     gamma_symbol = '\u03B3(eV)'
-    Delta_symbol = '\u0394'
     
     # Print header with aligned columns
     print(fr"{'State':<6} {'E_vac(eV)':<12} {chi_symbol:<10} {gamma_symbol:<10}")
@@ -690,7 +689,7 @@ def susceptibility_check(file, E_vac_fit=None, chi_fit=None):
         f"{'State':<6} "
         f"{'E_pred':<10} "
         f"{'χ_pred':<10} "
-        f"{'{Delta_symbol}γ':<10} "
+        f"{'Δγ':<10} "
         f"{'dE':<10} "
         f"{'dχ':<10} "
         f"{'Distance':<10}"
