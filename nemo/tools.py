@@ -601,7 +601,12 @@ def fetch_nr(file):
                 return epsilon, refractive_index
     return epsilon, refractive_index
 
-def susceptibility_check(file, tuning=False):
+def susceptibility_check(file, E_vac_fit=None, chi_fit=None):
+    import numpy as np
+
+    # Default constant
+    C = 0.3243
+
     # Fetch energy levels and other data
     s_vac, t_vac, _, _, _, ss_s, ss_t, _, _, _, _, ss_g, y_s, y_t = nemo.parser.pega_energias(file)
     eps, nr = fetch_nr(file)
@@ -610,28 +615,102 @@ def susceptibility_check(file, tuning=False):
     alpha_opt = (nr**2 - 1) / (nr**2 + 1)
     chi_s = ss_s / alpha_opt
     chi_t = ss_t / alpha_opt
+
     alpha_st = (eps - 1) / (eps + 1)
     y_g = ss_g / alpha_st
     y_s = y_s / alpha_st
     y_t = y_t / alpha_st
 
-    if tuning:
-        return s_vac[0], chi_s[0]
-    else:
-        chi_symbol = '\u03C7(eV)'
-        gamma_symbol = '\u03B3(eV)'
-        # Print header with aligned columns
-        print(fr"{'State':<6} {'E_vac(eV)':<12} {chi_symbol:<10} {gamma_symbol:<10}")
+    chi_symbol = '\u03C7(eV)'
+    gamma_symbol = '\u03B3(eV)'
+    Delta_symbol = '\u0394'
+    
+    # Print header with aligned columns
+    print(fr"{'State':<6} {'E_vac(eV)':<12} {chi_symbol:<10} {gamma_symbol:<10}")
 
-        print(f"S{0:<5} {0:<12.3f} {0:<10.3f} {y_g:<10.3f}")
+    # Print S0
+    print(f"S{0:<5} {0:<12.3f} {0:<10.3f} {y_g:<10.3f}")
 
-        # Print singlet states
-        for i, (e, chi, y) in enumerate(zip(s_vac, chi_s, y_s), start=1):
-            print(f"S{i:<5} {e:<12.3f} {chi:<10.3f} {y:<10.3f}")
+    # Print singlet states
+    for i, (e, chi, y) in enumerate(zip(s_vac, chi_s, y_s), start=1):
+        print(f"S{i:<5} {e:<12.3f} {chi:<10.3f} {y:<10.3f}")
 
-        # Print triplet states
-        for i, (e, chi, y) in enumerate(zip(t_vac, chi_t, y_t), start=1):
-            print(f"T{i:<5} {e:<12.3f} {chi:<10.3f} {y:<10.3f}")
+    # Print triplet states
+    for i, (e, chi, y) in enumerate(zip(t_vac, chi_t, y_t), start=1):
+        print(f"T{i:<5} {e:<12.3f} {chi:<10.3f} {y:<10.3f}")
+
+    # If no fitted values are provided, stop here
+    if E_vac_fit is None and chi_fit is None:
+        return
+
+    if E_vac_fit is None or chi_fit is None:
+        raise ValueError("Both E_vac_fit and chi_fit must be provided for diagnostics.")
+
+    # Diagnostics for singlet states only
+    diagnostics = []
+
+    for i, (E_vac_1, chi_1, gamma_i) in enumerate(zip(s_vac, chi_s, y_s), start=1):
+        delta_gamma = gamma_i - y_g
+
+        # Predicted fitted-model parameters
+        chi_pred = chi_1 + 0.5 * delta_gamma
+        E_vac_pred = E_vac_1 - 0.5 * delta_gamma * C
+
+        dE_vac = E_vac_fit - E_vac_pred
+        dchi = chi_fit - chi_pred
+
+        distance = np.sqrt(dE_vac**2 + dchi**2)
+
+        diagnostics.append(
+            {
+                "state": f"S{i}",
+                "E_vac_1": E_vac_1,
+                "chi_1": chi_1,
+                "gamma": gamma_i,
+                "delta_gamma": delta_gamma,
+                "E_vac_pred": E_vac_pred,
+                "chi_pred": chi_pred,
+                "dE_vac": dE_vac,
+                "dchi": dchi,
+                "distance": distance,
+            }
+        )
+
+    diagnostics = sorted(diagnostics, key=lambda row: row["distance"])
+    best = diagnostics[0]
+
+    print()
+    print("Experimental Comparison")
+    print("-------------------")
+    print(f"Experimental E_vac(eV): {E_vac_fit:.3f}")
+    print(f"Experimental χ(eV):     {chi_fit:.3f}")
+    print(f"α_opt:                  {C:.4f}")
+    print()
+    print(
+        f"{'State':<6} "
+        f"{'E_pred':<10} "
+        f"{'χ_pred':<10} "
+        f"{'{Delta_symbol}γ':<10} "
+        f"{'dE':<10} "
+        f"{'dχ':<10} "
+        f"{'Distance':<10}"
+    )
+
+    for row in diagnostics:
+        print(
+            f"{row['state']:<6} "
+            f"{row['E_vac_pred']:<10.3f} "
+            f"{row['chi_pred']:<10.3f} "
+            f"{row['delta_gamma']:<10.3f} "
+            f"{row['dE_vac']:<10.3f} "
+            f"{row['dchi']:<10.3f} "
+            f"{row['distance']:<10.3f}"
+        )
+
+    print()
+    print(
+        f"Best match: {best['state']} "
+    )
 
 
 
