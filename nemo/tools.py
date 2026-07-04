@@ -828,16 +828,16 @@ class Watcher:
             print('These are: ', self.license_error)
 
     def limit(self):
-        if self.key == "Geometr":
-            try:
-                return np.loadtxt("../limit.lx",encoding='utf-8')
-            except (OSError,FileNotFoundError):
-                sys.exit()
-        else:
-            try:
-                return np.loadtxt("limit.lx",encoding='utf-8')
-            except (OSError,FileNotFoundError):
-                sys.exit()
+        limit_file = "../limit.lx" if self.key == "Geometr" else "limit.lx"
+        try:
+            return np.loadtxt(limit_file, encoding='utf-8')
+        except (OSError, FileNotFoundError):
+            print("limit.lx file removed. Stopping Python process.")
+            raise SystemExit(0)
+
+    def _ensure_limit_file(self):
+        # Force a limit.lx check even in loops that do not call keep_going.
+        self.limit()
 
     def keep_going(self,num):
         if len(self.running) / num < self.limit():
@@ -857,6 +857,7 @@ class Watcher:
         self.clean_failed()
         inputs = self.files.copy()
         while len(inputs) > 0:
+            self._ensure_limit_file()
             next_inputs = inputs[:int(num)]
             num_proc = int(total_threads / len(next_inputs))
             command = ''
@@ -880,6 +881,7 @@ class Watcher:
 
     def hold_watch(self):
         while len(self.files) > 0:
+            self._ensure_limit_file()
             time.sleep(20)
             self.check()
 
