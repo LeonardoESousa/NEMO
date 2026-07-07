@@ -20,58 +20,82 @@ MASS_E = nemo.parser.MASS_E
 EPSILON_0 = nemo.parser.EPSILON_0
 
 ##Defines the standard deviation used for IC and ISC rates ##############################
-def sigma_function(e_col, freq=None, debug=False):
+def sigma_function(e_col, freq=None):
+    import numpy as np
+
     kbt = 0.026
-    if not(freq): # --- emission or absorption
-        return kbt
-    hw = HBAR_EV*freq
-    coth=1.0/np.tanh(hw/(2.0*kbt))
 
-    if len(e_col.shape)==1:
-        e_col=e_col[:,np.newaxis]
-    
-    thresh=0.0#25
-    sigma=[]
-    for i in range(e_col.shape[1]): # number of states
-        energy=e_col[:,i]
-        mean = np.average(energy)
-        var = np.var(energy)
-        skew = np.average((energy - mean)**3)
+    if freq is None:
+        return kbt/2.0
 
-        coeffs = [4.0, 0, -6.0*var, skew]# 4u³ + 0u² - 6varu + skew=0
+    hw = HBAR_EV * freq
+    coth = 1.0 / np.tanh(hw / (2.0 * kbt))
+    hwc = hw * coth
+
+    e_col = np.asarray(e_col, dtype=float)
+
+    if e_col.ndim == 1:
+        e_col = e_col[:, np.newaxis]
+
+    sigma = []
+
+    for i in range(e_col.shape[1]):
+        energy = e_col[:, i]
+        energy = energy[np.isfinite(energy)]
+
+        # Fallback for single geometry or unusable data
+        if len(energy) < 2:
+            sigma.append(kbt/2.0)
+            continue
+
+        mean = np.mean(energy)
+        M2 = np.mean((energy - mean)**2)
+        M3 = np.mean((energy - mean)**3)
+
+        # Fallback if M2 cannot define a width
+        if not np.isfinite(M2) or M2 <= 0.0:
+            sigma.append(kbt/2.0)
+            continue
+
+        candidates = []
+
+        # Cubic: 4u^3 - 6M2 u + M3 = 0
+        coeffs = [4.0, 0.0, -6.0 * M2, M3]
         roots = np.roots(coeffs)
-        
-        # --- find physical root with lowest reorganization energy
-        lamb_f=-10.0
-        a_sf = 1.0
-        n_solutions=0
+
         for root in roots:
-            a_s = 1.0 + 4.0*root/(hw*coth)
-            if a_s<0.0: 
+            if abs(root.imag) > 1e-10:
                 continue
-            lamb = (var - 2.0*root**2)/(a_s*hw*coth)
-            if lamb <= 0.0: 
+
+            u = root.real
+
+            a_raw = 1.0 + 4.0 * u / hwc
+
+            # Keep only physically meaningful raw curvature ratios
+            if a_raw <= 0.0:
                 continue
-            if abs(lamb)<=abs(lamb_f):
-                n_solutions+=1
-                a_sf = a_s
-                lamb_f=lamb
-        if n_solutions>1:
-            print(f"Warning: more than one solution found for transition {i}.")
-            print(f"The smallest positive one is selected. a_sf={a_sf}, lamb_f={lamb_f}, n_solutions={n_solutions}")
 
-        if abs(a_sf)<thresh:               # --- change a_sf in formula for thresh
-            lamb_f=lamb_f*abs(a_sf)/thresh # --- abs(a_sf) is used no to change the sign of lamb_f
+            # Regularize curvature ratio
+            a_reg = a_raw#a_reg = min(max(a_raw, 0.5), 1.5)
 
-        if lamb_f<=0:
-            sigma.append(kbt)
-            if debug:
-                print("roots not found, sigma=", sigma)
-        if lamb_f>0:
-            sigma.append(lamb_f)
+            lamb = (M2 - 2.0 * u**2) / (a_reg * hwc)
 
-    sigma=np.array(sigma)
-    return sigma
+            if np.isfinite(lamb) and lamb > 0.0:
+                candidates.append(lamb)
+
+        # If no valid regularized cubic solution survives,
+        # fall back to equal-curvature Marcus model: u=0, a=1
+        if len(candidates) == 0:
+            lamb = M2 / hwc
+        else:
+            lamb = min(candidates)
+
+        # Final lower-bound regularization
+        lamb = max(lamb, kbt/2.0)
+
+        sigma.append(lamb)
+
+    return np.array(sigma)
 #########################################################################################
 
 ##RETURNS LIST OF LOG FILES WITH NORMAL TERMINATION######################################
@@ -654,7 +678,8 @@ def fetch(data, criteria_list):
 
 
 def total_reorganization_energy(lambda_b, kbt, std):
-    return np.sqrt(2 * lambda_b * kbt + std**2)
+    return np.sqrt(2 * (lambda_b + std) * kbt)
+    #return np.sqrt(2 * lambda_b * kbt + std**2)
 
 
 def rate_and_uncertainty(y_axis):
