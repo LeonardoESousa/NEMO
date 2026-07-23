@@ -895,8 +895,24 @@ class Ensemble(object):
         )
         return results
 
-    def emission(self, dielec, wavelength=False):
-        _, emi = rates(self.initial, dielec, self.data, ensemble_average=False, detailed=False)
+    def emission(self, dielec, wavelength=False, corrected=False):
+        _, emi, breakdown = rates(self.initial, dielec, self.data, ensemble_average=False, detailed=True)
+        if corrected:
+            #get column that contains "->"
+            kr = breakdown.loc[:, breakdown.columns.str.contains("->")].iloc[:, 0].to_numpy()
+            #get all columns that contain "~>" and sum them
+            knr = breakdown.loc[:, breakdown.columns.str.contains("~>")].sum(axis=1).to_numpy()
+            phi = kr / (kr + knr)
+            engs = breakdown["eng"].to_numpy()
+            sigmas = breakdown["sigma"].to_numpy()
+            x_axis = x_values(engs, sigmas)
+            spec = phi[:, np.newaxis] * nemo.tools.gauss(x_axis, engs[:,np.newaxis], sigmas[:,np.newaxis])
+            mean_y, error = rate_and_uncertainty(spec)
+            error /= mean_y.max()
+            mean_y /= mean_y.max()
+            emi = pd.DataFrame(np.hstack((x_axis[:, np.newaxis], mean_y[:, np.newaxis], error[:, np.newaxis])), columns=["Energy", "Diffrate", "Error"])
+
+
         if wavelength:
             emi = self.emi2wavelength(emi)
         return emi
