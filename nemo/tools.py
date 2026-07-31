@@ -601,89 +601,238 @@ def fetch_nr(file):
                 return epsilon, refractive_index
     return epsilon, refractive_index
 
-def susceptibility_check(file, E_vac_fit=None, chi_fit=None):
-    import numpy as np
-
-    # Default constant
+def susceptibility_check(
+    file,
+    E_vac_fit=None,
+    chi_fit=None,
+    tuning=False,
+    r_max=0.50,
+):
     C = 0.3243
 
-    # Fetch energy levels and other data
-    s_vac, t_vac, _, _, _, ss_s, ss_t, _, _, _, _, ss_g, y_s, y_t = nemo.parser.pega_energias(file)
+    (
+        s_vac,
+        t_vac,
+        _,
+        _,
+        _,
+        ss_s,
+        ss_t,
+        _,
+        _,
+        _,
+        _,
+        ss_g,
+        y_s,
+        y_t,
+    ) = nemo.parser.pega_energias(file)
+
     eps, nr = fetch_nr(file)
 
-    # Calculate alpha and susceptibility chi values
     alpha_opt = (nr**2 - 1) / (nr**2 + 1)
+    alpha_st = (eps - 1) / (eps + 1)
+
     chi_s = ss_s / alpha_opt
     chi_t = ss_t / alpha_opt
 
-    alpha_st = (eps - 1) / (eps + 1)
     y_g = ss_g / alpha_st
     y_s = y_s / alpha_st
     y_t = y_t / alpha_st
 
-    chi_symbol = '\u03C7(eV)'
-    gamma_symbol = '\u03B3(eV)'
-    
-    # Print header with aligned columns
-    print(fr"{'State':<6} {'E_vac(eV)':<12} {chi_symbol:<10} {gamma_symbol:<10}")
+    # Print state properties only in normal diagnostic mode
+    if not tuning:
+        print(
+            f"{'State':<6} "
+            f"{'E_vac(eV)':<12} "
+            f"{'χ(eV)':<10} "
+            f"{'γ(eV)':<10}"
+        )
 
-    # Print S0
-    print(f"S{0:<5} {0:<12.3f} {0:<10.3f} {y_g:<10.3f}")
+        print(
+            f"{'S0':<6} "
+            f"{0.0:<12.3f} "
+            f"{0.0:<10.3f} "
+            f"{y_g:<10.3f}"
+        )
 
-    # Print singlet states
-    for i, (e, chi, y) in enumerate(zip(s_vac, chi_s, y_s), start=1):
-        print(f"S{i:<5} {e:<12.3f} {chi:<10.3f} {y:<10.3f}")
+        for i, (energy, chi, gamma) in enumerate(
+            zip(s_vac, chi_s, y_s),
+            start=1,
+        ):
+            state = f"S{i}"
 
-    # Print triplet states
-    for i, (e, chi, y) in enumerate(zip(t_vac, chi_t, y_t), start=1):
-        print(f"T{i:<5} {e:<12.3f} {chi:<10.3f} {y:<10.3f}")
+            print(
+                f"{state:<6} "
+                f"{energy:<12.3f} "
+                f"{chi:<10.3f} "
+                f"{gamma:<10.3f}"
+            )
 
-    # If no fitted values are provided, stop here
+        for i, (energy, chi, gamma) in enumerate(
+            zip(t_vac, chi_t, y_t),
+            start=1,
+        ):
+            state = f"T{i}"
+
+            print(
+                f"{state:<6} "
+                f"{energy:<12.3f} "
+                f"{chi:<10.3f} "
+                f"{gamma:<10.3f}"
+            )
+
     if E_vac_fit is None and chi_fit is None:
+        if tuning:
+            raise ValueError(
+                "E_vac_fit and chi_fit are required when tuning=True."
+            )
         return
 
     if E_vac_fit is None or chi_fit is None:
-        raise ValueError("Both E_vac_fit and chi_fit must be provided for diagnostics.")
+        raise ValueError(
+            "Both E_vac_fit and chi_fit must be provided."
+        )
 
-    # Diagnostics for singlet states only
+    def minimum_r_to_beat(dE, dchi, target):
+        """
+        Find the minimum non-negative r for which tuning along the
+        direction (1, -r) can produce a distance smaller than target.
+        """
+        A = dE**2 - target**2
+        B = 2.0 * dE * dchi
+        Cq = dchi**2 - target**2
+
+        def condition(r):
+            return A * r**2 + B * r + Cq
+
+        # At r = 0, omega changes energy but not susceptibility.
+        if condition(0.0) <= 0.0:
+            return 0.0
+
+        tolerance = 1.0e-12
+
+        if abs(A) < tolerance:
+            if abs(B) < tolerance:
+                return np.inf
+
+            roots = [-Cq / B]
+
+        else:
+            discriminant = B**2 - 4.0 * A * Cq
+
+            if discriminant < 0.0:
+                return np.inf
+
+            sqrt_discriminant = np.sqrt(discriminant)
+
+            roots = [
+                (-B - sqrt_discriminant) / (2.0 * A),
+                (-B + sqrt_discriminant) / (2.0 * A),
+            ]
+
+        roots = sorted(
+            root
+            for root in roots
+            if root >= 0.0 and np.isfinite(root)
+        )
+
+        for root in roots:
+            test_r = root + 1.0e-7 * max(1.0, abs(root))
+
+            if condition(test_r) < 0.0:
+                return root
+
+        return np.inf
+
+    # Build singlet-state diagnostics
     diagnostics = []
 
-    for i, (E_vac_1, chi_1, gamma_i) in enumerate(zip(s_vac, chi_s, y_s), start=1):
-        delta_gamma = gamma_i - y_g
+    for i, (energy, chi, gamma) in enumerate(
+        zip(s_vac, chi_s, y_s),
+        start=1,
+    ):
+        delta_gamma = gamma - y_g
 
-        # Predicted fitted-model parameters
-        chi_pred = chi_1 + 0.5 * delta_gamma
-        E_vac_pred = E_vac_1 - 0.5 * delta_gamma * C
+        E_pred = energy - 0.5 * delta_gamma * C
+        chi_pred = chi + 0.5 * delta_gamma
 
-        dE_vac = E_vac_fit - E_vac_pred
+        dE = E_vac_fit - E_pred
         dchi = chi_fit - chi_pred
-
-        distance = np.sqrt(dE_vac**2 + dchi**2)
+        distance = np.hypot(dE, dchi)
 
         diagnostics.append(
             {
+                "root": i,
                 "state": f"S{i}",
-                "E_vac_1": E_vac_1,
-                "chi_1": chi_1,
-                "gamma": gamma_i,
-                "delta_gamma": delta_gamma,
-                "E_vac_pred": E_vac_pred,
+                "E_pred": E_pred,
                 "chi_pred": chi_pred,
-                "dE_vac": dE_vac,
+                "delta_gamma": delta_gamma,
+                "dE": dE,
                 "dchi": dchi,
                 "distance": distance,
+                "r_min": np.inf,
             }
         )
 
-    diagnostics = sorted(diagnostics, key=lambda row: row["distance"])
+    diagnostics.sort(
+        key=lambda row: row["distance"]
+    )
+
     best = diagnostics[0]
 
+    # Calculate the minimum r needed for every other state to
+    # outperform the current best state.
+    for row in diagnostics[1:]:
+        row["r_min"] = minimum_r_to_beat(
+            row["dE"],
+            row["dchi"],
+            best["distance"],
+        )
+
+    s1 = next(
+        row
+        for row in diagnostics
+        if row["root"] == 1
+    )
+
+    # Determine which state should define the initial omega direction.
+    #
+    # Use S1 if it is already the best state or if it could plausibly
+    # become the best state through omega tuning. Otherwise, use the
+    # current best-matching state.
+    if (
+        best["root"] == 1
+        or s1["r_min"] <= r_max
+    ):
+        direction_state = s1
+    else:
+        direction_state = best
+
+    # Representative response ratio used only to determine whether
+    # omega should increase or decrease.
+    r_direction = 0.5 * r_max
+
+    omega_shift = (
+        direction_state["dE"]
+        - r_direction * direction_state["dchi"]
+    )
+
+    sign = 1 if omega_shift >= 0.0 else -1
+
+    # In tuning mode, print nothing.
+    if tuning:
+        return best["distance"], best["root"], sign
+
+    direction = "increase" if sign > 0 else "decrease"
+
+    # Print the experimental comparison
     print()
     print("Experimental Comparison")
-    print("-------------------")
+    print("-----------------------")
     print(f"Experimental E_vac(eV): {E_vac_fit:.3f}")
     print(f"Experimental χ(eV):     {chi_fit:.3f}")
     print(f"α_opt:                  {C:.4f}")
+
     print()
     print(
         f"{'State':<6} "
@@ -692,25 +841,46 @@ def susceptibility_check(file, E_vac_fit=None, chi_fit=None):
         f"{'Δγ':<10} "
         f"{'dE':<10} "
         f"{'dχ':<10} "
-        f"{'Distance':<10}"
+        f"{'Distance':<10} "
+        f"{'r_min':<10}"
     )
 
     for row in diagnostics:
+        if row is best:
+            r_text = "Best"
+        elif np.isinf(row["r_min"]):
+            r_text = "None"
+        else:
+            r_text = f"{row['r_min']:.3f}"
+
         print(
             f"{row['state']:<6} "
-            f"{row['E_vac_pred']:<10.3f} "
+            f"{row['E_pred']:<10.3f} "
             f"{row['chi_pred']:<10.3f} "
             f"{row['delta_gamma']:<10.3f} "
-            f"{row['dE_vac']:<10.3f} "
+            f"{row['dE']:<10.3f} "
             f"{row['dchi']:<10.3f} "
-            f"{row['distance']:<10.3f}"
+            f"{row['distance']:<10.3f} "
+            f"{r_text:<10}"
         )
 
     print()
+    print("Tuning Diagnostic")
+    print("-----------------")
     print(
         f"Best match: {best['state']} "
+        f"(distance = {best['distance']:.3f} eV)"
+    )
+    print(
+        f"Suggested direction: {direction} ω "
+        f"(based on {direction_state['state']})"
     )
 
+    if best["root"] > 1:
+        print(
+            f"If {best['state']} remains best at the final ω, "
+            "optimize it with state tracking."
+        )
 
 
 ##FETCHES REFRACTIVE INDEX#####################################
