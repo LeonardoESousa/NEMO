@@ -357,7 +357,7 @@ def main():
         omega_max=500,
         )
 
-        if next_omega is None:
+        if next_omega is None or min(Js) <= np.sqrt(2) * 0.043: #chemical accuracy threshold
             break
         
         omega1 = next_omega
@@ -439,7 +439,7 @@ def main():
     else:
         final_file = best_log
 
-    with open("omega_final.lx", "a", encoding="utf-8") as output:
+    with open("omega.lx", "a", encoding="utf-8") as output:
         with redirect_stdout(output):
             try:
                 nemo.tools.susceptibility_check(

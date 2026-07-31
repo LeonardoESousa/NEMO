@@ -868,17 +868,93 @@ def susceptibility_check(
     print("Tuning Diagnostic")
     print("-----------------")
     print(
-        f"Best match: {best['state']} "
+        f"Current best match: {best['state']} "
         f"(distance = {best['distance']:.3f} eV)"
     )
-    print(
-        f"Suggested direction: {direction} ω "
-        f"(based on {direction_state['state']})"
-    )
+    chemical_accuracy = 0.043 #eV
+    distance_tolerance = np.sqrt(2.0) * chemical_accuracy
 
-    if best["root"] > 1:
+    # The current result is already sufficiently accurate
+    if best["distance"] <= distance_tolerance:
+        rms_error = best["distance"] / np.sqrt(2.0)
+
         print(
-            f"If {best['state']} remains best at the final ω, "
+            f"The RMS discrepancy is {rms_error:.3f} eV, "
+            f"which is within chemical accuracy "
+            f"({chemical_accuracy:.3f} eV)."
+        )
+        print("No further ω tuning is recommended.")
+
+        if best["root"] == 1:
+            print("Recommended action: retain S1 at the current ω.")
+        else:
+            print(
+                f"Recommended action: optimize {best['state']} "
+                "with state tracking at the current ω."
+            )
+
+    # S1 is already the current best state
+    elif best["root"] == 1:
+        print("S1 is already the best-matching state.")
+        print(
+            f"Recommended action: {direction} ω and repeat "
+            "the calculation."
+        )
+
+    # S1 could plausibly become better than the current top candidate
+    elif (
+        np.isfinite(s1["r_min"])
+        and s1["r_min"] <= r_max
+    ):
+        print(
+            f"Although {best['state']} is currently the best match, "
+            "S1 may achieve a better match through ω tuning."
+        )
+        print(
+            f"S1 requires a minimum response ratio of approximately "
+            f"r = {s1['r_min']:.3f} to outperform {best['state']}."
+        )
+        print(
+            f"This is within the assumed plausible range "
+            f"(r ≤ {r_max:.2f})."
+        )
+        print(
+            f"Recommended action: {direction} ω and repeat "
+            "the calculation."
+        )
+        print(
+            "Track the state ordering during tuning because another "
+            "state may cross and become S1."
+        )
+
+    # S1 is unlikely to become better through plausible omega tuning
+    else:
+        if np.isfinite(s1["r_min"]):
+            print(
+                f"S1 would require a response ratio of approximately "
+                f"r = {s1['r_min']:.3f} to outperform "
+                f"{best['state']}."
+            )
+            print(
+                f"This is outside the assumed plausible range "
+                f"(r ≤ {r_max:.2f})."
+            )
+        else:
+            print(
+                f"S1 cannot outperform {best['state']} within the "
+                "linear ω-response model."
+            )
+
+        print(
+            f"{best['state']} is therefore the more plausible "
+            "target state."
+        )
+        print(
+            f"Recommended action: {direction} ω using "
+            f"{best['state']} as the tuning target."
+        )
+        print(
+            f"If {best['state']} remains the best match at the final ω, "
             "optimize it with state tracking."
         )
 
