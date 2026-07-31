@@ -38,7 +38,7 @@ def rodar_omega(e_vac, chi, atomos, geom, nproc, omega, batch_file, state, rem, 
     omega = f"{omega:03.0f}"
     files = []
     file = gera_file(
-        'td-dft',
+        'empirical',
         rem,
         atomos,
         geom,
@@ -47,7 +47,6 @@ def rodar_omega(e_vac, chi, atomos, geom, nproc, omega, batch_file, state, rem, 
         cm="0 1",
         state=state,
         num_ex="5",
-        soc="false",
         stat="3.0",
         optic="1.96"
     )
@@ -332,7 +331,7 @@ def main():
             )
 
     iteration = 0
-
+    G, atomos = nemo.parser.pega_geom(geomlog)
     while iteration < 100:
     # Existing optimization loop
         if omega1 in omegas:
@@ -414,7 +413,7 @@ def main():
         G, atomos = nemo.parser.pega_geom(opt_log)
 
         sp_file = gera_file(
-            "td-dft",
+            "empirical",
             basic_rem,
             atomos,
             G,
