@@ -283,18 +283,14 @@ def main():
     omega1 = sys.argv[3]
     passo = sys.argv[4]
     script = sys.argv[5]
-    parallel = sys.argv[6].lower()
-    e_vac = float(sys.argv[7])
-    chi = float(sys.argv[8])
+    e_vac = float(sys.argv[6])
+    chi = float(sys.argv[7])
     rem, _, extra = nemo.parser.busca_input(geomlog)
     rem += extra + "\n"
     state = 1
     
-    if parallel.lower() == "y":
-        numjobs = 10
-    else:
-        numjobs = 1
-
+    numjobs = 10
+    
     try:
         int(nproc)
         passo = float(passo) * 1000
@@ -306,22 +302,22 @@ def main():
 
     try:
         data = np.loadtxt("omega.lx", dtype=float)
-    
+
         if data.ndim == 1:
             data = data.reshape(1, -1)
-    
+
         omegas = data[:, 0].tolist()
         Js = data[:, 1].tolist()
-    
+
     except FileNotFoundError:
         pass
-    
+
     # If restarting from exactly one cached calculation, recover the
     # initial omega direction from its output file.
     if len(omegas) == 1:
         cached_omega = int(round(omegas[0]))
         cached_log = f"Logs/td-{cached_omega:03d}-sp-.log"
-    
+
         if os.path.isfile(cached_log):
             _, _, sign = nemo.tools.susceptibility_check(
                 cached_log,
@@ -334,9 +330,9 @@ def main():
                 f"Could not recover the omega-tuning direction: "
                 f"{cached_log} was not found."
             )
-    
+
     iteration = 0
-    
+
     while iteration < 100:
     # Existing optimization loop
         if omega1 in omegas:

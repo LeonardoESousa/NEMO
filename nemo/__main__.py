@@ -52,6 +52,7 @@ def interface():
     print("EXTRA FEATURES:")
     print(
         "\t9 - Perform tuning of long range corrected functional (Gaussian 09/16 only)"
+        "\t10 - Perform empirical tuning of long range corrected functional"
     )
     print('\n')
     nemo.tools.check_for_updates('nemophoto')
@@ -141,6 +142,8 @@ def interface():
     elif operation == "9":
         nemo.tools.tuning()
         #lx.tools.omega_tuning()
+    elif operation == "10":
+        nemo.tools.empirical_omega()
     else:
         nemo.parser.fatal_error("It must be one of the options... Goodbye!")
 

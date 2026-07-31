@@ -1125,6 +1125,48 @@ def tuning():
 
 ###############################################################
 
+##RUNS EMPIRICAL W TUNING################################################
+def empirical_omega():
+    geomlog = fetch_file("input or log", [".in"])
+    omega1 = "0.15"
+    passo = "0.02"
+    print(f"Initial Omega: {omega1} bohr^-1")
+    print(f"Step: {passo} bohr^-1")
+    change = input("Are you satisfied with these parameters? y or n?\n")
+    if change == "n":
+        omega1 = default(
+            omega1,
+            f"Initial omega is {omega1} bohr^-1. If ok, Enter. Otherwise, type it.\n",
+        )
+        passo = default(
+            passo,
+            f"Initial step is {passo} bohr^-1. If ok, Enter. Otherwise, type it.\n",
+        )
+    script = fetch_file("batch script", ["batch.sh"])
+    nproc = input("Number of threads for each calculation\n")
+    e_vac = input("Experimental E_vac(eV)?\n")
+    chi = input("Experimental χ(eV)?\n")
+
+    with open("limit.lx", "w",encoding="utf-8") as f:
+        f.write("10")
+    subprocess.Popen(
+        [
+            "nohup",
+            "nemo_tuning",
+            geomlog,
+            nproc,
+            omega1,
+            passo,
+            script,
+            e_vac,
+            chi,            
+            "&",
+        ]
+    )
+
+###############################################################
+
+
 
 ###### IC RATE ##########
 def V_to_vec(data_V):
