@@ -1152,7 +1152,7 @@ def empirical_omega():
     subprocess.Popen(
         [
             "nohup",
-            "nemo_tuning",
+            "empirical_tuning",
             geomlog,
             nproc,
             omega1,
