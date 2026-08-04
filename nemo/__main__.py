@@ -53,6 +53,7 @@ def interface():
     print(
         "\t9 - Perform tuning of long range corrected functional (Gaussian 09/16 only)"
     )
+    print("\t10 - Perform empirical tuning of long range corrected functional")
     print('\n')
     nemo.tools.check_for_updates('nemophoto')
     operation = input()
@@ -141,6 +142,8 @@ def interface():
     elif operation == "9":
         nemo.tools.tuning()
         #lx.tools.omega_tuning()
+    elif operation == "10":
+        nemo.tools.empirical_omega()
     else:
         nemo.parser.fatal_error("It must be one of the options... Goodbye!")
 
@@ -157,12 +160,32 @@ def main():
     parser.add_argument('-c', '--check', type=str, help="Run susceptibility check on the specified file.")
 
     parser.add_argument('-g', '--geom', type=str, help="Gets geometry from a log file.")    
+    
+    parser.add_argument("fit_values", nargs="*", type=float,help="Optional fitted E_vac and chi values: nemo -c output.log E_vac_fit chi_fit")
     # Parse arguments
     args = parser.parse_args()
     
     # If `-c` is provided, call the susceptibility_check function
     if args.check:
-        nemo.tools.susceptibility_check(args.check)
+        if len(args.fit_values) == 0:
+            E_vac_fit = None
+            chi_fit = None
+
+        elif len(args.fit_values) == 2:
+            E_vac_fit = args.fit_values[0]
+            chi_fit = args.fit_values[1]
+
+        else:
+            parser.error(
+                "When using -c, provide either no fitted values or exactly two values: "
+                "E_vac_fit chi_fit"
+            )
+
+        nemo.tools.susceptibility_check(
+            args.check,
+            E_vac_fit=E_vac_fit,
+            chi_fit=chi_fit,
+        )
         sys.exit(0)
 
     elif args.geom:

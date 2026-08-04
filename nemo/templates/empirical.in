@@ -1,0 +1,45 @@
+{basic}
+omega                   {omega}
+cis_n_roots             {num_ex}
+cis_singlets            true
+cis_triplets            false
+calc_soc                false
+STS_MOM                 false
+MAX_CIS_CYCLES          200
+MAX_SCF_CYCLES          200
+$end
+
+
+$molecule
+{cm}
+#GGG#
+$end
+
+
+@@@
+
+$molecule
+read
+$end
+
+{basic}
+omega                   {omega}
+cis_n_roots             {num_ex}
+cis_singlets            true
+cis_triplets            false
+CIS_RELAXED_DENSITY     TRUE
+solvent_method          PCM
+MAX_CIS_CYCLES          200
+MAX_SCF_CYCLES          200
+$end
+
+$pcm
+theory                  IEFPCM
+ChargeSeparation        Marcus
+StateSpecific           Perturb
+$end
+
+$solvent
+Dielectric              {stat}
+OpticalDielectric       {optic}
+$end

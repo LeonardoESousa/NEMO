@@ -357,7 +357,7 @@ def main():
                 #find existing omega closest to omega1
                 d_omega = [abs(omega1 - om) for om in omegas]
                 geom_log = omegas[d_omega.index(min(d_omega))]
-                geom_log = f"Logs/OPT-{geom_log:3.0f}-.log"
+                geom_log = f"Logs/OPT-{geom_log:03.0f}-.log"
                 G, atomos = nemo.parser.pega_geom(geom_log)
             except (ValueError, FileNotFoundError):
                 G, atomos = nemo.parser.pega_geom(geomlog)   
@@ -405,7 +405,7 @@ def main():
     log = f"Logs/OPT-{menor:.0f}-.log"
     G, atomos = nemo.parser.pega_geom(log)
     rem = nemo.tools.extract_basic_rem(rem)
-    gera_file("td-dft", rem+f"\nomega    {menor:.0f}", atomos, G, "tddft.com", cm="0 1", stat=3.0, optic=1.96, num_ex=5, soc="false")
+    gera_file(f"s0_sp.com", rem+f"\nomega    {menor:.0f}", atomos, G, "tddft.com", cm="0 1", stat=3.0, optic=1.96, num_ex=5, soc="false")
     
     
     gera_file(
@@ -417,14 +417,14 @@ def main():
         omega=f"{menor:.0f}",
         cm="0 1",
     )
-    the_watcher = nemo.tools.Watcher('.',key="tddft.com")
+    the_watcher = nemo.tools.Watcher('.',key=f"s0_sp.com")
     the_watcher.run(script, nproc, 1)
     the_watcher.hold_watch()
 
     with open("state_analysis.txt", "w") as f:
         with redirect_stdout(f):
             try:
-                nemo.tools.susceptibility_check('tddft.log')
+                nemo.tools.susceptibility_check(f"s0_sp.log")
             except:
                 print("Could not perform susceptibility check. Please check tddft.log for details.")
 

@@ -62,7 +62,6 @@ def sigma_function(e_col, freq=None):
         # Cubic: 4u^3 - 6M2 u + M3 = 0
         coeffs = [4.0, 0.0, -6.0 * M2, M3]
         roots = np.roots(coeffs)
-
         for root in roots:
             if abs(root.imag) > 1e-10:
                 continue
