@@ -466,7 +466,13 @@ def pega_modos(G, freqlog):
         return pega_modos_qchem(G, freqlog)
 
 
-def parse_block(block, collect_corrections=False):
+D_V_PATTERN = re.compile(r'^\s*D\(\s*(\d+)\)\s*-->\s*V\(\s*(\d+)\)\s*amplitude\s*=\s*([+-]?\d*\.?\d+(?:[Ee][+-]?\d+)?)')
+
+def parse_block(block, modes_data, collect_corrections=False):
+    # modes_data[0] = normal_modes
+    # modes_data[1] = freqs (numpy array expected)
+    # modes_data[2] = reduced masses (numpy array expected)
+    
     data = {
         'energies': [],
         'spins': [],
@@ -488,21 +494,29 @@ def parse_block(block, collect_corrections=False):
     corr = False
     current_comp = None
 
-    fetch_0 = False
-    fetch_singlet = False
-    fetch_triplet = False
+    fetch_0 = fetch_singlet = fetch_triplet = False
     strike = 0
     vec0 = None
+
+    num_atoms = np.shape(modes_data[0])[0]
+    n_miss = 0
+    start = fetch = False
+    
+    initial_state = []
+    final_state = []
+    mode = []
+    b = []
 
     for line in block.splitlines():
 
         # Excited-state section
         if "TDDFT/TDA Excitation Energies" in line or "TDDFT Excitation Energies" in line:
-            data['energies'] = []
-            data['spins'] = []
-            data['oscillator'] = []
-            data['indices'] = []
-            data['composition'] = []
+            # Resetting lists
+            data['energies'].clear()
+            data['spins'].clear()
+            data['oscillator'].clear()
+            data['indices'].clear()
+            data['composition'].clear()
             exc = True
             current_comp = None
             continue
@@ -516,132 +530,148 @@ def parse_block(block, collect_corrections=False):
 
                 parts = line.split()
                 state_index = int(parts[2].replace(":", ""))
-                energy_val = float(line.split()[-1])
+                energy_val = float(parts[-1])
 
                 data['indices'].append(state_index)
                 data['energies'].append(energy_val)
 
             elif "Multiplicity" in line:
                 data['spins'].append(line.split()[-1])
+                continue
 
             elif "Strength" in line:
                 data['oscillator'].append(float(line.split()[-1]))
+                continue
 
-            elif re.match(r'\s*D\(', line):
-                match = re.search(
-                    r'D\(\s*(\d+)\)\s*-->\s*V\(\s*(\d+)\)\s*amplitude\s*=\s*([+-]?\d*\.?\d+(?:[Ee][+-]?\d+)?)',
-                    line
-                )
-                if match and current_comp is not None:
-                    d_idx = int(match.group(1))
-                    v_idx = int(match.group(2))
-                    amp = float(match.group(3))
-                    current_comp[(d_idx, v_idx)] = amp
+            match = D_V_PATTERN.match(line)
+            if match:
+                if current_comp is not None:
+                    current_comp[(int(match.group(1)), int(match.group(2)))] = float(match.group(3))
+                continue
 
             elif "---------------------------------------------------" in line and len(data['energies']) > 0:
                 if current_comp is not None:
                     data['composition'].append(current_comp)
                     current_comp = None
                 exc = False
+                continue
 
         # PCM correction info
         if collect_corrections:
             if "Excited-state properties with   relaxed density" in line:
                 corr = True
+                continue
 
             if corr:
                 if "SS-PCM correction" in line:
                     val = float(line.split()[-2])
                     data['correction'].append(-np.nan_to_num(val))
-
                 elif "LR-PCM correction" in line:
                     val = float(line.split()[-2])
                     data['correction2'].append(-np.nan_to_num(val))
-
                 elif "------------------------ END OF SUMMARY -----------------------" in line:
                     corr = False
+                continue
 
         # Dipole moment sections
-        if 'Electron Dipole Moments of Ground State' in line:
-            fetch_0 = True
-            fetch_singlet = False
-            fetch_triplet = False
+        if 'Electron Dipole Moments of' in line:
+            fetch_0 = 'Ground State' in line
+            fetch_singlet = 'Singlet' in line
+            fetch_triplet = 'Triplet' in line
             strike = 0
             continue
 
-        if 'Electron Dipole Moments of Singlet Excited State' in line:
-            fetch_singlet = True
-            fetch_0 = False
-            fetch_triplet = False
-            strike = 0
-            continue
-
-        if 'Electron Dipole Moments of Triplet Excited State' in line:
-            fetch_triplet = True
-            fetch_0 = False
-            fetch_singlet = False
-            strike = 0
-            continue
-
-        if fetch_0:
-            try:
-                vec0 = np.array([
-                    float(line.split()[1]),
-                    float(line.split()[2]),
-                    float(line.split()[3])
-                ])
-            except (ValueError, IndexError):
+        if fetch_0 or fetch_singlet or fetch_triplet:
+            parts = line.split()
+            if len(parts) >= 4:
+                try:
+                    # 4. Split once, use multiple times
+                    vec = np.array([float(parts[1]), float(parts[2]), float(parts[3])])
+                    if fetch_0:
+                        vec0 = vec
+                    elif vec0 is not None:
+                        r, theta, phi = nemo.tools.cartesian_to_spherical(vec - vec0)
+                        if fetch_singlet:
+                            data['r_s'].append(r)
+                            data['theta_s'].append(theta)
+                            data['phi_s'].append(phi)
+                        else:
+                            data['r_t'].append(r)
+                            data['theta_t'].append(theta)
+                            data['phi_t'].append(phi)
+                except (ValueError, IndexError):
+                    strike += 1
+                    if strike > 3:
+                        fetch_0 = fetch_singlet = fetch_triplet = False
+                        strike = 0
+            else:
                 strike += 1
                 if strike > 3:
-                    fetch_0 = False
-                    strike = 0
-            continue
-
-        if fetch_singlet:
-            try:
-                if vec0 is not None:
-                    vecS = np.array([
-                        float(line.split()[1]),
-                        float(line.split()[2]),
-                        float(line.split()[3])
-                    ])
-                    r, theta, phi = nemo.tools.cartesian_to_spherical(vecS - vec0)
-                    data['r_s'].append(r)
-                    data['theta_s'].append(theta)
-                    data['phi_s'].append(phi)
-            except (ValueError, IndexError):
-                strike += 1
-                if strike > 3:
-                    fetch_singlet = False
-                    strike = 0
-            continue
-
-        if fetch_triplet:
-            try:
-                if vec0 is not None:
-                    vecT = np.array([
-                        float(line.split()[1]),
-                        float(line.split()[2]),
-                        float(line.split()[3])
-                    ])
-                    r, theta, phi = nemo.tools.cartesian_to_spherical(vecT - vec0)
-                    data['r_t'].append(r)
-                    data['theta_t'].append(theta)
-                    data['phi_t'].append(phi)
-            except (ValueError, IndexError):
-                strike += 1
-                if strike > 3:
-                    fetch_triplet = False
+                    fetch_0 = fetch_singlet = fetch_triplet = False
                     strike = 0
             continue
 
         # Total ground-state energy
         if "Total energy" in line and "=" in line:
+            data['total_energy'].append(float(line.split()[-1]) * 27.21139)
+            continue
+
+        # IC section
+        if 'between states ' in line:
+            # 5. np.full is faster than np.zeros + np.nan
+            dc_real = np.full((num_atoms, 3), np.nan)
+            start = True
             parts = line.split()
-            data['total_energy'].append(float(parts[-1]) * 27.21139)
+            state_1 = int(parts[2])
+            state_2 = int(parts[4])
+            continue
+            
+        elif start:
+            if 'with ETF' in line:
+                fetch = True
+                continue
+            elif fetch:
+                parts = line.split()
+                if len(parts) >= 4:
+                    try:
+                        atom_index = int(parts[0]) - 1
+                        dc_real[atom_index, 0] = float(parts[1])
+                        dc_real[atom_index, 1] = float(parts[2])
+                        dc_real[atom_index, 2] = float(parts[3])
+                    except (ValueError, IndexError):
+                        n_miss += 1
+                else:
+                    n_miss += 1
+                    
+            if n_miss == 3:
+                n_miss = 0
+                start = fetch = False
+                dc_real /= BOHR
+                dc_normal = transform_dR_to_dQ(modes_data[0], dc_real)
+                
+                # 6. Vectorize the math loop
+                freqs = modes_data[1]
+                red_masses = modes_data[2]
+                n_modes = len(freqs)
+                
+                b_vals = (dc_normal**2) * (HBAR_J**3) * freqs / (2.0 * red_masses)
+                
+                initial_state.extend([state_1] * n_modes)
+                final_state.extend([state_2] * n_modes)
+                mode.extend(range(1, n_modes + 1))
+                b.extend(b_vals.tolist())
 
     if current_comp is not None:
         data['composition'].append(current_comp)
+
+    # Convert IC lists to DataFrame all at once
+    data['b_ic'] = pd.DataFrame({
+        'initial_state': initial_state,
+        'final_state': final_state,
+        'geometry': 0,
+        'mode': mode,
+        'B': b
+    })
 
     spins = np.array(data['spins'])
     indices = np.array(data['indices'])
@@ -665,7 +695,6 @@ def parse_block(block, collect_corrections=False):
     if collect_corrections:
         correction = np.array(data['correction'])
         correction2 = np.array(data['correction2'])
-
         data['ss_s'] = correction[singlet_idx] + correction2[singlet_idx]
         data['ss_t'] = correction[triplet_idx] + correction2[triplet_idx]
 
@@ -673,7 +702,6 @@ def parse_block(block, collect_corrections=False):
     data['len_t'] = len(data['triplets'])
 
     return data
-
 
 def compute_similarity(comp1, comp2):
     """
@@ -723,18 +751,19 @@ def match_compositions(comp_list_1, comp_list_2):
     return match_indices
 
 
-def pega_energias(file):
+def pega_energias(file, modes_data):
     with open(file, "r", encoding="utf-8") as f:
         content = f.read()
 
     blocks = content.split("Have a nice day")
 
     if len(blocks) < 3:
-        vac_data = parse_block(blocks[0], collect_corrections=False)
-        corr_data = parse_block(blocks[0], collect_corrections=True)
+        vac_data  = parse_block(blocks[0], modes_data, collect_corrections=False)
+        corr_data = parse_block(blocks[0], modes_data, collect_corrections=True )
     else:
-        vac_data = parse_block(blocks[0], collect_corrections=False)
-        corr_data = parse_block(blocks[1], collect_corrections=True)
+        vac_data  = parse_block(blocks[0], modes_data, collect_corrections=False)
+        corr_data = parse_block(blocks[1], modes_data, collect_corrections=True )
+        ic_data = parse_block(blocks[2], modes_data, collect_corrections=False )
 
     min_len_s = min(vac_data['len_s'], corr_data['len_s'])
     min_len_t = min(vac_data['len_t'], corr_data['len_t'])
@@ -773,6 +802,10 @@ def pega_energias(file):
     theta_t = np.array(vac_data['theta_t'])
     phi_t = np.array(vac_data['phi_t'])
 
+    b_ic = ic_data['b_ic']
+    b_ic = b_ic[b_ic['initial_state']<=min_len_s]
+    b_ic = b_ic[b_ic['final_state']<=min_len_s]
+
     y_s = (singlets_vac - singlets_pcm) + s0_corr
     y_t = (triplets_vac - triplets_pcm) + s0_corr
 
@@ -796,6 +829,7 @@ def pega_energias(file):
         s0_corr,
         y_s,
         y_t,
+        b_ic,
     )
 
 #########################################################################################
@@ -1202,38 +1236,6 @@ def soc_t1(file, mqn, n_triplet, ind_s):
     socs = socs[indice, :]
     return socs * 0.12398 / 1000
 
-##EXTRACTS DERIVATIVE COUPLING FROM A Qchem6.2 LOG FILE###############################################
-def pega_DC_real(normal_modes, DC_log, state_1, state_2):
-
-    num_atoms = np.shape(normal_modes)[0]
-    DC_real = np.zeros((num_atoms, 3)) + np.nan
-    n_miss=0
-
-    start=False
-    fetch=False
-    with open(DC_log, 'r', encoding='utf-8') as file:
-        for line in file:
-            if 'between states ' +str(state_1) + ' and ' + str(state_2) in line:
-                start=True
-            elif start:
-                if 'with ETF' in line:
-                    fetch=True
-                elif fetch:
-                    line=line.split()
-                    try:
-                        atom_index = int(line[0]) - 1
-                        DC_real[atom_index, 0] = float(line[1])
-                        DC_real[atom_index, 1] = float(line[2])
-                        DC_real[atom_index, 2] = float(line[3])
-                    except (ValueError, IndexError):
-                        n_miss+=1
-            if n_miss == 3:
-                break
-    ######### Convert to SI units #########
-    DC_real /= BOHR
-    return DC_real
-
-######################################################################################################
 
 ##TRANSFORMS REAL COORDINATES TO NORMAL COORDINATES###################################################
 def transform_dR_to_dQ(normal_modes, DC_real):
@@ -1265,41 +1267,61 @@ def get_derivative_couplings(states_i, states_f, files, freqlog):
     final_state = []
     geometry = []
     mode = []
-    B=[]
+    b=[]
 
-    for state_i in states_i:
-        for state_f in states_f:
+    num_atoms = np.shape(normal_modes)[0]
+    print('reading derivative couplings')
+    for i, file in enumerate(files):
 
-            if int(state_i) >= int(state_f):
-                continue
-            state_1 = str(state_i)
-            state_2 = str(state_f)
+        n_miss=0
+        start=False
+        fetch=False
+        with open('Geometries/'+str(file), 'r', encoding='utf-8') as f:
+            for line in f:
+                if 'between states ' in line:
+                    DC_real = np.zeros((num_atoms, 3)) + np.nan
+                    start=True
+                    line = line.split()
+                    state_1 = int(line[2])
+                    state_2 = int(line[4])
+                    print(i,state_1,state_2)
+                elif start:
+                    if 'with ETF' in line:
+                        fetch=True
+                    elif fetch:
+                        line=line.split()
+                        try:
+                            atom_index = int(line[0]) - 1
+                            DC_real[atom_index, 0] = float(line[1])
+                            DC_real[atom_index, 1] = float(line[2])
+                            DC_real[atom_index, 2] = float(line[3])
+                        except (ValueError, IndexError):
+                            n_miss+=1
+                if n_miss == 3:
+                    n_miss=0
+                    start=False
+                    fetch=False
+                    ######### Convert to SI units #########
+                    DC_real /= BOHR
 
-            for i, file in enumerate(files):
-                DC_real = pega_DC_real(
-                    normal_modes,
-                    "Geometries/"+str(file),
-                    state_1,
-                    state_2,
-                )
-                DC_normal = transform_dR_to_dQ(
-                    normal_modes, DC_real
-                )
-                for k in range(len(freqs)):
-                    initial_state.append(state_1)
-                    final_state.append(state_2)
-                    geometry.append(i+1)
-                    mode.append(k+1)
-                    B.append(
-                    (DC_normal[k]**2) * (HBAR_J**3) * (freqs[k]) / (2.0 * masses[k])
+                    DC_normal = transform_dR_to_dQ(
+                        normal_modes, DC_real
                     )
+                    for k in range(len(freqs)):
+                        initial_state.append(str(state_1))
+                        final_state.append(str(state_2))
+                        geometry.append(i+1)
+                        mode.append(k+1)
+                        b.append(
+                        (DC_normal[k]**2) * (HBAR_J**3) * (freqs[k]) / (2.0 * masses[k])
+                        )
 
     return (
         initial_state,
         final_state,
         geometry,
         mode,
-        B
+        b
     )
 #########################################################################################
 

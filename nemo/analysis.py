@@ -144,8 +144,16 @@ def get_osc_phosph(files, singlets, triplets, n_state, ind_s, ind_t, phosph_osc)
 
 
 ##GETS ALL RELEVANT INFORMATION FROM LOG FILES###########################################
-def analysis(files, n_state, get_energies):
+def analysis(files, n_state, get_energies, mag_file, freq_log):
     numbers = []
+    geom, _ = nemo.parser.pega_geom(freq_log)
+    normal_modes = nemo.parser.pega_modos(geom, freq_log)
+    freqs, masses = nemo.parser.pega_freq(freq_log)
+
+    modes_data = []
+    modes_data.append(normal_modes)
+    modes_data.append(freqs)
+    modes_data.append(masses)
     for file in files:
         (
             singlets,
@@ -164,7 +172,8 @@ def analysis(files, n_state, get_energies):
             ground_pol,
             y_s,
             y_t,
-        ) = get_energies("Geometries/" + file)
+            b_ic
+        ) = get_energies("Geometries/" + file, modes_data)
         singlets = np.array([singlets[:n_state]])
         triplets = np.array([triplets[:n_state]])
         oscs = np.array([oscs[:n_state]])
@@ -181,6 +190,7 @@ def analysis(files, n_state, get_energies):
         y_s = np.array([y_s[:n_state]])
         y_t = np.array([y_t[:n_state]])
         ground_pol = np.array([ground_pol])
+        b_ic['geometry']=int(file.split("-")[1])
         try:
             total_singlets = np.vstack((total_singlets, singlets))
             total_triplets = np.vstack((total_triplets, triplets))
@@ -198,6 +208,7 @@ def analysis(files, n_state, get_energies):
             total_y_s = np.vstack((total_y_s, y_s))
             total_y_t = np.vstack((total_y_t, y_t))
             total_ground_pol = np.append(total_ground_pol, ground_pol)
+            total_b_ic = pd.concat([total_b_ic, b_ic])
         except NameError:
             total_singlets = singlets
             total_triplets = triplets
@@ -215,6 +226,7 @@ def analysis(files, n_state, get_energies):
             total_y_s = y_s
             total_y_t = y_t
             total_ground_pol = ground_pol
+            total_b_ic = b_ic
         numbers.append(int(file.split("-")[1]))
     numbers = np.array(numbers)[:, np.newaxis]
     return (
@@ -235,6 +247,7 @@ def analysis(files, n_state, get_energies):
         total_ind_t,
         total_y_s,
         total_y_t,
+        total_b_ic
     )
 
 
@@ -323,6 +336,8 @@ def gather_data(initial, save=True):
     alphast1 = nemo.tools.get_alpha(eps_i)
     kbt = nemo.tools.detect_sigma()
     total_states, calculation_type = read_cis(files[0])
+    mag_file = nemo.tools.fetch_file("Magnitudes", ['Magnitudes'])
+    freq_log = nemo.tools.fetch_file("frequency", [".out", ".log"])
     (
     numbers,
     singlets,
@@ -341,7 +356,8 @@ def gather_data(initial, save=True):
     ind_t,
     y_s,
     y_t,
-        ) = analysis(files, total_states, get_energies[calculation_type])
+    data_dc,
+        ) = analysis(files, total_states, get_energies[calculation_type], mag_file, freq_log)
     ss_s = ss_s/alphaopt1
     ss_t = ss_t/alphaopt1
     gamma_s0 = ground_pol/alphast1
@@ -451,10 +467,8 @@ def gather_data(initial, save=True):
             pass
 
     arquivo = f"Ensemble_{initial.upper()}_.lx"
-    #arquivo = f"Ensemble_{initial.upper()}_.h5"
 
     # --- save Magnitudes
-    mag_file = nemo.tools.fetch_file("Magnitudes", ['Magnitudes'])
     data_mag=pd.read_csv(mag_file)
     # --------------------------------------------------
 
@@ -473,21 +487,21 @@ def gather_data(initial, save=True):
     dc_computation, states = nemo.parser.check_derivative_couplings(files[0])
     if dc_computation:
         ###### OBTAINS THE B PARAMETERS ########
-        freq_log = nemo.tools.fetch_file("frequency", [".out", ".log"])
-        (
-            initial_state,
-            final_state,
-            geometry,
-            mode,
-            b
-        ) = nemo.parser.get_derivative_couplings(states, states, files, freq_log)
+        #freq_log = nemo.tools.fetch_file("frequency", [".out", ".log"])
+        #(
+        #    initial_state,
+        #    final_state,
+        #    geometry,
+        #    mode,
+        #    b
+        #) = nemo.parser.get_derivative_couplings(states, states, files, freq_log)
 
-        data_dc = pd.DataFrame()
-        data_dc["initial_state"] = np.array(initial_state).astype(str)
-        data_dc["final_state"] = np.array(final_state).astype(str)
-        data_dc["geometry"] = geometry
-        data_dc["mode"] = mode
-        data_dc["B"] = b
+        #data_dc_teste = pd.DataFrame()
+        #data_dc_teste["initial_state"] = np.array(initial_state).astype(str)
+        #data_dc_teste["final_state"] = np.array(final_state).astype(str)
+        #data_dc_teste["geometry"] = geometry
+        #data_dc_teste["mode"] = mode
+        #data_dc_teste["B"] = b
 
         ###### OBTAINS THE V PARAMETERS ########
         (
@@ -502,7 +516,6 @@ def gather_data(initial, save=True):
         data_V["mode"] = mode_V
         data_V["v1"] = v1
         data_V["v2"] = v2
-
 
     else: 
         data_dc = pd.DataFrame()
@@ -938,9 +951,11 @@ def rates(initial, dielec, data_dict={}, ensemble_average=False, detailed=False,
     y_axis = (
         (2 * np.pi / HBAR_EV) * (socs_complete**2) * nemo.tools.gauss(delta_isc, sigma)
     )
-    #tau_D = (refractive_index**2 / eps)*1e-12
-    #g_ad = 0#np.nan_to_num((2 * np.pi * (socs_complete**2) * tau_D)/ (HBAR_EV * lambda_b_isc))
-    #y_axis =  y_axis / (1 + g_ad)
+    #g_ad = np.nan_to_num((2.0 * np.pi * (socs_complete**2) * tau_D)/ (HBAR_EV * lambda_b_isc))
+    tau_D = 1.0/freq_eff#*np.sqrt(kbt/sigma)#(refractive_index**2 / eps)*1e-12
+    g_ad = np.nan_to_num((4.0 * np.pi * (socs_complete**2) * tau_D)/ (HBAR_EV * sigma))#http://dx.doi.org/10.1063/1.454632 Eq(4)
+    #g_ad = np.nan_to_num((2.0 * np.pi * (socs_complete**2) * tau_D)/ (HBAR_EV * sigma))
+    y_axis =  y_axis / (1.0 + g_ad)
     if not data_dc.empty:
         if 's' in initial:
             sigma_ic        = total_reorganization_energy(lambda_b_ic, kbt, sigma_int_ic)
@@ -956,6 +971,10 @@ def rates(initial, dielec, data_dict={}, ensemble_average=False, detailed=False,
             if save_phonon_spectra:
                 phonon_spectra(initial, rate_abs, rate_emi, freq_row)
             y_axis_ic = np.sum(rate_abs+rate_emi, axis=1) # sum over normal modes
+
+            tau_D = 1.0/freq_eff#*np.sqrt(kbt/sigma_ic[:,0,:])
+            g_ad = np.nan_to_num((4.0 * np.pi * (ic_coupling) * tau_D) / (HBAR_EV * sigma_ic[:,0,:]))
+            y_axis_ic = y_axis_ic / (1.0 + g_ad)
 
             # hstack y and espectro
             y_axis = np.hstack((y_axis, y_axis_ic))
