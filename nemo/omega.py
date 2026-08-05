@@ -405,7 +405,7 @@ def main():
     log = f"Logs/OPT-{menor:.0f}-.log"
     G, atomos = nemo.parser.pega_geom(log)
     rem = nemo.tools.extract_basic_rem(rem)
-    gera_file(f"s0_sp.com", rem+f"\nomega    {menor:.0f}", atomos, G, "tddft.com", cm="0 1", stat=3.0, optic=1.96, num_ex=5, soc="false")
+    gera_file("td-dft", rem, atomos, G, "s0_sp.com", cm="0 1", stat=3.0, optic=1.96, num_ex=5, soc="false")
     
     
     gera_file(
@@ -417,14 +417,14 @@ def main():
         omega=f"{menor:.0f}",
         cm="0 1",
     )
-    the_watcher = nemo.tools.Watcher('.',key=f"s0_sp.com")
+    the_watcher = nemo.tools.Watcher('.',key="s0_sp.com")
     the_watcher.run(script, nproc, 1)
     the_watcher.hold_watch()
 
     with open("state_analysis.txt", "w") as f:
         with redirect_stdout(f):
             try:
-                nemo.tools.susceptibility_check(f"s0_sp.log")
+                nemo.tools.susceptibility_check("tddft.log")
             except:
                 print("Could not perform susceptibility check. Please check tddft.log for details.")
 
