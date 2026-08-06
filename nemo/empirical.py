@@ -282,25 +282,37 @@ def main():
     omega1 = sys.argv[3]
     passo = sys.argv[4]
     script = sys.argv[5]
-    e_vac = float(sys.argv[6])
-    chi = float(sys.argv[7])
+    fit = sys.argv[6]
+
     rem, _, extra = nemo.parser.busca_input(geomlog)
     rem += extra + "\n"
+
     state = 1
-    
     numjobs = 10
-    
-    try:
-        int(nproc)
-        passo = float(passo) * 1000
-        omega1 = float(omega1) * 1000
-    except ValueError:
-        nemo.parser.fatal_error("nproc, omega and step must be numbers. Goodbye!")
-    omegas, Js = [], []
     sign = None
 
     try:
-        data = np.loadtxt("omega.lx", dtype=float)
+        nproc = int(nproc)
+        passo = float(passo) * 1000
+        omega1 = float(omega1) * 1000
+    except ValueError:
+        nemo.parser.fatal_error(
+            "nproc, omega, and step must be numbers. Goodbye!"
+        )
+
+    if not os.path.isfile(fit):
+        nemo.parser.fatal_error(
+            f"Fit file not found: {fit}"
+        )
+
+    omegas = []
+    Js = []
+
+    try:
+        data = np.loadtxt(
+            "omega.lx",
+            dtype=float,
+        )
 
         if data.ndim == 1:
             data = data.reshape(1, -1)
@@ -310,85 +322,129 @@ def main():
 
     except FileNotFoundError:
         pass
+    except ValueError:
+        nemo.parser.fatal_error(
+            "Could not read omega.lx. The file must contain "
+            "only the omega-tuning table."
+        )
 
-    # If restarting from exactly one cached calculation, recover the
-    # initial omega direction from its output file.
+    # Recover the initial direction when restarting from one point.
     if len(omegas) == 1:
         cached_omega = int(round(omegas[0]))
-        cached_log = f"Logs/td-{cached_omega:03d}-sp-.log"
+        cached_log = (
+            f"Logs/td-{cached_omega:03d}-sp-.log"
+        )
 
-        if os.path.isfile(cached_log):
-            _, _, sign = nemo.tools.susceptibility_check(
-                cached_log,
-                E_vac_fit=e_vac,
-                chi_fit=chi,
-                tuning=True,
-            )
-        else:
+        if not os.path.isfile(cached_log):
             nemo.parser.fatal_error(
-                f"Could not recover the omega-tuning direction: "
+                "Could not recover the omega-tuning direction: "
                 f"{cached_log} was not found."
             )
 
-    iteration = 0
-    G, atomos = nemo.parser.pega_geom(geomlog)
-    while iteration < 100:
-    # Existing optimization loop
-        if omega1 in omegas:
-            ind = omegas.index(omega1)
-            J = Js[ind]
-        else:
-            J, new_state, sign = rodar_omega(e_vac, chi,
-                atomos, G, nproc, omega1, script, state, rem, numjobs
-                )
-            omegas.append(omega1)
-            Js.append(J)
-        omegas, Js = map(list, zip(*sorted(zip(omegas, Js))))
-        #index of min J
-        ind = Js.index(min(Js))
-        omega1 = omegas[ind]
-        
-        next_omega = fetch_next_omega(
-        omegas,
-        Js,
-        initial_step=passo,
-        initial_sign=sign,
-        omega_min=0,
-        omega_max=500,
+        _, _, sign = nemo.tools.susceptibility_check(
+            cached_log,
+            fit=fit,
+            tuning=1,
         )
 
-        if next_omega is None or min(Js) <= np.sqrt(2) * 0.043: #chemical accuracy threshold
+    # All omega calculations use the same geometry.
+    G, atomos = nemo.parser.pega_geom(geomlog)
+
+    # Joint 68% confidence limit for two fitted parameters.
+    confidence_limit = np.sqrt(2.30)
+
+    iteration = 0
+
+    while iteration < 100:
+        if omega1 in omegas:
+            index = omegas.index(omega1)
+            J = Js[index]
+
+        else:
+            J, new_state, sign = rodar_omega(
+                fit,
+                atomos,
+                G,
+                nproc,
+                omega1,
+                script,
+                state,
+                rem,
+                numjobs,
+            )
+
+            omegas.append(omega1)
+            Js.append(J)
+
+        omegas, Js = map(
+            list,
+            zip(*sorted(zip(omegas, Js))),
+        )
+
+        best_index = int(np.argmin(Js))
+        omega1 = omegas[best_index]
+
+        next_omega = fetch_next_omega(
+            omegas,
+            Js,
+            initial_step=passo,
+            initial_sign=sign,
+            omega_min=0,
+            omega_max=500,
+        )
+
+        reached_confidence = (
+            min(Js) <= confidence_limit
+        )
+
+        if next_omega is None or reached_confidence:
             break
-        
+
         omega1 = next_omega
-        
-    
-        write_tolog(omegas, Js, f"#Best value so far:")
+
+        write_tolog(
+            omegas,
+            Js,
+            "# Best value so far:",
+        )
+
         iteration += 1
-        
 
     write_tolog(
-    omegas,
-    Js,
-    "#Done! Optimized value:",
+        omegas,
+        Js,
+        "# Done! Optimized value:",
     )
 
     best_index = int(np.argmin(Js))
     best_omega = omegas[best_index]
-    best_log = f"Logs/td-{best_omega:03.0f}-sp-.log"
 
-    # Always determine the state from the actual best-omega calculation.
-    J, new_state, sign = nemo.tools.susceptibility_check(
-        best_log,
-        E_vac_fit=e_vac,
-        chi_fit=chi,
-        tuning=True,
+    best_log = (
+        f"Logs/td-{best_omega:03.0f}-sp-.log"
     )
 
-    if new_state > 1:
-        G, atomos = nemo.parser.pega_geom(best_log)
+    if not os.path.isfile(best_log):
+        nemo.parser.fatal_error(
+            f"Best-omega log file not found: {best_log}"
+        )
 
-        basic_rem = nemo.tools.extract_basic_rem(rem)
+    # Determine the best state from the actual best-omega calculation.
+    J, new_state, _ = nemo.tools.susceptibility_check(
+        best_log,
+        fit=fit,
+        tuning=1,
+    )
+
+    # If a higher state is the final target, optimize it once using
+    # state tracking at the selected omega.
+    if new_state > 1:
+        G, atomos = nemo.parser.pega_geom(
+            best_log
+        )
+
+        basic_rem = nemo.tools.extract_basic_rem(
+            rem
+        )
 
         opt_file = gera_file(
             "state_tracking_opt",
@@ -406,11 +462,24 @@ def main():
             ".",
             key=opt_file,
         )
-        the_watcher.run(script, nproc, 1)
+        the_watcher.run(
+            script,
+            nproc,
+            1,
+        )
         the_watcher.hold_watch()
 
         opt_log = opt_file[:-3] + "log"
-        G, atomos = nemo.parser.pega_geom(opt_log)
+
+        if not os.path.isfile(opt_log):
+            nemo.parser.fatal_error(
+                f"State-tracking optimization failed: "
+                f"{opt_log} was not found."
+            )
+
+        G, atomos = nemo.parser.pega_geom(
+            opt_log
+        )
 
         sp_file = gera_file(
             "empirical",
@@ -431,25 +500,41 @@ def main():
             ".",
             key=sp_file,
         )
-        the_watcher.run(script, nproc, 1)
+        the_watcher.run(
+            script,
+            nproc,
+            1,
+        )
         the_watcher.hold_watch()
 
         final_file = sp_file[:-3] + "log"
 
+        if not os.path.isfile(final_file):
+            nemo.parser.fatal_error(
+                f"Final single-point calculation failed: "
+                f"{final_file} was not found."
+            )
+
     else:
         final_file = best_log
 
-    with open("omega.lx", "a", encoding="utf-8") as output:
+    # Keep the numerical tuning table separate from the final report.
+    with open(
+        "omega_final.lx",
+        "w",
+        encoding="utf-8",
+    ) as output:
         with redirect_stdout(output):
             try:
                 nemo.tools.susceptibility_check(
                     final_file,
-                    E_vac_fit=e_vac,
-                    chi_fit=chi,
+                    fit=fit,
+                    tuning=2,
                 )
             except Exception as error:
                 print(
-                    "Could not perform the final susceptibility check."
+                    "Could not perform the final "
+                    "susceptibility check."
                 )
                 print(f"Reason: {error}")
 

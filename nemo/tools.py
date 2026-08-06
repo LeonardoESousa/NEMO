@@ -603,12 +603,16 @@ def fetch_nr(file):
 
 def susceptibility_check(
     file,
-    E_vac_fit=None,
-    chi_fit=None,
-    tuning=False,
+    fit=None,
+    tuning=0,
     r_max=0.50,
 ):
     C = 0.3243
+
+    if tuning not in (0, 1, 2):
+        raise ValueError(
+            "tuning must be 0, 1, or 2."
+        )
 
     (
         s_vac,
@@ -639,8 +643,8 @@ def susceptibility_check(
     y_s = y_s / alpha_st
     y_t = y_t / alpha_st
 
-    # Print state properties only in normal diagnostic mode
-    if not tuning:
+    # Print state properties unless running silently.
+    if tuning != 1:
         print(
             f"{'State':<6} "
             f"{'E_vac(eV)':<12} "
@@ -659,10 +663,8 @@ def susceptibility_check(
             zip(s_vac, chi_s, y_s),
             start=1,
         ):
-            state = f"S{i}"
-
             print(
-                f"{state:<6} "
+                f"{f'S{i}':<6} "
                 f"{energy:<12.3f} "
                 f"{chi:<10.3f} "
                 f"{gamma:<10.3f}"
@@ -672,44 +674,127 @@ def susceptibility_check(
             zip(t_vac, chi_t, y_t),
             start=1,
         ):
-            state = f"T{i}"
-
             print(
-                f"{state:<6} "
+                f"{f'T{i}':<6} "
                 f"{energy:<12.3f} "
                 f"{chi:<10.3f} "
                 f"{gamma:<10.3f}"
             )
 
-    if E_vac_fit is None and chi_fit is None:
-        if tuning:
+    if fit is None:
+        if tuning == 1:
             raise ValueError(
-                "E_vac_fit and chi_fit are required when tuning=True."
+                "A fit file is required when tuning=1."
             )
         return
 
-    if E_vac_fit is None or chi_fit is None:
+    try:
+        data = np.load(
+            fit,
+            allow_pickle=True,
+        ).item()
+    except (OSError, ValueError) as error:
         raise ValueError(
-            "Both E_vac_fit and chi_fit must be provided."
+            f"Could not load fit data from {fit}."
+        ) from error
+
+    try:
+        E_vac_fit = float(data["E_vac"])
+        chi_fit = float(data["chi"])
+        cov_matrix = np.asarray(
+            data["covariance_matrix"],
+            dtype=float,
+        )
+    except KeyError as error:
+        raise ValueError(
+            "The fit file must contain E_vac, chi, "
+            "and covariance_matrix."
+        ) from error
+
+    if cov_matrix.shape != (2, 2):
+        raise ValueError(
+            "cov_matrix must have shape (2, 2), ordered "
+            "as (E_vac, chi)."
+        )
+
+    if not np.allclose(cov_matrix, cov_matrix.T):
+        raise ValueError(
+            "cov_matrix must be symmetric."
+        )
+
+    try:
+        precision = np.linalg.inv(cov_matrix)
+    except np.linalg.LinAlgError as error:
+        raise ValueError(
+            "cov_matrix must be invertible."
+        ) from error
+
+    if np.any(np.linalg.eigvalsh(cov_matrix) <= 0.0):
+        raise ValueError(
+            "cov_matrix must be positive definite."
+        )
+
+    sigma_E = np.sqrt(cov_matrix[0, 0])
+    sigma_chi = np.sqrt(cov_matrix[1, 1])
+
+    correlation = (
+        cov_matrix[0, 1]
+        / (sigma_E * sigma_chi)
+    )
+
+    def mahalanobis(dE, dchi):
+        residual = np.array([dE, dchi])
+
+        distance_squared = (
+            residual
+            @ precision
+            @ residual
+        )
+
+        return np.sqrt(
+            max(float(distance_squared), 0.0)
         )
 
     def minimum_r_to_beat(dE, dchi, target):
         """
-        Find the minimum non-negative r for which tuning along the
-        direction (1, -r) can produce a distance smaller than target.
+        Minimum non-negative r for which tuning along (1, -r)
+        can beat the current best Mahalanobis distance.
         """
-        A = dE**2 - target**2
-        B = 2.0 * dE * dchi
-        Cq = dchi**2 - target**2
+        residual = np.array([dE, dchi])
+
+        w00 = precision[0, 0]
+        w01 = precision[0, 1]
+        w11 = precision[1, 1]
+
+        current_squared = (
+            residual
+            @ precision
+            @ residual
+        )
+
+        q = current_squared - target**2
+
+        a = (
+            w00 * dE
+            + w01 * dchi
+        )
+
+        b = (
+            w01 * dE
+            + w11 * dchi
+        )
+
+        A = q * w11 - b**2
+        B = -2.0 * q * w01 + 2.0 * a * b
+        Cq = q * w00 - a**2
 
         def condition(r):
             return A * r**2 + B * r + Cq
 
-        # At r = 0, omega changes energy but not susceptibility.
-        if condition(0.0) <= 0.0:
-            return 0.0
-
         tolerance = 1.0e-12
+
+        if condition(0.0) <= tolerance:
+            return 0.0
 
         if abs(A) < tolerance:
             if abs(B) < tolerance:
@@ -720,10 +805,17 @@ def susceptibility_check(
         else:
             discriminant = B**2 - 4.0 * A * Cq
 
-            if discriminant < 0.0:
+            if discriminant < -tolerance:
                 return np.inf
 
-            sqrt_discriminant = np.sqrt(discriminant)
+            discriminant = max(
+                discriminant,
+                0.0,
+            )
+
+            sqrt_discriminant = np.sqrt(
+                discriminant
+            )
 
             roots = [
                 (-B - sqrt_discriminant) / (2.0 * A),
@@ -737,14 +829,17 @@ def susceptibility_check(
         )
 
         for root in roots:
-            test_r = root + 1.0e-7 * max(1.0, abs(root))
+            test_r = (
+                root
+                + 1.0e-7 * max(1.0, abs(root))
+            )
 
             if condition(test_r) < 0.0:
                 return root
 
         return np.inf
 
-    # Build singlet-state diagnostics
+    # Build singlet-state diagnostics.
     diagnostics = []
 
     for i, (energy, chi, gamma) in enumerate(
@@ -753,12 +848,18 @@ def susceptibility_check(
     ):
         delta_gamma = gamma - y_g
 
-        E_pred = energy - 0.5 * delta_gamma * C
-        chi_pred = chi + 0.5 * delta_gamma
+        E_pred = (
+            energy
+            - 0.5 * delta_gamma * C
+        )
+
+        chi_pred = (
+            chi
+            + 0.5 * delta_gamma
+        )
 
         dE = E_vac_fit - E_pred
         dchi = chi_fit - chi_pred
-        distance = np.hypot(dE, dchi)
 
         diagnostics.append(
             {
@@ -769,7 +870,7 @@ def susceptibility_check(
                 "delta_gamma": delta_gamma,
                 "dE": dE,
                 "dchi": dchi,
-                "distance": distance,
+                "distance": mahalanobis(dE, dchi),
                 "r_min": np.inf,
             }
         )
@@ -780,7 +881,7 @@ def susceptibility_check(
 
     best = diagnostics[0]
 
-    # Calculate the minimum r needed for every other state to
+    # Calculate the minimum r needed for each other state to
     # outperform the current best state.
     for row in diagnostics[1:]:
         row["r_min"] = minimum_r_to_beat(
@@ -795,11 +896,7 @@ def susceptibility_check(
         if row["root"] == 1
     )
 
-    # Determine which state should define the initial omega direction.
-    #
-    # Use S1 if it is already the best state or if it could plausibly
-    # become the best state through omega tuning. Otherwise, use the
-    # current best-matching state.
+    # Determine which state defines the initial omega direction.
     if (
         best["root"] == 1
         or s1["r_min"] <= r_max
@@ -808,32 +905,64 @@ def susceptibility_check(
     else:
         direction_state = best
 
-    # Representative response ratio used only to determine whether
-    # omega should increase or decrease.
+    # Representative omega-response direction.
     r_direction = 0.5 * r_max
 
+    residual = np.array(
+        [
+            direction_state["dE"],
+            direction_state["dchi"],
+        ]
+    )
+
+    response = np.array(
+        [1.0, -r_direction]
+    )
+
+    # Weighted projection along the omega-response direction.
     omega_shift = (
-        direction_state["dE"]
-        - r_direction * direction_state["dchi"]
+        response
+        @ precision
+        @ residual
     )
 
     sign = 1 if omega_shift >= 0.0 else -1
 
-    # In tuning mode, print nothing.
-    if tuning:
-        return best["distance"], best["root"], sign
+    # Silent tuning mode.
+    if tuning == 1:
+        return (
+            best["distance"],
+            best["root"],
+            sign,
+        )
 
-    direction = "increase" if sign > 0 else "decrease"
+    direction = (
+        "increase"
+        if sign > 0
+        else "decrease"
+    )
 
-    # Print the experimental comparison
+    # Joint 68% confidence region for two fitted parameters.
+    confidence_limit = np.sqrt(2.30)
+
+    print()
+    print("Experimental Fit")
+    print("----------------")
+    print(
+        f"E_vac: {E_vac_fit:.3f} ± "
+        f"{sigma_E:.3f} eV"
+    )
+    print(
+        f"χ:     {chi_fit:.3f} ± "
+        f"{sigma_chi:.3f} eV"
+    )
+    print(
+        f"Correlation: {correlation:.3f}"
+    )
+
     print()
     print("Experimental Comparison")
     print("-----------------------")
-    print(f"Experimental E_vac(eV): {E_vac_fit:.3f}")
-    print(f"Experimental χ(eV):     {chi_fit:.3f}")
-    print(f"α_opt:                  {C:.4f}")
-
-    print()
     print(
         f"{'State':<6} "
         f"{'E_pred':<10} "
@@ -841,7 +970,7 @@ def susceptibility_check(
         f"{'Δγ':<10} "
         f"{'dE':<10} "
         f"{'dχ':<10} "
-        f"{'Distance':<10} "
+        f"{'M-dist':<10} "
         f"{'r_min':<10}"
     )
 
@@ -869,31 +998,73 @@ def susceptibility_check(
     print("-----------------")
     print(
         f"Current best match: {best['state']} "
-        f"(distance = {best['distance']:.3f} eV)"
+        f"(Mahalanobis distance = "
+        f"{best['distance']:.3f})"
     )
-    chemical_accuracy = 0.043 #eV
-    distance_tolerance = np.sqrt(2.0) * chemical_accuracy
 
-    # The current result is already sufficiently accurate
-    if best["distance"] <= distance_tolerance:
-        rms_error = best["distance"] / np.sqrt(2.0)
+    # Final report after omega tuning has concluded.
+    if tuning == 2:
+        if best["distance"] <= confidence_limit:
+            print(
+                "The calculated parameters lie within the joint "
+                "68% experimental confidence region."
+            )
 
+            if best["root"] == 1:
+                print(
+                    "Recommended action: retain S1 at the "
+                    "current ω."
+                )
+            else:
+                print(
+                    f"Recommended action: optimize "
+                    f"{best['state']} with state tracking "
+                    "at the current ω."
+                )
+
+        else:
+            print(
+                "The ω search concluded outside the joint "
+                "68% experimental confidence region."
+            )
+            print(
+                "This is probably the best agreement attainable "
+                "through ω tuning alone."
+            )
+
+            if best["root"] == 1:
+                print(
+                    "Recommended action: retain the best ω found. "
+                    "The remaining discrepancy likely reflects "
+                    "limitations beyond ω."
+                )
+            else:
+                print(
+                    f"Recommended action: optimize "
+                    f"{best['state']} with state tracking at the "
+                    "best ω."
+                )
+
+        return
+
+    # Ordinary diagnostic.
+    if best["distance"] <= confidence_limit:
         print(
-            f"The RMS discrepancy is {rms_error:.3f} eV, "
-            f"which is within chemical accuracy "
-            f"({chemical_accuracy:.3f} eV)."
+            "The calculated parameters already lie within the "
+            "joint 68% experimental confidence region."
         )
         print("No further ω tuning is recommended.")
 
         if best["root"] == 1:
-            print("Recommended action: retain S1 at the current ω.")
+            print(
+                "Recommended action: retain S1 at the current ω."
+            )
         else:
             print(
                 f"Recommended action: optimize {best['state']} "
                 "with state tracking at the current ω."
             )
 
-    # S1 is already the current best state
     elif best["root"] == 1:
         print("S1 is already the best-matching state.")
         print(
@@ -901,48 +1072,43 @@ def susceptibility_check(
             "the calculation."
         )
 
-    # S1 could plausibly become better than the current top candidate
     elif (
         np.isfinite(s1["r_min"])
         and s1["r_min"] <= r_max
     ):
         print(
-            f"Although {best['state']} is currently the best match, "
-            "S1 may achieve a better match through ω tuning."
+            f"Although {best['state']} is currently the best "
+            "match, S1 may achieve a better match through ω tuning."
         )
         print(
-            f"S1 requires a minimum response ratio of approximately "
-            f"r = {s1['r_min']:.3f} to outperform {best['state']}."
+            f"S1 requires approximately r = "
+            f"{s1['r_min']:.3f} to outperform "
+            f"{best['state']}."
         )
         print(
-            f"This is within the assumed plausible range "
+            f"This is within the plausible range "
             f"(r ≤ {r_max:.2f})."
         )
         print(
             f"Recommended action: {direction} ω and repeat "
             "the calculation."
         )
-        print(
-            "Track the state ordering during tuning because another "
-            "state may cross and become S1."
-        )
 
-    # S1 is unlikely to become better through plausible omega tuning
     else:
         if np.isfinite(s1["r_min"]):
             print(
-                f"S1 would require a response ratio of approximately "
-                f"r = {s1['r_min']:.3f} to outperform "
+                f"S1 would require approximately r = "
+                f"{s1['r_min']:.3f} to outperform "
                 f"{best['state']}."
             )
             print(
-                f"This is outside the assumed plausible range "
+                f"This is outside the plausible range "
                 f"(r ≤ {r_max:.2f})."
             )
         else:
             print(
-                f"S1 cannot outperform {best['state']} within the "
-                "linear ω-response model."
+                f"S1 cannot outperform {best['state']} within "
+                "the linear ω-response model."
             )
 
         print(
@@ -954,7 +1120,7 @@ def susceptibility_check(
             f"{best['state']} as the tuning target."
         )
         print(
-            f"If {best['state']} remains the best match at the final ω, "
+            f"If {best['state']} remains best at the final ω, "
             "optimize it with state tracking."
         )
 
@@ -1204,6 +1370,7 @@ def tuning():
 ##RUNS EMPIRICAL W TUNING################################################
 def empirical_omega():
     geomlog = fetch_file("input or log", [".in"])
+    fit_data = fetch_file("File with spec2epsilon fit data", [".npy"])
     omega1 = "0.15"
     passo = "0.02"
     print(f"Initial Omega: {omega1} bohr^-1")
@@ -1220,9 +1387,7 @@ def empirical_omega():
         )
     script = fetch_file("batch script", ["batch.sh"])
     nproc = input("Number of threads for each calculation\n")
-    e_vac = input("Experimental E_vac(eV)?\n")
-    chi = input("Experimental χ(eV)?\n")
-
+    
     with open("limit.lx", "w",encoding="utf-8") as f:
         f.write("10")
     subprocess.Popen(
@@ -1234,8 +1399,7 @@ def empirical_omega():
             omega1,
             passo,
             script,
-            e_vac,
-            chi,            
+            fit_data,
             "&",
         ]
     )
