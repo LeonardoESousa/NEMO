@@ -34,7 +34,7 @@ def gera_file(template, rem, atomos, geometry, filename, **kwargs):
 
 
 ##RUNS CALCULATIONS############################################
-def rodar_omega(e_vac, chi, atomos, geom, nproc, omega, batch_file, state, rem, numjobs):
+def rodar_omega(fit, atomos, geom, nproc, omega, batch_file, state, rem, numjobs):
     omega = f"{omega:03.0f}"
     files = []
     file = gera_file(
@@ -62,7 +62,7 @@ def rodar_omega(e_vac, chi, atomos, geom, nproc, omega, batch_file, state, rem, 
         pass
     
 
-    J, new_state, sign = nemo.tools.susceptibility_check(f"td-{omega}-sp-.log",E_vac_fit=e_vac, chi_fit=chi, tuning=True)
+    J, new_state, sign = nemo.tools.susceptibility_check(f"td-{omega}-sp-.log",fit=fit, tuning=True)
 
     for file in files:
         shutil.move(file, "Logs/" + file)
