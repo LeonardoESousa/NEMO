@@ -688,6 +688,7 @@ def susceptibility_check(
             )
         return
 
+    # Load fitted parameters and their covariance matrix.
     try:
         data = np.load(
             fit,
@@ -713,26 +714,32 @@ def susceptibility_check(
 
     if cov_matrix.shape != (2, 2):
         raise ValueError(
-            "cov_matrix must have shape (2, 2), ordered "
-            "as (E_vac, chi)."
+            "covariance_matrix must have shape (2, 2), "
+            "ordered as (E_vac, chi)."
         )
 
-    if not np.allclose(cov_matrix, cov_matrix.T):
+    if not np.allclose(
+        cov_matrix,
+        cov_matrix.T,
+        rtol=1.0e-8,
+        atol=1.0e-12,
+    ):
         raise ValueError(
-            "cov_matrix must be symmetric."
+            "covariance_matrix must be symmetric."
         )
 
     try:
-        precision = np.linalg.inv(cov_matrix)
+        np.linalg.cholesky(cov_matrix)
     except np.linalg.LinAlgError as error:
         raise ValueError(
-            "cov_matrix must be invertible."
+            "covariance_matrix must be positive definite."
         ) from error
 
-    if np.any(np.linalg.eigvalsh(cov_matrix) <= 0.0):
-        raise ValueError(
-            "cov_matrix must be positive definite."
-        )
+    # Inverse covariance matrix used for Mahalanobis distances.
+    precision = np.linalg.solve(
+        cov_matrix,
+        np.eye(2),
+    )
 
     sigma_E = np.sqrt(cov_matrix[0, 0])
     sigma_chi = np.sqrt(cov_matrix[1, 1])
@@ -742,9 +749,7 @@ def susceptibility_check(
         / (sigma_E * sigma_chi)
     )
 
-    def mahalanobis(dE, dchi):
-        residual = np.array([dE, dchi])
-
+    def mahalanobis_distance(residual):
         distance_squared = (
             residual
             @ precision
@@ -755,91 +760,57 @@ def susceptibility_check(
             max(float(distance_squared), 0.0)
         )
 
-    def minimum_r_to_beat(dE, dchi, target):
+    def projected_omega_result(residual, r):
         """
-        Minimum non-negative r for which tuning along (1, -r)
-        can beat the current best Mahalanobis distance.
+        Find the minimum Mahalanobis distance obtainable by moving
+        along the assumed omega-response direction (1, -r).
+
+        Returns
+        -------
+        projected_distance : float
+            Minimum Mahalanobis distance along the response line.
+
+        omega_shift : float
+            Signed displacement along the response line. A positive
+            value indicates increasing omega; a negative value
+            indicates decreasing omega.
         """
-        residual = np.array([dE, dchi])
+        response = np.array(
+            [1.0, -r],
+            dtype=float,
+        )
 
-        w00 = precision[0, 0]
-        w01 = precision[0, 1]
-        w11 = precision[1, 1]
-
-        current_squared = (
-            residual
+        numerator = (
+            response
             @ precision
             @ residual
         )
 
-        q = current_squared - target**2
-
-        a = (
-            w00 * dE
-            + w01 * dchi
+        denominator = (
+            response
+            @ precision
+            @ response
         )
 
-        b = (
-            w01 * dE
-            + w11 * dchi
+        omega_shift = numerator / denominator
+
+        distance_squared = (
+            residual
+            @ precision
+            @ residual
+            - numerator**2 / denominator
         )
 
-        A = q * w11 - b**2
-        B = -2.0 * q * w01 + 2.0 * a * b
-        Cq = q * w00 - a**2
-
-        def condition(r):
-            return A * r**2 + B * r + Cq
-
-        tolerance = 1.0e-12
-
-        if condition(0.0) <= tolerance:
-            return 0.0
-
-        if abs(A) < tolerance:
-            if abs(B) < tolerance:
-                return np.inf
-
-            roots = [-Cq / B]
-
-        else:
-            discriminant = B**2 - 4.0 * A * Cq
-
-            if discriminant < -tolerance:
-                return np.inf
-
-            discriminant = max(
-                discriminant,
-                0.0,
-            )
-
-            sqrt_discriminant = np.sqrt(
-                discriminant
-            )
-
-            roots = [
-                (-B - sqrt_discriminant) / (2.0 * A),
-                (-B + sqrt_discriminant) / (2.0 * A),
-            ]
-
-        roots = sorted(
-            root
-            for root in roots
-            if root >= 0.0 and np.isfinite(root)
+        projected_distance = np.sqrt(
+            max(float(distance_squared), 0.0)
         )
 
-        for root in roots:
-            test_r = (
-                root
-                + 1.0e-7 * max(1.0, abs(root))
-            )
+        return projected_distance, omega_shift
 
-            if condition(test_r) < 0.0:
-                return root
+    # A representative response ratio is used to compare how well
+    # each state could perform after omega tuning.
+    r_direction = 0.5 * r_max
 
-        return np.inf
-
-    # Build singlet-state diagnostics.
     diagnostics = []
 
     for i, (energy, chi, gamma) in enumerate(
@@ -861,6 +832,22 @@ def susceptibility_check(
         dE = E_vac_fit - E_pred
         dchi = chi_fit - chi_pred
 
+        residual = np.array(
+            [dE, dchi],
+            dtype=float,
+        )
+
+        distance = mahalanobis_distance(
+            residual
+        )
+
+        projected_distance, omega_shift = (
+            projected_omega_result(
+                residual,
+                r_direction,
+            )
+        )
+
         diagnostics.append(
             {
                 "root": i,
@@ -870,65 +857,33 @@ def susceptibility_check(
                 "delta_gamma": delta_gamma,
                 "dE": dE,
                 "dchi": dchi,
-                "distance": mahalanobis(dE, dchi),
-                "r_min": np.inf,
+                "distance": distance,
+                "projected_distance": projected_distance,
+                "omega_shift": omega_shift,
             }
         )
 
+    # Current best state before further omega tuning.
     diagnostics.sort(
         key=lambda row: row["distance"]
     )
 
     best = diagnostics[0]
 
-    # Calculate the minimum r needed for each other state to
-    # outperform the current best state.
-    for row in diagnostics[1:]:
-        row["r_min"] = minimum_r_to_beat(
-            row["dE"],
-            row["dchi"],
-            best["distance"],
-        )
-
-    s1 = next(
-        row
-        for row in diagnostics
-        if row["root"] == 1
+    # State with the lowest projected distance after idealized
+    # omega tuning.
+    tuning_target = min(
+        diagnostics,
+        key=lambda row: row["projected_distance"],
     )
 
-    # Determine which state defines the initial omega direction.
-    if (
-        best["root"] == 1
-        or s1["r_min"] <= r_max
-    ):
-        direction_state = s1
-    else:
-        direction_state = best
-
-    # Representative omega-response direction.
-    r_direction = 0.5 * r_max
-
-    residual = np.array(
-        [
-            direction_state["dE"],
-            direction_state["dchi"],
-        ]
+    sign = (
+        1
+        if tuning_target["omega_shift"] >= 0.0
+        else -1
     )
 
-    response = np.array(
-        [1.0, -r_direction]
-    )
-
-    # Weighted projection along the omega-response direction.
-    omega_shift = (
-        response
-        @ precision
-        @ residual
-    )
-
-    sign = 1 if omega_shift >= 0.0 else -1
-
-    # Silent tuning mode.
+    # Silent mode used by the omega-tuning driver.
     if tuning == 1:
         return (
             best["distance"],
@@ -959,6 +914,10 @@ def susceptibility_check(
     print(
         f"Correlation: {correlation:.3f}"
     )
+    print(
+        f"Assumed ω-response ratio: "
+        f"r = {r_direction:.3f}"
+    )
 
     print()
     print("Experimental Comparison")
@@ -971,17 +930,10 @@ def susceptibility_check(
         f"{'dE':<10} "
         f"{'dχ':<10} "
         f"{'M-dist':<10} "
-        f"{'r_min':<10}"
+        f"{'ω-proj':<10}"
     )
 
     for row in diagnostics:
-        if row is best:
-            r_text = "Best"
-        elif np.isinf(row["r_min"]):
-            r_text = "None"
-        else:
-            r_text = f"{row['r_min']:.3f}"
-
         print(
             f"{row['state']:<6} "
             f"{row['E_pred']:<10.3f} "
@@ -990,7 +942,7 @@ def susceptibility_check(
             f"{row['dE']:<10.3f} "
             f"{row['dchi']:<10.3f} "
             f"{row['distance']:<10.3f} "
-            f"{r_text:<10}"
+            f"{row['projected_distance']:<10.3f}"
         )
 
     print()
@@ -1000,6 +952,13 @@ def susceptibility_check(
         f"Current best match: {best['state']} "
         f"(Mahalanobis distance = "
         f"{best['distance']:.3f})"
+    )
+
+    print(
+        f"Best projected tuning target: "
+        f"{tuning_target['state']} "
+        f"(projected distance = "
+        f"{tuning_target['projected_distance']:.3f})"
     )
 
     # Final report after omega tuning has concluded.
@@ -1041,13 +1000,13 @@ def susceptibility_check(
             else:
                 print(
                     f"Recommended action: optimize "
-                    f"{best['state']} with state tracking at the "
-                    "best ω."
+                    f"{best['state']} with state tracking "
+                    "at the best ω."
                 )
 
         return
 
-    # Ordinary diagnostic.
+    # Ordinary diagnostic before tuning has concluded.
     if best["distance"] <= confidence_limit:
         print(
             "The calculated parameters already lie within the "
@@ -1065,63 +1024,51 @@ def susceptibility_check(
                 "with state tracking at the current ω."
             )
 
-    elif best["root"] == 1:
-        print("S1 is already the best-matching state.")
-        print(
-            f"Recommended action: {direction} ω and repeat "
-            "the calculation."
-        )
+    elif tuning_target["root"] == 1:
+        if best["root"] == 1:
+            print(
+                "S1 is already the best current match and also "
+                "the best projected ω-tuning target."
+            )
+        else:
+            print(
+                f"Although {best['state']} is currently the best "
+                "match, S1 may achieve better agreement through "
+                "ω tuning."
+            )
+            print(
+                f"Its projected Mahalanobis distance is "
+                f"{tuning_target['projected_distance']:.3f}, "
+                f"compared with "
+                f"{best['projected_distance']:.3f} for "
+                f"{best['state']}."
+            )
 
-    elif (
-        np.isfinite(s1["r_min"])
-        and s1["r_min"] <= r_max
-    ):
-        print(
-            f"Although {best['state']} is currently the best "
-            "match, S1 may achieve a better match through ω tuning."
-        )
-        print(
-            f"S1 requires approximately r = "
-            f"{s1['r_min']:.3f} to outperform "
-            f"{best['state']}."
-        )
-        print(
-            f"This is within the plausible range "
-            f"(r ≤ {r_max:.2f})."
-        )
         print(
             f"Recommended action: {direction} ω and repeat "
             "the calculation."
         )
 
     else:
-        if np.isfinite(s1["r_min"]):
+        if tuning_target is best:
             print(
-                f"S1 would require approximately r = "
-                f"{s1['r_min']:.3f} to outperform "
-                f"{best['state']}."
-            )
-            print(
-                f"This is outside the plausible range "
-                f"(r ≤ {r_max:.2f})."
+                f"{best['state']} is both the current best match "
+                "and the best projected ω-tuning target."
             )
         else:
             print(
-                f"S1 cannot outperform {best['state']} within "
-                "the linear ω-response model."
+                f"Although {best['state']} is currently the best "
+                f"match, {tuning_target['state']} has the lowest "
+                "projected distance under ω tuning."
             )
 
         print(
-            f"{best['state']} is therefore the more plausible "
-            "target state."
-        )
-        print(
             f"Recommended action: {direction} ω using "
-            f"{best['state']} as the tuning target."
+            f"{tuning_target['state']} as the tuning target."
         )
         print(
-            f"If {best['state']} remains best at the final ω, "
-            "optimize it with state tracking."
+            f"If {tuning_target['state']} remains the best state "
+            "at the final ω, optimize it with state tracking."
         )
 
 
