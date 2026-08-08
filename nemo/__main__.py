@@ -45,15 +45,11 @@ def interface():
     print("\t6 - Estimate rates and compute emission spectrum")
     print("ENSEMBLE DATA:")
     print("\t7 - Gather ensemble data only")
-    print("EXCITON ANALYSIS:")
-    print(
-        "\t8 - Estimate Förster radius, fluorescence lifetime and exciton diffusion lengths"
-    )
     print("EXTRA FEATURES:")
     print(
-        "\t9 - Perform tuning of long range corrected functional (Gaussian 09/16 only)"
+        "\t8 - Perform tuning of long range corrected functional (Gaussian 09/16 only)"
     )
-    print("\t10 - Perform empirical tuning of long range corrected functional")
+    print("\t9 - Perform empirical tuning of long range corrected functional")
     print('\n')
     nemo.tools.check_for_updates('nemophoto')
     operation = input()
@@ -138,11 +134,16 @@ def interface():
         for state in states:
             gather_data(state, save=True)
     elif operation == "8":
-        lx.tools.ld()
+        input_file = nemo.tools.fetch_file("input", ['.com', '.in'])
+        with open(input_file, 'r', encoding='utf-8') as f:
+            content = f.read()
+            if "$rem" in content:
+                print("Attempting Q-Chem tuning")
+                nemo.tools.tuning()
+            else:    
+                print("Attempting Gaussian tuning")
+                lx.tools.omega_tuning()
     elif operation == "9":
-        nemo.tools.tuning()
-        #lx.tools.omega_tuning()
-    elif operation == "10":
         nemo.tools.empirical_omega()
     else:
         nemo.parser.fatal_error("It must be one of the options... Goodbye!")
