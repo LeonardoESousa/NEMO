@@ -575,6 +575,7 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
         emi_error = np.sqrt(np.sum((espectro /HBAR_EV - emi_rate) ** 2, axis=0) / (number_geoms * (number_geoms - 1)))
     emi_error = np.nan_to_num(emi_error, nan=0.0)
     gap_emi = means(delta_emi, espectro, ensemble_average)
+    mean_emi_coupling = 1000 * means(np.sqrt(espectro / 2 * np.pi), espectro, ensemble_average)
     mean_sigma_emi = means(l_total, espectro, ensemble_average)
     mean_part_emi = (100 / number_geoms) / means(
         espectro / np.sum(espectro), espectro, ensemble_average
@@ -668,7 +669,7 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
                 emi_error,
                 100 * emi_rate / total,
                 gap_emi,
-                np.nan,
+                mean_emi_coupling,
                 mean_sigma_emi,
                 mean_part_emi,
             ]
@@ -705,7 +706,7 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
             "Error(s^-1)",
             "Prob(%)",
             "AvgDE+L(eV)",
-            "AvgSOC(meV)",
+            "AvgCoupling(meV)",
             "AvgSigma(eV)",
             "AvgConc(%)",
         ],

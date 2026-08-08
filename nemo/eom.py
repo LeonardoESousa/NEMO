@@ -599,4 +599,3 @@ def soc_t1(file, mqn, n_state, ind_s, ind_t):
     socs = socs[1:, :]
     socs = socs[order_t]
     return socs * 0.12398 / 1000
-

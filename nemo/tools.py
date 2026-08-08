@@ -4,7 +4,7 @@ import subprocess
 import sys
 import time
 import requests
-import pkg_resources
+from importlib.metadata import version
 from subprocess import Popen
 import numpy as np
 import pandas as pd
@@ -288,6 +288,20 @@ def check_dielectric(eps,nr):
     if eps < 1 or nr**2 > eps:
         nemo.parser.fatal_error("Dielectric constant must be higher than 1 and the refractive index squared must be lower than the static dielectric constant! Goodbye!")
 
+def load_template(method):
+    """Loads the Q-Chem template file."""
+    template_dir = os.path.join(os.path.dirname(__file__), "templates")
+    template_file = os.path.join(template_dir, f"{method}.in")
+
+    if not os.path.exists(template_file):
+        raise FileNotFoundError(f"Template file not found: {template_file}")
+
+    with open(template_file, "r", encoding="utf-8") as f:
+        return f.read()
+
+def extract_basic_rem(rem):
+    """Extracts relevant information from the rem section and removes $end."""
+    return rem.replace("$end", "").strip()
 
 def add_header(rem, num_ex, soc, static, refrac, cm):
     """
@@ -630,7 +644,10 @@ class Watcher:
         self.folder = folder
         self.key = key
         self.files = [i[:-4] for i in os.listdir(folder) if i.endswith('.com') and key in i]
-        self.files = sorted(self.files, key=lambda pair: float(pair.split("-")[1]))
+        try:
+            self.files = sorted(self.files, key=lambda pair: float(pair.split("-")[1]))
+        except (ValueError, IndexError):
+            pass
         self.number_inputs = len(self.files)
         self.done = []
         self.license_error = []
@@ -642,11 +659,11 @@ class Watcher:
         list_to_check = self.files.copy()
         for input_file in list_to_check:
             input_file_path = f"{self.folder}/{input_file}"
-        
+
             try:
-                # Check if "@@@" is present in the input file
+                # Count "@@@" present in the input file
                 with open(f"{input_file_path}.com", "r", encoding="utf-8") as inp_file:
-                    has_triple_at = any("@@@" in line for line in inp_file)
+                    num_triple_at = sum(line.count("@@@") for line in inp_file)
 
                 # Now check the corresponding log file
                 log_file_path = f"{input_file_path}.log"
@@ -656,14 +673,14 @@ class Watcher:
                     for line in log_file:
                         if "Have a nice day" in line:
                             have_a_nice_day_count += 1
-                            if not has_triple_at and have_a_nice_day_count == 1:
+                            if have_a_nice_day_count == num_triple_at +1:#not has_triple_at and have_a_nice_day_count == 1:
                                 self.done.append(input_file)
                                 self.files.remove(input_file)
                                 break
-                            elif has_triple_at and have_a_nice_day_count == 2:
-                                self.done.append(input_file)
-                                self.files.remove(input_file)
-                                break
+                            #elif has_triple_at and have_a_nice_day_count == 2:
+                            #    self.done.append(input_file)
+                            #    self.files.remove(input_file)
+                            #    break
                         elif "fatal error" in line or "Q-Chem error" in line:
                             self.error.append(input_file)
                             self.files.remove(input_file)
@@ -690,16 +707,16 @@ class Watcher:
             print('These are: ', self.license_error)
 
     def limit(self):
-        if self.key == "Geometr":
-            try:
-                return np.loadtxt("../limit.lx",encoding='utf-8')
-            except (OSError,FileNotFoundError):
-                sys.exit()
-        else:
-            try:
-                return np.loadtxt("limit.lx",encoding='utf-8')
-            except (OSError,FileNotFoundError):
-                sys.exit()
+        limit_file = "../limit.lx" if self.key == "Geometr" else "limit.lx"
+        try:
+            return np.loadtxt(limit_file, encoding='utf-8')
+        except (OSError, FileNotFoundError):
+            print("limit.lx file removed. Stopping Python process.")
+            raise SystemExit(0)
+
+    def _ensure_limit_file(self):
+        # Force a limit.lx check even in loops that do not call keep_going.
+        self.limit()
 
     def keep_going(self,num):
         if len(self.running) / num < self.limit():
@@ -719,6 +736,7 @@ class Watcher:
         self.clean_failed()
         inputs = self.files.copy()
         while len(inputs) > 0:
+            self._ensure_limit_file()
             next_inputs = inputs[:int(num)]
             num_proc = int(total_threads / len(next_inputs))
             command = ''
@@ -738,10 +756,11 @@ class Watcher:
                 self.check()
                 concluded = self.done + self.error + self.license_error
                 self.running = [elem for elem in self.running if elem not in concluded]
-                keep = self.keep_going(num)    
+                keep = self.keep_going(num)
 
     def hold_watch(self):
         while len(self.files) > 0:
+            self._ensure_limit_file()
             time.sleep(20)
             self.check()
 
@@ -755,8 +774,8 @@ def andamento():
 def check_for_updates(package_name):
     try:
         # Get the currently installed version
-        installed_version = pkg_resources.get_distribution(package_name).version
-        
+        installed_version = version(package_name)
+
         # Fetch the latest version from PyPI
         response = requests.get(f'https://pypi.org/pypi/{package_name}/json')
         response.raise_for_status()
@@ -769,27 +788,13 @@ def check_for_updates(package_name):
 
     except Exception as e:
         print(f"An error occurred while checking for updates: {e}")
-
+        
 ##RUNS W TUNING################################################
-def empirical_tuning():
-    geomlog = fetch_file("input or log", [".com", ".log"])
-    rem, _, extra = nemo.parser.busca_input(geomlog)
-    print(f"QChem template file: {geomlog}")
-    rem += extra + "\n"
-    #iterate over lines of rem
-    for line in rem.split("\n"):
-        if "method" in line.lower() or 'exchange' in line.lower():
-            functional = line.split()[-1]
-        if "basis" in line.lower():
-            basis = line.split()[-1]
-        if  'mem_total' in line.lower():
-            mem = line.split()[-1]   
+def tuning():
+    geomlog = fetch_file("input or log", [".in"])
     omega1 = "0.1"
     passo = "0.025"
     relax = 'yes'
-    print(f"Total memory: {mem}")
-    print(f"Functional: {functional}")
-    print(f"Basis: {basis}")
     print(f"Initial Omega: {omega1} bohr^-1")
     print(f"Step: {passo} bohr^-1")
     print(f'Optimize at each step? {relax}')
@@ -809,9 +814,7 @@ def empirical_tuning():
         )
     script = fetch_file("batch script", ["batch.sh"])
     nproc = input("Number of threads for each calculation\n")
-    e_exp = input("Experimental vacuum energy and uncertainty in eV? (space separated)\n")
-    chi_exp = input("Experimental susceptibility and uncertainty in eV? (space separated)?\n")
-    
+    parallel = input("Minimize submission of jobs: y/n\n")
     with open("limit.lx", "w",encoding="utf-8") as f:
         f.write("10")
     subprocess.Popen(
@@ -819,16 +822,12 @@ def empirical_tuning():
             "nohup",
             "nemo_tuning",
             geomlog,
-            functional,
-            basis,
             nproc,
             omega1,
             passo,
             relax,
             script,
-            e_exp,
-            chi_exp,
-            mem,
+            parallel,
             "&",
         ]
     )

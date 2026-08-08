@@ -14,9 +14,10 @@ urls = { Homepage = "https://github.com/LeonardoESousa/NEMO" }
 
 # Keep pandas <2.0 and NumPy <2.0 (works well on Python 3.8–3.11)
 dependencies = [
-  "numpy",
-  "pandas",
+  "numpy<2.0",
+  "pandas<2.0",
   "scipy",
+  "tables",
   "LeoX>=0.9.0"
 ]
 
@@ -28,6 +29,9 @@ nemo_tuning = "nemo.omega:main"
 [tool.setuptools]
 include-package-data = true
 
+[tool.setuptools.package-data]
+nemo = ["templates/*.in"]
+
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["nemo*"]
@@ -35,3 +39,8 @@ exclude = ["tests", "*.tests", "*.tests.*", "tests.*"]
 
 [tool.setuptools.dynamic]
 version = { attr = "nemo.__version__.__version__" }
+
+[project.optional-dependencies]
+test = [
+  "pytest"
+]
