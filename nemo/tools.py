@@ -600,13 +600,24 @@ def susceptibility_check(
     file,
     fit=None,
     tuning=0,
-    r_max=0.50,
+    chemical_accuracy=0.043,
+    state_tolerance=5.99,
 ):
     C = 0.3243
 
     if tuning not in (0, 1, 2):
         raise ValueError(
             "tuning must be 0, 1, or 2."
+        )
+
+    if chemical_accuracy < 0.0:
+        raise ValueError(
+            "chemical_accuracy must be non-negative."
+        )
+
+    if state_tolerance < 0.0:
+        raise ValueError(
+            "state_tolerance must be non-negative."
         )
 
     (
@@ -638,7 +649,7 @@ def susceptibility_check(
     y_s = y_s / alpha_st
     y_t = y_t / alpha_st
 
-    # Print state properties unless running silently.
+    # Print calculated state properties unless running silently.
     if tuning != 1:
         print(
             f"{'State':<6} "
@@ -683,7 +694,7 @@ def susceptibility_check(
             )
         return
 
-    # Load fitted parameters and their covariance matrix.
+    # Load experimental fit.
     try:
         data = np.load(
             fit,
@@ -730,10 +741,11 @@ def susceptibility_check(
             "covariance_matrix must be positive definite."
         ) from error
 
-    # Inverse covariance matrix used for Mahalanobis distances.
-    precision = np.linalg.solve(
-        cov_matrix,
-        np.eye(2),
+    # Combine experimental uncertainty with the computational
+    # discrepancy associated with chemical accuracy.
+    effective_cov_matrix = (
+        cov_matrix
+        + chemical_accuracy**2 * np.eye(2)
     )
 
     sigma_E = np.sqrt(cov_matrix[0, 0])
@@ -744,68 +756,42 @@ def susceptibility_check(
         / (sigma_E * sigma_chi)
     )
 
-    def mahalanobis_distance(residual):
+    effective_sigma_E = np.sqrt(
+        effective_cov_matrix[0, 0]
+    )
+    effective_sigma_chi = np.sqrt(
+        effective_cov_matrix[1, 1]
+    )
+
+    effective_correlation = (
+        effective_cov_matrix[0, 1]
+        / (
+            effective_sigma_E
+            * effective_sigma_chi
+        )
+    )
+
+    def mahalanobis_distance(dE, dchi):
+        residual = np.array(
+            [dE, dchi],
+            dtype=float,
+        )
+
+        weighted_residual = np.linalg.solve(
+            effective_cov_matrix,
+            residual,
+        )
+
         distance_squared = (
             residual
-            @ precision
-            @ residual
+            @ weighted_residual
         )
 
         return np.sqrt(
             max(float(distance_squared), 0.0)
         )
 
-    def projected_omega_result(residual, r):
-        """
-        Find the minimum Mahalanobis distance obtainable by moving
-        along the assumed omega-response direction (1, -r).
-
-        Returns
-        -------
-        projected_distance : float
-            Minimum Mahalanobis distance along the response line.
-
-        omega_shift : float
-            Signed displacement along the response line. A positive
-            value indicates increasing omega; a negative value
-            indicates decreasing omega.
-        """
-        response = np.array(
-            [1.0, -r],
-            dtype=float,
-        )
-
-        numerator = (
-            response
-            @ precision
-            @ residual
-        )
-
-        denominator = (
-            response
-            @ precision
-            @ response
-        )
-
-        omega_shift = numerator / denominator
-
-        distance_squared = (
-            residual
-            @ precision
-            @ residual
-            - numerator**2 / denominator
-        )
-
-        projected_distance = np.sqrt(
-            max(float(distance_squared), 0.0)
-        )
-
-        return projected_distance, omega_shift
-
-    # A representative response ratio is used to compare how well
-    # each state could perform after omega tuning.
-    r_direction = 0.5 * r_max
-
+    # Build singlet-state diagnostics.
     diagnostics = []
 
     for i, (energy, chi, gamma) in enumerate(
@@ -827,20 +813,9 @@ def susceptibility_check(
         dE = E_vac_fit - E_pred
         dchi = chi_fit - chi_pred
 
-        residual = np.array(
-            [dE, dchi],
-            dtype=float,
-        )
-
         distance = mahalanobis_distance(
-            residual
-        )
-
-        projected_distance, omega_shift = (
-            projected_omega_result(
-                residual,
-                r_direction,
-            )
+            dE,
+            dchi,
         )
 
         diagnostics.append(
@@ -853,47 +828,47 @@ def susceptibility_check(
                 "dE": dE,
                 "dchi": dchi,
                 "distance": distance,
-                "projected_distance": projected_distance,
-                "omega_shift": omega_shift,
             }
         )
 
-    # Current best state before further omega tuning.
+    # Rank states by Mahalanobis distance.
     diagnostics.sort(
         key=lambda row: row["distance"]
     )
 
-    best = diagnostics[0]
-
-    # State with the lowest projected distance after idealized
-    # omega tuning.
-    tuning_target = min(
-        diagnostics,
-        key=lambda row: row["projected_distance"],
+    numerical_best = diagnostics[0]
+    minimum_distance_squared = (
+        numerical_best["distance"]**2
     )
 
-    sign = (
-        1
-        if tuning_target["omega_shift"] >= 0.0
-        else -1
+    # Calculate each state's loss relative to the numerical best.
+    for row in diagnostics:
+        row["delta_j2"] = max(
+            row["distance"]**2
+            - minimum_distance_squared,
+            0.0,
+        )
+
+    # States inside the selected ambiguity region are considered
+    # similarly compatible with the experimental fit.
+    similar_states = [
+        row
+        for row in diagnostics
+        if row["delta_j2"] <= state_tolerance
+    ]
+
+    # In dubio pro lowest state.
+    selected = min(
+        similar_states,
+        key=lambda row: row["root"],
     )
 
     # Silent mode used by the omega-tuning driver.
     if tuning == 1:
         return (
-            best["distance"],
-            best["root"],
-            sign,
+            selected["distance"],
+            selected["root"],
         )
-
-    direction = (
-        "increase"
-        if sign > 0
-        else "decrease"
-    )
-
-    # Joint 68% confidence region for two fitted parameters.
-    confidence_limit = np.sqrt(2.30)
 
     print()
     print("Experimental Fit")
@@ -907,11 +882,16 @@ def susceptibility_check(
         f"{sigma_chi:.3f} eV"
     )
     print(
-        f"Correlation: {correlation:.3f}"
+        f"Experimental correlation: "
+        f"{correlation:.3f}"
     )
     print(
-        f"Assumed ω-response ratio: "
-        f"r = {r_direction:.3f}"
+        f"Computational uncertainty: "
+        f"{chemical_accuracy:.3f} eV"
+    )
+    print(
+        f"Effective correlation: "
+        f"{effective_correlation:.3f}"
     )
 
     print()
@@ -925,7 +905,7 @@ def susceptibility_check(
         f"{'dE':<10} "
         f"{'dχ':<10} "
         f"{'M-dist':<10} "
-        f"{'ω-proj':<10}"
+        f"{'ΔJ²':<10}"
     )
 
     for row in diagnostics:
@@ -937,135 +917,63 @@ def susceptibility_check(
             f"{row['dE']:<10.3f} "
             f"{row['dchi']:<10.3f} "
             f"{row['distance']:<10.3f} "
-            f"{row['projected_distance']:<10.3f}"
+            f"{row['delta_j2']:<10.3f}"
         )
 
     print()
-    print("Tuning Diagnostic")
-    print("-----------------")
+    print("Distance Evaluation")
+    print("-------------------")
     print(
-        f"Current best match: {best['state']} "
+        f"Numerical best match: "
+        f"{numerical_best['state']} "
         f"(Mahalanobis distance = "
-        f"{best['distance']:.3f})"
+        f"{numerical_best['distance']:.3f})"
+    )
+
+    similar_names = ", ".join(
+        row["state"]
+        for row in sorted(
+            similar_states,
+            key=lambda row: row["root"],
+        )
     )
 
     print(
-        f"Best projected tuning target: "
-        f"{tuning_target['state']} "
-        f"(projected distance = "
-        f"{tuning_target['projected_distance']:.3f})"
+        f"States within ΔJ² ≤ "
+        f"{state_tolerance:.2f}: "
+        f"{similar_names}"
     )
 
-    # Final report after omega tuning has concluded.
-    if tuning == 2:
-        if best["distance"] <= confidence_limit:
-            print(
-                "The calculated parameters lie within the joint "
-                "68% experimental confidence region."
-            )
-
-            if best["root"] == 1:
-                print(
-                    "Recommended action: retain S1 at the "
-                    "current ω."
-                )
-            else:
-                print(
-                    f"Recommended action: optimize "
-                    f"{best['state']} with state tracking "
-                    "at the current ω."
-                )
-
-        else:
-            print(
-                "The ω search concluded outside the joint "
-                "68% experimental confidence region."
-            )
-            print(
-                "This is probably the best agreement attainable "
-                "through ω tuning alone."
-            )
-
-            if best["root"] == 1:
-                print(
-                    "Recommended action: retain the best ω found. "
-                    "The remaining discrepancy likely reflects "
-                    "limitations beyond ω."
-                )
-            else:
-                print(
-                    f"Recommended action: optimize "
-                    f"{best['state']} with state tracking "
-                    "at the best ω."
-                )
-
-        return
-
-    # Ordinary diagnostic before tuning has concluded.
-    if best["distance"] <= confidence_limit:
+    if selected is numerical_best:
         print(
-            "The calculated parameters already lie within the "
-            "joint 68% experimental confidence region."
+            f"Selected state: {selected['state']}"
         )
-        print("No further ω tuning is recommended.")
-
-        if best["root"] == 1:
-            print(
-                "Recommended action: retain S1 at the current ω."
-            )
-        else:
-            print(
-                f"Recommended action: optimize {best['state']} "
-                "with state tracking at the current ω."
-            )
-
-    elif tuning_target["root"] == 1:
-        if best["root"] == 1:
-            print(
-                "S1 is already the best current match and also "
-                "the best projected ω-tuning target."
-            )
-        else:
-            print(
-                f"Although {best['state']} is currently the best "
-                "match, S1 may achieve better agreement through "
-                "ω tuning."
-            )
-            print(
-                f"Its projected Mahalanobis distance is "
-                f"{tuning_target['projected_distance']:.3f}, "
-                f"compared with "
-                f"{best['projected_distance']:.3f} for "
-                f"{best['state']}."
-            )
-
-        print(
-            f"Recommended action: {direction} ω and repeat "
-            "the calculation."
-        )
-
     else:
-        if tuning_target is best:
-            print(
-                f"{best['state']} is both the current best match "
-                "and the best projected ω-tuning target."
-            )
-        else:
-            print(
-                f"Although {best['state']} is currently the best "
-                f"match, {tuning_target['state']} has the lowest "
-                "projected distance under ω tuning."
-            )
-
         print(
-            f"Recommended action: {direction} ω using "
-            f"{tuning_target['state']} as the tuning target."
-        )
-        print(
-            f"If {tuning_target['state']} remains the best state "
-            "at the final ω, optimize it with state tracking."
+            f"Selected state: {selected['state']} "
+            "because it is the lowest state within the "
+            "ambiguity region."
         )
 
+    # Joint 68% region for two fitted quantities.
+    confidence_limit = np.sqrt(2.30)
+
+    if selected["distance"] <= confidence_limit:
+        print(
+            "The selected state lies within the joint 68% "
+            "combined uncertainty region."
+        )
+    else:
+        print(
+            "The selected state lies outside the joint 68% "
+            "combined uncertainty region."
+        )
+
+    if tuning == 2:
+        print(
+            "This is the final distance evaluation after "
+            "the ω-tuning procedure."
+        )
 
 ##FETCHES REFRACTIVE INDEX#####################################
 def get_nr():
