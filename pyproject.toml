@@ -14,8 +14,8 @@ urls = { Homepage = "https://github.com/LeonardoESousa/NEMO" }
 
 # Keep pandas <2.0 and NumPy <2.0 (works well on Python 3.8–3.11)
 dependencies = [
-  "numpy",
-  "pandas",
+  "numpy<2.0",
+  "pandas<2.0",
   "scipy",
   "LeoX>=0.9.1"
 ]
