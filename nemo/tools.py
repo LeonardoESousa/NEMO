@@ -24,12 +24,13 @@ EPSILON_0 = nemo.parser.EPSILON_0
 ###############################################################
 
 def distance_matrix(geom):
-    matrix = np.zeros((1, np.shape(geom)[0]))
-    for ind in range(np.shape(geom)[0]):
+    n_atoms = np.shape(geom)[0]
+    matrix = np.zeros((n_atoms, n_atoms))
+
+    for ind in range(n_atoms):
         distances = geom - geom[ind, :]
-        distances = np.sqrt(np.sum(np.square(distances), axis=1))
-        matrix = np.vstack((matrix, distances[np.newaxis, :]))
-    matrix = matrix[1:, :]
+        matrix[ind, :] = np.sqrt(np.sum(np.square(distances), axis=1))
+
     return matrix
 
 
@@ -144,14 +145,22 @@ def adjacency(geom, atoms):
         '54': 1.4,
         'Xe': 1.4,
     }
+
     dist_matrix = distance_matrix(geom)
     adj_matrix = np.zeros(np.shape(dist_matrix))
-    # connectivity matrix
+
+    # Connectivity matrix
     for i in range(np.shape(dist_matrix)[0]):
-        for j in range(i, np.shape(dist_matrix)[1]):
-            r_e = (covalent_radii[atoms[i]] + covalent_radii[atoms[j]]) + 0.4
-            if 0.8 < dist_matrix[i, j] < r_e:
+        for j in range(i + 1, np.shape(dist_matrix)[1]):
+            r_e = (
+                covalent_radii[atoms[i]]
+                + covalent_radii[atoms[j]]
+                + 0.4
+            )
+
+            if dist_matrix[i, j] < r_e:
                 adj_matrix[i, j] = adj_matrix[j, i] = 1
+
     return adj_matrix
 
 
