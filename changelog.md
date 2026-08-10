@@ -1,3 +1,7 @@
+## Version 1.3.4
+
+1 - Fixed bug in structure check and omega tuning restarting option
+
 ## Version 1.3.3
 
 1 - Minor fix in pyproject.toml

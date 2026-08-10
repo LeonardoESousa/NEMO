@@ -1,11 +1,11 @@
 # **NEMO** - Photophysics with the Nuclear Ensemble Method
 
-##  Version 1.3.3
+##  Version 1.3.4
 
 [![made-with-python](https://img.shields.io/badge/Made%20with-Python-1f425f.svg)](https://www.python.org/)
 [![license](https://img.shields.io/github/license/LeonardoESousa/NEMO?style=plastic)]()
 [![down](https://img.shields.io/pypi/dm/nemophoto)]()
-[![maint](https://img.shields.io/maintenance/yes/2025)]()
+[![maint](https://img.shields.io/maintenance/yes/2026)]()
 [![commit](https://img.shields.io/github/last-commit/LeonardoESousa/NEMO?style=plastic)]()
 [![CodeFactor](https://www.codefactor.io/repository/github/leonardoesousa/nemo/badge)](https://www.codefactor.io/repository/github/leonardoesousa/nemo)
 
