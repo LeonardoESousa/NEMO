@@ -427,7 +427,7 @@ def setup_ensemble():
     header = header[0]
     
     num_geoms = int(input("How many geometries to be sampled?\n"))
-    if num_geoms == 1:
+    if num_geoms == 0:
         single_molecule_ensemble(atomos, geom, header, bottom)
     else:
         temperature = float(input("Temperature in Kelvin?\n"))
