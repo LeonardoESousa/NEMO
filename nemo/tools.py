@@ -129,7 +129,7 @@ def make_ensemble(freqlog, num_geoms, temperature, header, bottom):
     counter = nemo.tools.start_counter()
     print("\nGenerating geometries...\n")
     numbers, atomos, A = sample_geometries(
-        freqlog, num_geoms, temperature, warning=False, show_progress=True)
+        freqlog, num_geoms, temperature, warning=True, show_progress=True)
     F, M = nemo.parser.pega_freq(freqlog)
     # convert numbers to dataframe
     numbers = pd.DataFrame(
