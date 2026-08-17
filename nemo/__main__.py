@@ -158,32 +158,12 @@ def main():
     parser.add_argument('-c', '--check', type=str, help="Run susceptibility check on the specified file.")
 
     parser.add_argument('-g', '--geom', type=str, help="Gets geometry from a log file.")    
-    
-    parser.add_argument(
-        "fit_values",
-        nargs="*",
-        type=str,
-        help="Optional fit file (.npy): nemo -c output.log fit.npy",
-    )
     # Parse arguments
     args = parser.parse_args()
     
     # If `-c` is provided, call the susceptibility_check function
     if args.check:
-        if len(args.fit_values) == 0:
-            fit = None
-        elif len(args.fit_values) == 1:
-            fit = args.fit_values[0]
-            
-        else:
-            parser.error(
-                "When using -c, provide either no fit file or exactly one .npy fit file"
-            )
-
-        nemo.tools.susceptibility_check(
-            args.check,
-            fit=fit
-        )
+        nemo.tools.susceptibility_check(args.check)
         sys.exit(0)
 
     elif args.geom:
@@ -201,7 +181,6 @@ def main():
             interface()
     else:
         interface()
-
 
 if __name__ == "__main__":
     sys.exit(main())
