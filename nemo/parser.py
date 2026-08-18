@@ -498,7 +498,8 @@ def parse_block(block, modes_data, collect_corrections=False):
     strike = 0
     vec0 = None
 
-    num_atoms = np.shape(modes_data[0])[0]
+    if not (modes_data==None):
+        num_atoms = np.shape(modes_data[0])[0]
     n_miss = 0
     start = fetch = False
     
@@ -665,13 +666,14 @@ def parse_block(block, modes_data, collect_corrections=False):
         data['composition'].append(current_comp)
 
     # Convert IC lists to DataFrame all at once
-    data['b_ic'] = pd.DataFrame({
-        'initial_state': initial_state,
-        'final_state': final_state,
-        'geometry': 0,
-        'mode': mode,
-        'B': b
-    })
+    if not (modes_data==None):
+        data['b_ic'] = pd.DataFrame({
+            'initial_state': initial_state,
+            'final_state': final_state,
+            'geometry': 0,
+            'mode': mode,
+            'B': b
+        })
 
     spins = np.array(data['spins'])
     indices = np.array(data['indices'])
@@ -751,7 +753,7 @@ def match_compositions(comp_list_1, comp_list_2):
     return match_indices
 
 
-def pega_energias(file, modes_data):
+def pega_energias(file, modes_data=None):
     with open(file, "r", encoding="utf-8") as f:
         content = f.read()
 
@@ -763,7 +765,9 @@ def pega_energias(file, modes_data):
     else:
         vac_data  = parse_block(blocks[0], modes_data, collect_corrections=False)
         corr_data = parse_block(blocks[1], modes_data, collect_corrections=True )
-        ic_data = parse_block(blocks[2], modes_data, collect_corrections=False )
+        b_ic = 0.0
+        if not (modes_data==None):
+            ic_data = parse_block(blocks[2], modes_data, collect_corrections=False )
 
     min_len_s = min(vac_data['len_s'], corr_data['len_s'])
     min_len_t = min(vac_data['len_t'], corr_data['len_t'])
@@ -802,9 +806,10 @@ def pega_energias(file, modes_data):
     theta_t = np.array(vac_data['theta_t'])
     phi_t = np.array(vac_data['phi_t'])
 
-    b_ic = ic_data['b_ic']
-    b_ic = b_ic[b_ic['initial_state']<=min_len_s]
-    b_ic = b_ic[b_ic['final_state']<=min_len_s]
+    if not (modes_data==None):
+        b_ic = ic_data['b_ic']
+        b_ic = b_ic[b_ic['initial_state']<=min_len_s]
+        b_ic = b_ic[b_ic['final_state']<=min_len_s]
 
     y_s = (singlets_vac - singlets_pcm) + s0_corr
     y_t = (triplets_vac - triplets_pcm) + s0_corr

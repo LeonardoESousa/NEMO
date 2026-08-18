@@ -622,9 +622,12 @@ def susceptibility_check(
         _,
         _,
         _,
+        _,
+        _,
         ss_g,
         y_s,
         y_t,
+        _,
     ) = nemo.parser.pega_energias(file)
 
     eps, nr = fetch_nr(file)
