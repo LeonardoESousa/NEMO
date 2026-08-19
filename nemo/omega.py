@@ -52,88 +52,72 @@ def pega_energia(log_file):
 
 
 def pega_homo(log_file):
-    """
-    Returns the HOMO energy from the LAST 'Alpha MOs' / 'Beta MOs' section.
+    """Return the HOMO energy, in hartree, from the last Q-Chem MO blocks."""
+    import re
 
-    Logic:
-    - Reads the last occurrence of:
-          There are X alpha and Y beta electrons
-    - Parses the last 'Alpha MOs' block
-    - Parses the last 'Beta MOs' block if present
-    - Closed shell: HOMO = alpha[n_alpha - 1]
-    - Open shell: HOMO = max(alpha[n_alpha - 1], beta[n_beta - 1])
-    """
-
-    with open(log_file, "r", encoding="utf-8", errors="ignore") as f:
+    with open(log_file, encoding="utf-8", errors="ignore") as f:
         lines = f.readlines()
 
-    n_alpha = None
-    n_beta = None
+    def get_spin_homo(spin):
+        # Matches both "Alpha MOs" and "Alpha MOs, Unrestricted"
+        header = re.compile(rf"^\s*{spin}\s+MOs\b", re.IGNORECASE)
 
-    # use the last reported alpha/beta electron count
-    for line in lines:
-        m = re.search(r"There are\s+(\d+)\s+alpha and\s+(\d+)\s+beta electrons", line)
-        if m:
-            n_alpha = int(m.group(1))
-            n_beta = int(m.group(2))
+        starts = [
+            i for i, line in enumerate(lines)
+            if header.match(line)
+        ]
 
-    if n_alpha is None or n_beta is None:
-        raise ValueError(f"Could not find alpha/beta electron counts in {log_file}")
-
-    def parse_last_spin_block(spin_name):
-        starts = [i for i, line in enumerate(lines) if line.strip() == f"{spin_name} MOs"]
         if not starts:
-            return []
+            return None
 
-        start = starts[-1]
+        occupied = False
         energies = []
 
-        for i in range(start + 1, len(lines)):
-            stripped = lines[i].strip()
+        for line in lines[starts[-1] + 1:]:
+            text = line.strip()
 
-            # stop when another spin block begins
-            if stripped in ("Alpha MOs", "Beta MOs") and stripped != f"{spin_name} MOs":
+            if re.match(r"^(Alpha|Beta)\s+MOs\b", text, re.IGNORECASE):
                 break
 
-            # skip labels and separators
-            if (
-                not stripped
-                or "Occupied" in stripped
-                or "Virtual" in stripped
-                or set(stripped) == {"-"}
-            ):
+            if "Occupied" in text:
+                occupied = True
                 continue
 
-            vals = re.findall(r"[-+]?\d+\.\d+(?:[Ee][-+]?\d+)?", lines[i])
-            if vals:
-                energies.extend(float(v) for v in vals)
+            if "Virtual" in text:
+                break
 
-        return energies
+            if occupied:
+                # Decimal point requirement ignores symmetry labels:
+                # "1 A  1 B  2 A  2 B"
+                values = re.findall(
+                    r"[-+]?(?:\d+\.\d*|\.\d+)(?:[DEde][-+]?\d+)?",
+                    line,
+                )
 
-    alpha_energies = parse_last_spin_block("Alpha")
-    beta_energies = parse_last_spin_block("Beta")
+                energies.extend(
+                    float(value.replace("D", "E").replace("d", "e"))
+                    for value in values
+                )
 
-    if len(alpha_energies) < n_alpha:
-        raise ValueError(
-            f"Found only {len(alpha_energies)} alpha orbital energies in the last Alpha MOs block, "
-            f"but need at least {n_alpha} in {log_file}"
-        )
+        if not energies:
+            raise ValueError(
+                f"Could not find occupied {spin} orbitals in {log_file}"
+            )
 
-    # closed shell
-    if n_alpha == n_beta:
-        return alpha_energies[n_alpha - 1]
+        return energies[-1]
 
-    # open shell
-    if len(beta_energies) < n_beta:
-        raise ValueError(
-            f"Found only {len(beta_energies)} beta orbital energies in the last Beta MOs block, "
-            f"but need at least {n_beta} in {log_file}"
-        )
+    homo_alpha = get_spin_homo("Alpha")
+    homo_beta = get_spin_homo("Beta")
 
-    homo_alpha = alpha_energies[n_alpha - 1]
-    homo_beta = beta_energies[n_beta - 1]
+    if homo_alpha is None:
+        raise ValueError(f"Could not find Alpha MOs in {log_file}")
+
+    # Restricted calculations may print only the alpha block.
+    if homo_beta is None:
+        return homo_alpha
+
+    # Unrestricted calculation: highest occupied energy across both spins.
     return max(homo_alpha, homo_beta)
-
 
 ##RUNS CALCULATIONS############################################
 def rodar_omega(atomos, geom, nproc, omega, batch_file, relax, rem, numjobs):
@@ -404,7 +388,7 @@ def main():
     menor = omegas[Js.index(min(Js, key=abs))] 
     log = f"Logs/OPT-{menor:.0f}-.log"
     G, atomos = nemo.parser.pega_geom(log)
-    rem = nemo.tools.extract_basic_rem(rem)
+    rem, _, _ = nemo.parser.busca_input(log)
     gera_file("td-dft", rem, atomos, G, "s0_sp.com", cm="0 1", stat=3.0, optic=1.96, num_ex=5, soc="false")
     
     
@@ -424,9 +408,9 @@ def main():
     with open("state_analysis.txt", "w") as f:
         with redirect_stdout(f):
             try:
-                nemo.tools.susceptibility_check("tddft.log")
+                nemo.tools.susceptibility_check("s0_sp.log")
             except:
-                print("Could not perform susceptibility check. Please check tddft.log for details.")
+                print("Could not perform susceptibility check. Please check s0_sp.log for details.")
 
 if __name__ == "__main__":
     sys.exit(main())

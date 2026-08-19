@@ -749,8 +749,8 @@ def check_for_updates(package_name):
 ##RUNS W TUNING################################################
 def tuning():
     geomlog = fetch_file("input or log", [".in"])
-    omega1 = "0.1"
-    passo = "0.025"
+    omega1 = "0.15"
+    passo = "0.02"
     relax = 'yes'
     print(f"Initial Omega: {omega1} bohr^-1")
     print(f"Step: {passo} bohr^-1")
