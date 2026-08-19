@@ -157,13 +157,27 @@ def main():
     # Add the `-c` flag for susceptibility check with a file argument
     parser.add_argument('-c', '--check', type=str, help="Run susceptibility check on the specified file.")
 
-    parser.add_argument('-g', '--geom', type=str, help="Gets geometry from a log file.")    
+    parser.add_argument('-g', '--geom', type=str, help="Gets geometry from a log file.")
+    parser.add_argument(
+        '-e',
+        '--ensemble-file',
+        nargs=2,
+        metavar=("LOGFILE", "STATE"),
+        help="Gather ensemble data from a single Q-Chem log file for a given state.",
+    )
     # Parse arguments
     args = parser.parse_args()
     
     # If `-c` is provided, call the susceptibility_check function
     if args.check:
         nemo.tools.susceptibility_check(args.check)
+        sys.exit(0)
+
+    elif args.ensemble_file:
+        log_file, state_arg = args.ensemble_file
+        states = state_arg.split(",")
+        for state in states:
+            gather_data(state.strip(), save=True, filename=log_file)
         sys.exit(0)
 
     elif args.geom:

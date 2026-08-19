@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 import os
 import re
+import shutil
+import tempfile
 import warnings
+from contextlib import contextmanager
 import numpy as np
 import pandas as pd
 import nemo.tools
@@ -24,6 +27,76 @@ def check_normal(folder):
     watcher = nemo.tools.Watcher(folder)
     watcher.check()
     return [i+'.log' for i in watcher.done]    
+
+#########################################################################################
+
+
+def _geometry_number(file_name, fallback):
+    """Extract geometry number from canonical names like Geometry-12-.log."""
+    match = re.search(r"-(\d+)-", file_name)
+    if match:
+        return int(match.group(1))
+    return fallback
+
+
+def _resolve_log_file(filename, source_dir=None):
+    """Resolve a user-provided log filename/path and ensure it exists."""
+    log_path = filename
+    if not str(log_path).lower().endswith(".log"):
+        log_path = f"{log_path}.log"
+    if source_dir and not os.path.isabs(log_path):
+        log_path = os.path.join(source_dir, log_path)
+    log_path = os.path.abspath(log_path)
+    if not os.path.isfile(log_path):
+        nemo.parser.fatal_error(f"File {log_path} was not found.")
+    return log_path
+
+
+def _detect_single_file_setup(file_name):
+    """Detect calculation type and number of states from a single log file."""
+    file_path = os.path.join("Geometries", file_name)
+    for calculation_type, parser_fn in (
+        ("tddft", nemo.parser.pega_energias),
+        ("eom-ccsd", nemo.eom.pega_energias),
+    ):
+        try:
+            singlets, triplets, oscs, ind_s, ind_t, ss_s, ss_t, _, y_s, y_t = parser_fn(file_path)
+            n_state = min(
+                len(singlets),
+                len(triplets),
+                len(oscs),
+                len(ind_s),
+                len(ind_t),
+                len(ss_s),
+                len(ss_t),
+                len(y_s),
+                len(y_t),
+            )
+            if n_state <= 0:
+                continue
+            return n_state, calculation_type
+        except (IndexError, ValueError, TypeError, FileNotFoundError):
+            continue
+    nemo.parser.fatal_error(
+        f"Could not detect excited-state setup from Geometries/{file_name}."
+    )
+
+
+@contextmanager
+def _temporary_geometry_workspace(log_path, staged_name="Geometry-1-.log"):
+    """Create a temporary workspace that mimics the legacy Geometries layout."""
+    with tempfile.TemporaryDirectory() as temp_dir:
+        geom_dir = os.path.join(temp_dir, "Geometries")
+        os.mkdir(geom_dir)
+        staged_log = os.path.join(geom_dir, staged_name)
+        shutil.copy2(log_path, staged_log)
+        previous = os.getcwd()
+        os.chdir(temp_dir)
+        try:
+            yield os.path.basename(staged_log)
+        finally:
+            os.chdir(previous)
+
 
 #########################################################################################
 
@@ -67,7 +140,7 @@ def get_osc_phosph(files, singlets, triplets, n_state, ind_s, ind_t, phosph_osc)
 ##GETS ALL RELEVANT INFORMATION FROM LOG FILES###########################################
 def analysis(files, n_state, get_energies):
     numbers = []
-    for file in files:
+    for idx, file in enumerate(files, start=1):
         (
             singlets,
             triplets,
@@ -112,7 +185,7 @@ def analysis(files, n_state, get_energies):
             total_y_s = y_s
             total_y_t = y_t
             total_ground_pol = ground_pol
-        numbers.append(int(file.split("-")[1]))
+        numbers.append(_geometry_number(file, idx))
     numbers = np.array(numbers)[:, np.newaxis]
     return (
         numbers,
@@ -203,37 +276,32 @@ get_avg_socs = {'tddft': nemo.parser.avg_socs, 'eom-ccsd': nemo.eom.avg_socs}
 get_phosph_osc = {'tddft': nemo.parser.phosph_osc, 'eom-ccsd': nemo.eom.phosph_osc}
 
 
-###SAVES ENSEMBLE DATA#################################################################
-def gather_data(initial, save=True):
+def _build_gather_dataframe(initial, files, total_states, calculation_type, eps_i, nr_i):
+    """Build the gather_data dataframe from parsed log-file data."""
     formats = {}
-    files = check_normal("Geometries")
-    files = sorted(files, key=lambda pair: float(pair.split("-")[1]))
     n_state = int(initial[1:]) - 1
-    eps_i, nr_i = nemo.tools.get_nr()
     alphaopt1 = nemo.tools.get_alpha(nr_i**2)
     alphast1 = nemo.tools.get_alpha(eps_i)
-    kbt = nemo.tools.detect_sigma()
-    total_states, calculation_type = read_cis(files[0])
     (
-    numbers,
-    singlets,
-    triplets,
-    oscs,
-    ss_s,
-    ss_t,
-    ground_pol,
-    ind_s,
-    ind_t,
-    y_s,
-    y_t,
-        ) = analysis(files, total_states, get_energies[calculation_type])
-    ss_s = ss_s/alphaopt1
-    ss_t = ss_t/alphaopt1
-    gamma_s0 = ground_pol/alphast1
-    gamma_s = y_s/alphast1 
-    gamma_t = y_t/alphast1
-    
-    #start dataframe with numbers as geometry column
+        numbers,
+        singlets,
+        triplets,
+        oscs,
+        ss_s,
+        ss_t,
+        ground_pol,
+        ind_s,
+        ind_t,
+        y_s,
+        y_t,
+    ) = analysis(files, total_states, get_energies[calculation_type])
+
+    ss_s = ss_s / alphaopt1
+    ss_t = ss_t / alphaopt1
+    gamma_s0 = ground_pol / alphast1
+    gamma_s = y_s / alphast1
+    gamma_t = y_t / alphast1
+
     data = pd.DataFrame(numbers, columns=["geometry"])
 
     for i in range(singlets.shape[1]):
@@ -253,18 +321,16 @@ def gather_data(initial, save=True):
         formats[f"gamma_s{i+1}"] = "{:.4f}"
     for i in range(gamma_t.shape[1]):
         data[f"gamma_t{i+1}"] = gamma_t[:, i]
-        formats[f"gamma_t{i+1}"] = "{:.4f}"     
+        formats[f"gamma_t{i+1}"] = "{:.4f}"
 
     data["gamma_s0"] = gamma_s0
     formats["gamma_s0"] = "{:.4f}"
-        
-    if "s" in initial.lower():        
-        
+
+    if "s" in initial.lower():
         if "s0" == initial.lower():
             for i in range(oscs.shape[1]):
                 data[f"osc_s{i+1}"] = oscs[:, i]
                 formats[f"osc_s{i+1}"] = "{:.5e}"
-
         else:
             for i in range(oscs.shape[1]):
                 data[f"osce_s{n_state+1+i}"] = oscs[:, i]
@@ -281,56 +347,92 @@ def gather_data(initial, save=True):
                 for j in range(singlets.shape[1]):
                     data[f"soc_s{i+1}_t{j+1}"] = socs_partial[:, j]
                     formats[f"soc_s{i+1}_t{j+1}"] = "{:.5e}"
-                    
         except IndexError:
             pass
     else:
-        
-        oscs = get_osc_phosph(files, singlets, triplets, total_states, ind_s, ind_t, get_phosph_osc[calculation_type])
-        
+        oscs = get_osc_phosph(
+            files,
+            singlets,
+            triplets,
+            total_states,
+            ind_s,
+            ind_t,
+            get_phosph_osc[calculation_type],
+        )
+
         for i in range(oscs.shape[1]):
             data[f"osce_t{n_state+1+i}"] = oscs[:, i]
             formats[f"osce_t{n_state+1+i}"] = "{:.5e}"
-        
-        noscs =  get_oscs[calculation_type](files, ind_t, initial)
-        
+
+        noscs = get_oscs[calculation_type](files, ind_t, initial)
+
         for i in range(noscs.shape[1]):
             data[f"osc_t{n_state+2+i}"] = noscs[:, i]
             formats[f"osc_t{n_state+2+i}"] = "{:.5e}"
-        
+
         try:
-            
             for i in range(triplets.shape[1]):
-                
                 soc_ground = get_avg_socs[calculation_type](files, "ground", i, ind_s, ind_t)
                 soc_triplet = get_avg_socs[calculation_type](files, "triplet", i, ind_s, ind_t)
-                #soc_tts = get_avg_socs[calculation_type](files, "tts", i, ind_s, ind_t)
 
                 data[f"soc_t{i+1}_s0"] = soc_ground[:, 0]
                 formats[f"soc_t{i+1}_s0"] = "{:.5e}"
                 for j in range(triplets.shape[1]):
                     data[f"soc_t{i+1}_s{j+1}"] = soc_triplet[:, j]
                     formats[f"soc_t{i+1}_s{j+1}"] = "{:.5e}"
-                    #data[f"soc_t{i+1}_t{j+1}"] = soc_tts[:, j]
-                    #formats[f"soc_t{i+1}_t{j+1}"] = "{:.5e}"
-                
         except IndexError:
             pass
-    
-    
-    arquivo = f"Ensemble_{initial.upper()}_.lx"
+
+    return data, formats
+
+
+###SAVES ENSEMBLE DATA#################################################################
+def gather_data(initial, save=True, filename=None, source_dir=None):
+    kbt = nemo.tools.detect_sigma()
+
+    if filename is None:
+        files = check_normal("Geometries")
+        files = sorted(files, key=lambda pair: _geometry_number(pair, 0))
+        total_states, calculation_type = read_cis(files[0])
+        output_name = f"Ensemble_{initial.upper()}_.lx"
+        eps_i, nr_i = nemo.tools.get_nr()
+        data, formats = _build_gather_dataframe(
+            initial,
+            files,
+            total_states,
+            calculation_type,
+            eps_i,
+            nr_i,
+        )
+    else:
+        log_path = _resolve_log_file(filename, source_dir=source_dir)
+        output_stem = os.path.splitext(os.path.basename(log_path))[0]
+        output_name = f"{output_stem}_{initial.upper()}_.lx"
+        eps_i, nr_i = nemo.tools.fetch_nr(log_path)
+        if eps_i is None or nr_i is None:
+            eps_i, nr_i = 1, 1
+        with _temporary_geometry_workspace(log_path, staged_name="Geometry-1-.log") as staged_file:
+            files = [staged_file]
+            total_states, calculation_type = _detect_single_file_setup(staged_file)
+            data, formats = _build_gather_dataframe(
+                initial,
+                files,
+                total_states,
+                calculation_type,
+                eps_i,
+                nr_i,
+            )
+
+    arquivo = output_name
     data["ensemble"] = initial.upper()
     formats["ensemble"] = "{:s}"
     data["kbT"] = kbt
     formats["kbT"] = "{:.4f}"
-    # make these the first columns
     cols = data.columns.tolist()
     cols = cols[-2:] + cols[:-2]
     data = data[cols]
     if save:
-        # Create a temporary copy of the DataFrame
         temp_data = data.copy()
-        #Apply formats
         for column, fmt in formats.items():
             temp_data[column] = temp_data[column].map(fmt.format)
         temp_data.to_csv(arquivo, index=False)
