@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 import os
-import re
 import sys
 import shutil
 import numpy as np
@@ -34,7 +33,7 @@ def gera_file(template, rem, atomos, geometry, filename, **kwargs):
 
 
 ##RUNS CALCULATIONS############################################
-def rodar_omega(e_vac, chi, atomos, geom, nproc, omega, batch_file, state, rem, numjobs):
+def rodar_omega(fit, atomos, geom, nproc, omega, batch_file, state, rem, numjobs):
     omega = f"{omega:03.0f}"
     files = []
     file = gera_file(
@@ -62,13 +61,13 @@ def rodar_omega(e_vac, chi, atomos, geom, nproc, omega, batch_file, state, rem, 
         pass
     
 
-    J, new_state, sign = nemo.tools.susceptibility_check(f"td-{omega}-sp-.log",E_vac_fit=e_vac, chi_fit=chi, tuning=True)
+    J, new_state = nemo.tools.susceptibility_check(f"td-{omega}-sp-.log",fit=fit, tuning=1)
 
     for file in files:
         shutil.move(file, "Logs/" + file)
         shutil.move(file[:-3] + "log", "Logs/" + file[:-3] + "log")
 
-    return J, new_state, sign
+    return J, new_state
     
     
 
@@ -100,65 +99,96 @@ def fetch_next_omega(
     omegas,
     Js,
     initial_step,
-    initial_sign=None,
     omega_min=0,
     omega_max=500,
 ):
     """
-    Select the next omega value without assuming that J(omega) is smooth.
+    Select the next omega value using only previously calculated
+    Mahalanobis distances.
 
     Strategy
     --------
-    1. With one point, use the direction supplied by susceptibility_check.
-    2. If the best point is at an edge of the sampled interval, continue
-       outward using the spacing to the nearest point.
-    3. If the best point is bracketed, bisect the larger neighboring
+    1. With one sampled point, first try increasing omega.
+    2. If the current best point is at an edge of the sampled range,
+       continue sampling outward.
+    3. Once the best point is bracketed, bisect the larger adjacent
        interval.
-    4. Return None when no new integer omega exists around the best point.
+    4. Stop when no unevaluated integer omega remains around the
+       current best point.
 
     Parameters
     ----------
     omegas : sequence of float
-        Previously evaluated omega values in units of 10^-3 bohr^-1.
+        Previously evaluated omega values in units of
+        10^-3 bohr^-1.
+
     Js : sequence of float
-        Corresponding non-negative distances.
+        Mahalanobis distance associated with each omega.
+
     initial_step : float
-        Initial omega step in units of 10^-3 bohr^-1.
-    initial_sign : int or float, optional
-        Direction returned by susceptibility_check:
-        +1 means increase omega and -1 means decrease omega.
-        Required when only one omega has been evaluated.
+        Initial step in units of 10^-3 bohr^-1.
+
     omega_min, omega_max : int
-        Allowed omega range.
+        Allowed omega range in units of 10^-3 bohr^-1.
 
     Returns
     -------
     int or None
-        Next unevaluated integer omega, or None when the local interval
-        cannot be refined further.
+        Next unevaluated omega value. Returns None when the search
+        interval cannot be refined further.
     """
     if len(omegas) != len(Js):
-        raise ValueError("omegas and Js must have the same length.")
+        raise ValueError(
+            "omegas and Js must have the same length."
+        )
 
     if len(omegas) == 0:
-        raise ValueError("At least one omega value is required.")
+        raise ValueError(
+            "At least one omega value is required."
+        )
 
-    # Sort points and remove duplicate omega values.
+    if initial_step <= 0:
+        raise ValueError(
+            "initial_step must be positive."
+        )
+
+    omega_min = int(round(omega_min))
+    omega_max = int(round(omega_max))
+
+    if omega_min >= omega_max:
+        raise ValueError(
+            "omega_min must be smaller than omega_max."
+        )
+
+    # Remove duplicate omega values. If duplicates exist, keep the
+    # smallest distance.
     sampled = {}
 
     for omega, J in zip(omegas, Js):
         omega = int(round(omega))
         J = float(J)
 
-        # Keep the lowest J if an omega appears more than once.
+        if not np.isfinite(J):
+            raise ValueError(
+                f"Invalid Mahalanobis distance at omega {omega}."
+            )
+
         if omega not in sampled or J < sampled[omega]:
             sampled[omega] = J
 
-    x = np.array(sorted(sampled), dtype=int)
-    f = np.array([sampled[omega] for omega in x], dtype=float)
+    x = np.array(
+        sorted(sampled),
+        dtype=int,
+    )
+
+    f = np.array(
+        [sampled[omega] for omega in x],
+        dtype=float,
+    )
+
+    evaluated = set(x.tolist())
 
     best_index = int(np.argmin(f))
-    evaluated = set(x.tolist())
 
     def valid(candidate):
         return (
@@ -167,113 +197,163 @@ def fetch_next_omega(
             and candidate not in evaluated
         )
 
-    # First point: use the physical direction from susceptibility_check.
-    if len(x) == 1:
-        if initial_sign is None or initial_sign == 0:
-            raise ValueError(
-                "initial_sign must be +1 or -1 when only one omega "
-                "has been evaluated."
-            )
+    def midpoint(left, right):
+        """
+        Return an unevaluated integer midpoint, if one exists.
+        """
+        if right - left <= 1:
+            return None
 
-        direction = 1 if initial_sign > 0 else -1
         candidate = int(
-            round(x[0] + direction * abs(initial_step))
+            round(0.5 * (left + right))
         )
-        candidate = max(omega_min, min(omega_max, candidate))
+
+        if candidate <= left:
+            candidate = left + 1
+
+        if candidate >= right:
+            candidate = right - 1
+
+        if valid(candidate):
+            return candidate
+
+        # Search outward from the midpoint if rounding or previous
+        # evaluations produced an occupied point.
+        for offset in range(1, right - left):
+            lower = candidate - offset
+            upper = candidate + offset
+
+            if left < lower < right and valid(lower):
+                return lower
+
+            if left < upper < right and valid(upper):
+                return upper
+
+        return None
+
+    # First point: try increasing omega. If the upper boundary is
+    # unavailable, try decreasing omega.
+    if len(x) == 1:
+        step = max(
+            1,
+            int(round(abs(initial_step))),
+        )
+
+        candidate = min(
+            omega_max,
+            int(x[0] + step),
+        )
+
+        if valid(candidate):
+            return candidate
+
+        candidate = max(
+            omega_min,
+            int(x[0] - step),
+        )
 
         if valid(candidate):
             return candidate
 
         return None
 
-    # Best point is at the lowest sampled omega: continue toward lower omega.
+    # The best point is the lowest sampled omega.
     if best_index == 0:
-        spacing = x[1] - x[0]
-        candidate = int(x[0] - spacing)
-        candidate = max(omega_min, candidate)
+        spacing = max(
+            1,
+            int(x[1] - x[0]),
+        )
+
+        # Continue toward lower omega.
+        candidate = max(
+            omega_min,
+            int(x[0] - spacing),
+        )
 
         if valid(candidate):
             return candidate
 
-        # The lower boundary has been reached. Refine toward the next point.
-        width = x[1] - x[0]
+        # If the lower boundary has been reached, refine the
+        # interval between the best point and its right neighbor.
+        return midpoint(
+            int(x[0]),
+            int(x[1]),
+        )
 
-        if width > 1:
-            candidate = int(round(0.5 * (x[0] + x[1])))
-
-            if valid(candidate):
-                return candidate
-
-        return None
-
-    # Best point is at the highest sampled omega: continue toward higher omega.
+    # The best point is the highest sampled omega.
     if best_index == len(x) - 1:
-        spacing = x[-1] - x[-2]
-        candidate = int(x[-1] + spacing)
-        candidate = min(omega_max, candidate)
+        spacing = max(
+            1,
+            int(x[-1] - x[-2]),
+        )
+
+        # Continue toward higher omega.
+        candidate = min(
+            omega_max,
+            int(x[-1] + spacing),
+        )
 
         if valid(candidate):
             return candidate
 
-        # The upper boundary has been reached. Refine toward the previous point.
-        width = x[-1] - x[-2]
+        # If the upper boundary has been reached, refine the
+        # interval between the left neighbor and the best point.
+        return midpoint(
+            int(x[-2]),
+            int(x[-1]),
+        )
 
-        if width > 1:
-            candidate = int(round(0.5 * (x[-2] + x[-1])))
-
-            if valid(candidate):
-                return candidate
-
-        return None
-
-    # The best point is bracketed by evaluated points.
-    left = x[best_index - 1]
-    best = x[best_index]
-    right = x[best_index + 1]
+    # The current best point is bracketed.
+    left = int(x[best_index - 1])
+    best = int(x[best_index])
+    right = int(x[best_index + 1])
 
     left_width = best - left
     right_width = right - best
 
     candidates = []
 
-    if left_width > 1:
-        left_candidate = int(round(0.5 * (left + best)))
+    left_candidate = midpoint(
+        left,
+        best,
+    )
+
+    if left_candidate is not None:
         candidates.append(
-            (
-                left_width,
-                f[best_index - 1],
-                left_candidate,
-            )
+            {
+                "width": left_width,
+                "neighbor_J": f[best_index - 1],
+                "omega": left_candidate,
+            }
         )
 
-    if right_width > 1:
-        right_candidate = int(round(0.5 * (best + right)))
+    right_candidate = midpoint(
+        best,
+        right,
+    )
+
+    if right_candidate is not None:
         candidates.append(
-            (
-                right_width,
-                f[best_index + 1],
-                right_candidate,
-            )
+            {
+                "width": right_width,
+                "neighbor_J": f[best_index + 1],
+                "omega": right_candidate,
+            }
         )
 
     if not candidates:
         return None
 
-    # Prefer the wider unexplored interval. If both intervals have the
-    # same width, prefer the side whose neighboring J is lower.
+    # Prefer the larger unexplored interval. If both intervals have
+    # equal width, prefer the side with the lower neighboring J.
     candidates.sort(
         key=lambda item: (
-            -item[0],
-            item[1],
+            -item["width"],
+            item["neighbor_J"],
         )
     )
 
-    for _, _, candidate in candidates:
-        if valid(candidate):
-            return candidate
-
-    return None
-
+    return candidates[0]["omega"]
 
 
 def main():
@@ -282,28 +362,42 @@ def main():
     omega1 = sys.argv[3]
     passo = sys.argv[4]
     script = sys.argv[5]
-    e_vac = float(sys.argv[6])
-    chi = float(sys.argv[7])
+    fit = sys.argv[6]
+
     rem, _, extra = nemo.parser.busca_input(geomlog)
     rem += extra + "\n"
+
     state = 1
-    
     numjobs = 10
-    
+
     try:
-        int(nproc)
+        nproc = int(nproc)
         passo = float(passo) * 1000
         omega1 = float(omega1) * 1000
     except ValueError:
-        nemo.parser.fatal_error("nproc, omega and step must be numbers. Goodbye!")
-    omegas, Js = [], []
-    sign = None
+        nemo.parser.fatal_error(
+            "nproc, omega, and step must be numbers. Goodbye!"
+        )
+
+    if not os.path.isfile(fit):
+        nemo.parser.fatal_error(
+            f"Fit file not found: {fit}"
+        )
+
+    omegas = []
+    Js = []
 
     try:
-        data = np.loadtxt("omega.lx", dtype=float)
+        data = np.loadtxt(
+            "omega.lx",
+            dtype=float,
+        )
 
         if data.ndim == 1:
             data = data.reshape(1, -1)
+
+        if data.shape[1] < 2:
+            raise ValueError
 
         omegas = data[:, 0].tolist()
         Js = data[:, 1].tolist()
@@ -311,90 +405,140 @@ def main():
     except FileNotFoundError:
         pass
 
-    # If restarting from exactly one cached calculation, recover the
-    # initial omega direction from its output file.
-    if len(omegas) == 1:
-        cached_omega = int(round(omegas[0]))
-        cached_log = f"Logs/td-{cached_omega:03d}-sp-.log"
-
-        if os.path.isfile(cached_log):
-            _, _, sign = nemo.tools.susceptibility_check(
-                cached_log,
-                E_vac_fit=e_vac,
-                chi_fit=chi,
-                tuning=True,
-            )
-        else:
-            nemo.parser.fatal_error(
-                f"Could not recover the omega-tuning direction: "
-                f"{cached_log} was not found."
-            )
-
-    iteration = 0
-    G, atomos = nemo.parser.pega_geom(geomlog)
-    while iteration < 100:
-    # Existing optimization loop
-        if omega1 in omegas:
-            ind = omegas.index(omega1)
-            J = Js[ind]
-        else:
-            J, new_state, sign = rodar_omega(e_vac, chi,
-                atomos, G, nproc, omega1, script, state, rem, numjobs
-                )
-            omegas.append(omega1)
-            Js.append(J)
-        omegas, Js = map(list, zip(*sorted(zip(omegas, Js))))
-        #index of min J
-        ind = Js.index(min(Js))
-        omega1 = omegas[ind]
-        
-        next_omega = fetch_next_omega(
-        omegas,
-        Js,
-        initial_step=passo,
-        initial_sign=sign,
-        omega_min=0,
-        omega_max=500,
+    except ValueError:
+        nemo.parser.fatal_error(
+            "Could not read omega.lx. The file must contain "
+            "only the numerical omega-tuning table."
         )
 
-        if next_omega is None or min(Js) <= np.sqrt(2) * 0.043: #chemical accuracy threshold
+    # Every omega calculation uses the original geometry.
+    G, atomos = nemo.parser.pega_geom(geomlog)
+
+    # Joint 68% confidence limit for two fitted parameters.
+    confidence_limit = np.sqrt(2.30)
+
+    iteration = 0
+
+    while iteration < 100:
+        # Reuse a previously calculated omega when available.
+        matching_indices = [
+            i
+            for i, omega in enumerate(omegas)
+            if np.isclose(omega, omega1)
+        ]
+
+        if matching_indices:
+            index = matching_indices[0]
+            omega1 = omegas[index]
+            J = Js[index]
+
+        else:
+            J, new_state = rodar_omega(
+                fit,
+                atomos,
+                G,
+                nproc,
+                omega1,
+                script,
+                state,
+                rem,
+                numjobs,
+            )
+
+            omegas.append(float(omega1))
+            Js.append(float(J))
+
+        # Keep the tuning data ordered by omega.
+        ordered_data = sorted(
+            zip(omegas, Js),
+            key=lambda pair: pair[0],
+        )
+
+        omegas = [
+            pair[0]
+            for pair in ordered_data
+        ]
+        Js = [
+            pair[1]
+            for pair in ordered_data
+        ]
+
+        best_index = int(np.argmin(Js))
+        best_J = Js[best_index]
+        best_omega = omegas[best_index]
+
+        write_tolog(
+            omegas,
+            Js,
+            "# Best value so far:",
+        )
+
+        # Stop when the best result lies inside the joint 68%
+        # confidence region.
+        if best_J <= confidence_limit:
             break
-        
+
+        next_omega = fetch_next_omega(
+            omegas,
+            Js,
+            initial_step=passo,
+            omega_min=0,
+            omega_max=500,
+        )
+
+        # No untested integer omega remains in the current search region.
+        if next_omega is None:
+            break
+
         omega1 = next_omega
-        
-    
-        write_tolog(omegas, Js, f"#Best value so far:")
         iteration += 1
-        
+
+    if not Js:
+        nemo.parser.fatal_error(
+            "No successful omega calculations were obtained."
+        )
 
     write_tolog(
-    omegas,
-    Js,
-    "#Done! Optimized value:",
+        omegas,
+        Js,
+        "# Done! Optimized value:",
     )
 
     best_index = int(np.argmin(Js))
     best_omega = omegas[best_index]
-    best_log = f"Logs/td-{best_omega:03.0f}-sp-.log"
 
-    # Always determine the state from the actual best-omega calculation.
-    J, new_state, sign = nemo.tools.susceptibility_check(
-        best_log,
-        E_vac_fit=e_vac,
-        chi_fit=chi,
-        tuning=True,
+    best_log = (
+        f"Logs/td-{best_omega:03.0f}-sp-.log"
     )
 
-    if new_state > 1:
-        G, atomos = nemo.parser.pega_geom(best_log)
+    if not os.path.isfile(best_log):
+        nemo.parser.fatal_error(
+            f"Best-omega log file not found: {best_log}"
+        )
 
-        basic_rem = nemo.tools.extract_basic_rem(rem)
+    # Reevaluate the selected state directly from the best-omega log.
+    J, new_state = nemo.tools.susceptibility_check(
+        best_log,
+        fit=fit,
+        tuning=1,
+    )
+
+    # If a higher excited state is selected, optimize that state once
+    # using state tracking at the final omega.
+    if new_state > 1:
+        G_final, atoms_final = nemo.parser.pega_geom(
+            best_log
+        )
+
+        basic_rem = nemo.tools.extract_basic_rem(
+            rem
+        )
 
         opt_file = gera_file(
             "state_tracking_opt",
             basic_rem,
-            atomos,
-            G,
+            atoms_final,
+            G_final,
             f"freqs{new_state}.com",
             omega=f"{best_omega:03.0f}",
             cm="0 1",
@@ -406,17 +550,30 @@ def main():
             ".",
             key=opt_file,
         )
-        the_watcher.run(script, nproc, 1)
+        the_watcher.run(
+            script,
+            nproc,
+            1,
+        )
         the_watcher.hold_watch()
 
         opt_log = opt_file[:-3] + "log"
-        G, atomos = nemo.parser.pega_geom(opt_log)
+
+        if not os.path.isfile(opt_log):
+            nemo.parser.fatal_error(
+                "State-tracking optimization failed: "
+                f"{opt_log} was not found."
+            )
+
+        G_final, atoms_final = nemo.parser.pega_geom(
+            opt_log
+        )
 
         sp_file = gera_file(
             "empirical",
             basic_rem,
-            atomos,
-            G,
+            atoms_final,
+            G_final,
             f"s{new_state}_sp.com",
             omega=f"{best_omega:03.0f}",
             cm="0 1",
@@ -431,27 +588,43 @@ def main():
             ".",
             key=sp_file,
         )
-        the_watcher.run(script, nproc, 1)
+        the_watcher.run(
+            script,
+            nproc,
+            1,
+        )
         the_watcher.hold_watch()
 
         final_file = sp_file[:-3] + "log"
 
+        if not os.path.isfile(final_file):
+            nemo.parser.fatal_error(
+                "Final single-point calculation failed: "
+                f"{final_file} was not found."
+            )
+
     else:
         final_file = best_log
 
-    with open("omega.lx", "a", encoding="utf-8") as output:
+    # Keep the human-readable final diagnostic separate from the
+    # numerical restart table in omega.lx.
+    with open(
+        "omega_final.lx",
+        "w",
+        encoding="utf-8",
+    ) as output:
         with redirect_stdout(output):
             try:
                 nemo.tools.susceptibility_check(
                     final_file,
-                    E_vac_fit=e_vac,
-                    chi_fit=chi,
+                    fit=fit,
+                    tuning=2,
                 )
             except Exception as error:
                 print(
-                    "Could not perform the final susceptibility check."
+                    "Could not perform the final "
+                    "susceptibility check."
                 )
                 print(f"Reason: {error}")
-
 if __name__ == "__main__":
     sys.exit(main())

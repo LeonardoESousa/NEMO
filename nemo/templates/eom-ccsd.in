@@ -53,5 +53,5 @@ $end
 
 $molecule
 0 1
-$GGG$
+#GGG#
 $end

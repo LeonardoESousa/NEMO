@@ -24,134 +24,91 @@ EPSILON_0 = nemo.parser.EPSILON_0
 ###############################################################
 
 def distance_matrix(geom):
-    matrix = np.zeros((1, np.shape(geom)[0]))
-    for ind in range(np.shape(geom)[0]):
+    n_atoms = np.shape(geom)[0]
+    matrix = np.zeros((n_atoms, n_atoms))
+
+    for ind in range(n_atoms):
         distances = geom - geom[ind, :]
-        distances = np.sqrt(np.sum(np.square(distances), axis=1))
-        matrix = np.vstack((matrix, distances[np.newaxis, :]))
-    matrix = matrix[1:, :]
+        matrix[ind, :] = np.sqrt(
+            np.sum(np.square(distances), axis=1)
+        )
+
     return matrix
 
 
 def adjacency(geom, atoms):
     covalent_radii = {
-        '1': 0.31,
-        'H': 0.31,
-        '2': 0.28,
-        'He': 0.28,
-        '3': 1.28,
-        'Li': 1.28,
-        '4': 0.96,
-        'Be': 0.96,
-        '5': 0.84,
-        'B': 0.84,
-        '6': 0.76,
-        'C': 0.76,
-        '7': 0.71,
-        'N': 0.71,
-        '8': 0.66,
-        'O': 0.66,
-        '9': 0.57,
-        'F': 0.57,
-        '10': 0.58,
-        'Ne': 0.58,
-        '11': 1.66,
-        'Na': 1.66,
-        '12': 1.41,
-        'Mg': 1.41,
-        '13': 1.21,
-        'Al': 1.21,
-        '14': 1.11,
-        'Si': 1.11,
-        '15': 1.07,
-        'P': 1.07,
-        '16': 1.05,
-        'S': 1.05,
-        '17': 1.02,
-        'Cl': 1.02,
-        '18': 1.06,
-        'Ar': 1.06,
-        '19': 2.03,
-        'K': 2.03,
-        '20': 1.76,
-        'Ca': 1.76,
-        '21': 1.7,
-        'Sc': 1.7,
-        '22': 1.6,
-        'Ti': 1.6,
-        '23': 1.53,
-        'V': 1.53,
-        '24': 1.39,
-        'Cr': 1.39,
-        '25': 1.61,
-        'Mn': 1.61,
-        '26': 1.52,
-        'Fe': 1.52,
-        '27': 1.50,
-        'Co': 1.50,
-        '28': 1.24,
-        'Ni': 1.24,
-        '29': 1.32,
-        'Cu': 1.32,
-        '30': 1.22,
-        'Zn': 1.22,
-        '31': 1.22,
-        'Ga': 1.22,
-        '32': 1.2,
-        'Ge': 1.2,
-        '33': 1.19,
-        'As': 1.19,
-        '34': 1.20,
-        'Se': 1.20,
-        '35': 1.20,
-        'Br': 1.20,
-        '36': 1.16,
-        'Kr': 1.16,
-        '37': 2.2,
-        'Rb': 2.2,
-        '38': 1.95,
-        'Sr': 1.95,
-        '39': 1.9,
-        'Y': 1.9,
-        '40': 1.75,
-        'Zr': 1.75,
-        '41': 1.64,
-        'Nb': 1.64,
-        '42': 1.54,
-        'Mo': 1.54,
-        '43': 1.47,
-        'Tc': 1.47,
-        '44': 1.46,
-        'Ru': 1.46,
-        '45': 1.42,
-        'Rh': 1.42,
-        '46': 1.39,
-        'Pd': 1.39,
-        '47': 1.45,
-        'Ag': 1.45,
-        '48': 1.44,
-        'Cd': 1.44,
-        '49': 1.42,
-        'In': 1.42,
-        '50': 1.39,
-        'Sn': 1.39,
-        '51': 1.39,
-        'Sb': 1.39,
-        '52': 1.38,
-        'Te': 1.38,
-        '53': 1.39,
-        'I': 1.39,
-        '54': 1.4,
-        'Xe': 1.4,
+        '1': 0.31,  'H': 0.31,
+        '2': 0.28,  'He': 0.28,
+        '3': 1.28,  'Li': 1.28,
+        '4': 0.96,  'Be': 0.96,
+        '5': 0.84,  'B': 0.84,
+        '6': 0.76,  'C': 0.76,
+        '7': 0.71,  'N': 0.71,
+        '8': 0.66,  'O': 0.66,
+        '9': 0.57,  'F': 0.57,
+        '10': 0.58, 'Ne': 0.58,
+        '11': 1.66, 'Na': 1.66,
+        '12': 1.41, 'Mg': 1.41,
+        '13': 1.21, 'Al': 1.21,
+        '14': 1.11, 'Si': 1.11,
+        '15': 1.07, 'P': 1.07,
+        '16': 1.05, 'S': 1.05,
+        '17': 1.02, 'Cl': 1.02,
+        '18': 1.06, 'Ar': 1.06,
+        '19': 2.03, 'K': 2.03,
+        '20': 1.76, 'Ca': 1.76,
+        '21': 1.70, 'Sc': 1.70,
+        '22': 1.60, 'Ti': 1.60,
+        '23': 1.53, 'V': 1.53,
+        '24': 1.39, 'Cr': 1.39,
+        '25': 1.61, 'Mn': 1.61,
+        '26': 1.52, 'Fe': 1.52,
+        '27': 1.50, 'Co': 1.50,
+        '28': 1.24, 'Ni': 1.24,
+        '29': 1.32, 'Cu': 1.32,
+        '30': 1.22, 'Zn': 1.22,
+        '31': 1.22, 'Ga': 1.22,
+        '32': 1.20, 'Ge': 1.20,
+        '33': 1.19, 'As': 1.19,
+        '34': 1.20, 'Se': 1.20,
+        '35': 1.20, 'Br': 1.20,
+        '36': 1.16, 'Kr': 1.16,
+        '37': 2.20, 'Rb': 2.20,
+        '38': 1.95, 'Sr': 1.95,
+        '39': 1.90, 'Y': 1.90,
+        '40': 1.75, 'Zr': 1.75,
+        '41': 1.64, 'Nb': 1.64,
+        '42': 1.54, 'Mo': 1.54,
+        '43': 1.47, 'Tc': 1.47,
+        '44': 1.46, 'Ru': 1.46,
+        '45': 1.42, 'Rh': 1.42,
+        '46': 1.39, 'Pd': 1.39,
+        '47': 1.45, 'Ag': 1.45,
+        '48': 1.44, 'Cd': 1.44,
+        '49': 1.42, 'In': 1.42,
+        '50': 1.39, 'Sn': 1.39,
+        '51': 1.39, 'Sb': 1.39,
+        '52': 1.38, 'Te': 1.38,
+        '53': 1.39, 'I': 1.39,
+        '54': 1.40, 'Xe': 1.40,
     }
+
     dist_matrix = distance_matrix(geom)
     adj_matrix = np.zeros(np.shape(dist_matrix))
-    # connectivity matrix
+
+    # Connectivity matrix
     for i in range(np.shape(dist_matrix)[0]):
-        for j in range(i, np.shape(dist_matrix)[1]):
-            r_e = (covalent_radii[atoms[i]] + covalent_radii[atoms[j]]) + 0.4
-            if 0.8 < dist_matrix[i, j] < r_e:
+        for j in range(i + 1, np.shape(dist_matrix)[1]):
+            r_e = (
+                covalent_radii[atoms[i]]
+                + covalent_radii[atoms[j]]
+                + 0.4
+            )
+
+            if dist_matrix[i, j] < r_e:
                 adj_matrix[i, j] = adj_matrix[j, i] = 1
+
     return adj_matrix
 
 
@@ -182,7 +139,7 @@ def start_counter():
 
 
 def sample_single_geometry(args):
-    geom, atomos, old, scales, normal_coord, warning = args
+    geom, atomos, old, scales, normal_coord = args
     rejected_geoms = 0
     ok = False
 
@@ -192,24 +149,18 @@ def sample_single_geometry(args):
         qs = np.array(qs)
         start_geom += np.sum(qs.reshape(1, 1, -1) * normal_coord, axis=2)
         new = adjacency(start_geom, atomos)
-        if 0.5 * np.sum(np.abs(old - new)) < 1 or not warning:
+        if 0.5 * np.sum(np.abs(old - new)) < 1:
             ok = True
             return (start_geom, qs.T, rejected_geoms)
         else:
             rejected_geoms += 1
 
-def sample_geometries(freqlog, num_geoms, temp, limit=np.inf, warning=True, show_progress=False):
+def sample_geometries(freqlog, num_geoms, temp, show_progress=False):
     geom, atomos = nemo.parser.pega_geom(freqlog)
     old = adjacency(geom, atomos)
     freqs, masses = nemo.parser.pega_freq(freqlog)
     normal_coord = nemo.parser.pega_modos(geom, freqlog)
 
-    if not warning:
-        freqs[freqs < 0] *= -1
-        mask = freqs < limit * (LIGHT_SPEED * 100 * 2 * np.pi)
-        freqs = freqs[mask]
-        masses = masses[mask]
-        normal_coord = normal_coord[:, :, mask]
     if temp == 0:
         temp_factor = 1.0
     else:
@@ -218,7 +169,7 @@ def sample_geometries(freqlog, num_geoms, temp, limit=np.inf, warning=True, show
     scales = 1e10 * np.sqrt(
         HBAR_J / (2 * masses * freqs * temp_factor))
 
-    args = [(geom, atomos, old, scales, normal_coord, warning) for _ in range(num_geoms)]
+    args = [(geom, atomos, old, scales, normal_coord) for _ in range(num_geoms)]
 
     # Use joblib to parallelize the geometry generation
     results = Parallel(n_jobs=-1, verbose=show_progress)(
@@ -256,7 +207,7 @@ def make_ensemble(freqlog, num_geoms, temperature, header, bottom):
         pass
     counter = nemo.tools.start_counter()
     print("\nGenerating geometries...\n")
-    numbers, atomos, A = sample_geometries(freqlog, num_geoms, temperature,warning=False, show_progress=True)
+    numbers, atomos, A = sample_geometries(freqlog, num_geoms, temperature, show_progress=True)
     F, M = nemo.parser.pega_freq(freqlog)
     # convert numbers to dataframe
     numbers = pd.DataFrame(
@@ -393,6 +344,7 @@ def single_molecule_ensemble(atomos, geom, header, bottom):
 def setup_ensemble():
     freqlog = fetch_file("frequency", [".out", ".log"])
     print(f"\n\nFrequency log file: {freqlog}")
+    nemo.parser.double_check(freqlog)
     template = fetch_file("QChem template", [".in"])
     charge_multiplicity = nemo.parser.get_cm(freqlog)
     rem, _, extra = nemo.parser.busca_input(template)
@@ -603,12 +555,27 @@ def fetch_nr(file):
 
 def susceptibility_check(
     file,
-    E_vac_fit=None,
-    chi_fit=None,
-    tuning=False,
-    r_max=0.50,
+    fit=None,
+    tuning=0,
+    chemical_accuracy=0.043,
+    state_tolerance=5.99,
 ):
     C = 0.3243
+
+    if tuning not in (0, 1, 2):
+        raise ValueError(
+            "tuning must be 0, 1, or 2."
+        )
+
+    if chemical_accuracy < 0.0:
+        raise ValueError(
+            "chemical_accuracy must be non-negative."
+        )
+
+    if state_tolerance < 0.0:
+        raise ValueError(
+            "state_tolerance must be non-negative."
+        )
 
     (
         s_vac,
@@ -642,8 +609,8 @@ def susceptibility_check(
     y_s = y_s / alpha_st
     y_t = y_t / alpha_st
 
-    # Print state properties only in normal diagnostic mode
-    if not tuning:
+    # Print calculated state properties unless running silently.
+    if tuning != 1:
         print(
             f"{'State':<6} "
             f"{'E_vac(eV)':<12} "
@@ -662,10 +629,8 @@ def susceptibility_check(
             zip(s_vac, chi_s, y_s),
             start=1,
         ):
-            state = f"S{i}"
-
             print(
-                f"{state:<6} "
+                f"{f'S{i}':<6} "
                 f"{energy:<12.3f} "
                 f"{chi:<10.3f} "
                 f"{gamma:<10.3f}"
@@ -675,79 +640,118 @@ def susceptibility_check(
             zip(t_vac, chi_t, y_t),
             start=1,
         ):
-            state = f"T{i}"
-
             print(
-                f"{state:<6} "
+                f"{f'T{i}':<6} "
                 f"{energy:<12.3f} "
                 f"{chi:<10.3f} "
                 f"{gamma:<10.3f}"
             )
 
-    if E_vac_fit is None and chi_fit is None:
-        if tuning:
+    if fit is None:
+        if tuning == 1:
             raise ValueError(
-                "E_vac_fit and chi_fit are required when tuning=True."
+                "A fit file is required when tuning=1."
             )
         return
 
-    if E_vac_fit is None or chi_fit is None:
+    # Load experimental fit.
+    try:
+        data = np.load(
+            fit,
+            allow_pickle=True,
+        ).item()
+    except (OSError, ValueError) as error:
         raise ValueError(
-            "Both E_vac_fit and chi_fit must be provided."
+            f"Could not load fit data from {fit}."
+        ) from error
+
+    try:
+        E_vac_fit = float(data["E_vac"])
+        chi_fit = float(data["chi"])
+        cov_matrix = np.asarray(
+            data["covariance_matrix"],
+            dtype=float,
+        )
+    except KeyError as error:
+        raise ValueError(
+            "The fit file must contain E_vac, chi, "
+            "and covariance_matrix."
+        ) from error
+
+    if cov_matrix.shape != (2, 2):
+        raise ValueError(
+            "covariance_matrix must have shape (2, 2), "
+            "ordered as (E_vac, chi)."
         )
 
-    def minimum_r_to_beat(dE, dchi, target):
-        """
-        Find the minimum non-negative r for which tuning along the
-        direction (1, -r) can produce a distance smaller than target.
-        """
-        A = dE**2 - target**2
-        B = 2.0 * dE * dchi
-        Cq = dchi**2 - target**2
-
-        def condition(r):
-            return A * r**2 + B * r + Cq
-
-        # At r = 0, omega changes energy but not susceptibility.
-        if condition(0.0) <= 0.0:
-            return 0.0
-
-        tolerance = 1.0e-12
-
-        if abs(A) < tolerance:
-            if abs(B) < tolerance:
-                return np.inf
-
-            roots = [-Cq / B]
-
-        else:
-            discriminant = B**2 - 4.0 * A * Cq
-
-            if discriminant < 0.0:
-                return np.inf
-
-            sqrt_discriminant = np.sqrt(discriminant)
-
-            roots = [
-                (-B - sqrt_discriminant) / (2.0 * A),
-                (-B + sqrt_discriminant) / (2.0 * A),
-            ]
-
-        roots = sorted(
-            root
-            for root in roots
-            if root >= 0.0 and np.isfinite(root)
+    if not np.allclose(
+        cov_matrix,
+        cov_matrix.T,
+        rtol=1.0e-8,
+        atol=1.0e-12,
+    ):
+        raise ValueError(
+            "covariance_matrix must be symmetric."
         )
 
-        for root in roots:
-            test_r = root + 1.0e-7 * max(1.0, abs(root))
+    try:
+        np.linalg.cholesky(cov_matrix)
+    except np.linalg.LinAlgError as error:
+        raise ValueError(
+            "covariance_matrix must be positive definite."
+        ) from error
 
-            if condition(test_r) < 0.0:
-                return root
+    # Combine experimental uncertainty with the computational
+    # discrepancy associated with chemical accuracy.
+    effective_cov_matrix = (
+        cov_matrix
+        + chemical_accuracy**2 * np.eye(2)
+    )
 
-        return np.inf
+    sigma_E = np.sqrt(cov_matrix[0, 0])
+    sigma_chi = np.sqrt(cov_matrix[1, 1])
 
-    # Build singlet-state diagnostics
+    correlation = (
+        cov_matrix[0, 1]
+        / (sigma_E * sigma_chi)
+    )
+
+    effective_sigma_E = np.sqrt(
+        effective_cov_matrix[0, 0]
+    )
+    effective_sigma_chi = np.sqrt(
+        effective_cov_matrix[1, 1]
+    )
+
+    effective_correlation = (
+        effective_cov_matrix[0, 1]
+        / (
+            effective_sigma_E
+            * effective_sigma_chi
+        )
+    )
+
+    def mahalanobis_distance(dE, dchi):
+        residual = np.array(
+            [dE, dchi],
+            dtype=float,
+        )
+
+        weighted_residual = np.linalg.solve(
+            effective_cov_matrix,
+            residual,
+        )
+
+        distance_squared = (
+            residual
+            @ weighted_residual
+        )
+
+        return np.sqrt(
+            max(float(distance_squared), 0.0)
+        )
+
+    # Build singlet-state diagnostics.
     diagnostics = []
 
     for i, (energy, chi, gamma) in enumerate(
@@ -756,12 +760,23 @@ def susceptibility_check(
     ):
         delta_gamma = gamma - y_g
 
-        E_pred = energy - 0.5 * delta_gamma * C
-        chi_pred = chi + 0.5 * delta_gamma
+        E_pred = (
+            energy
+            - 0.5 * delta_gamma * C
+        )
+
+        chi_pred = (
+            chi
+            + 0.5 * delta_gamma
+        )
 
         dE = E_vac_fit - E_pred
         dchi = chi_fit - chi_pred
-        distance = np.hypot(dE, dchi)
+
+        distance = mahalanobis_distance(
+            dE,
+            dchi,
+        )
 
         diagnostics.append(
             {
@@ -773,70 +788,75 @@ def susceptibility_check(
                 "dE": dE,
                 "dchi": dchi,
                 "distance": distance,
-                "r_min": np.inf,
             }
         )
 
+    # Rank states by Mahalanobis distance.
     diagnostics.sort(
         key=lambda row: row["distance"]
     )
 
-    best = diagnostics[0]
+    numerical_best = diagnostics[0]
+    minimum_distance_squared = (
+        numerical_best["distance"]**2
+    )
 
-    # Calculate the minimum r needed for every other state to
-    # outperform the current best state.
-    for row in diagnostics[1:]:
-        row["r_min"] = minimum_r_to_beat(
-            row["dE"],
-            row["dchi"],
-            best["distance"],
+    # Calculate each state's loss relative to the numerical best.
+    for row in diagnostics:
+        row["delta_j2"] = max(
+            row["distance"]**2
+            - minimum_distance_squared,
+            0.0,
         )
 
-    s1 = next(
+    # States inside the selected ambiguity region are considered
+    # similarly compatible with the experimental fit.
+    similar_states = [
         row
         for row in diagnostics
-        if row["root"] == 1
+        if row["delta_j2"] <= state_tolerance
+    ]
+
+    # In dubio pro lowest state.
+    selected = min(
+        similar_states,
+        key=lambda row: row["root"],
     )
 
-    # Determine which state should define the initial omega direction.
-    #
-    # Use S1 if it is already the best state or if it could plausibly
-    # become the best state through omega tuning. Otherwise, use the
-    # current best-matching state.
-    if (
-        best["root"] == 1
-        or s1["r_min"] <= r_max
-    ):
-        direction_state = s1
-    else:
-        direction_state = best
+    # Silent mode used by the omega-tuning driver.
+    if tuning == 1:
+        return (
+            selected["distance"],
+            selected["root"],
+        )
 
-    # Representative response ratio used only to determine whether
-    # omega should increase or decrease.
-    r_direction = 0.5 * r_max
-
-    omega_shift = (
-        direction_state["dE"]
-        - r_direction * direction_state["dchi"]
+    print()
+    print("Experimental Fit")
+    print("----------------")
+    print(
+        f"E_vac: {E_vac_fit:.3f} ± "
+        f"{sigma_E:.3f} eV"
+    )
+    print(
+        f"χ:     {chi_fit:.3f} ± "
+        f"{sigma_chi:.3f} eV"
+    )
+    print(
+        f"Experimental correlation: "
+        f"{correlation:.3f}"
+    )
+    print(
+        f"Computational uncertainty: "
+        f"{chemical_accuracy:.3f} eV"
+    )
+    print(
+        f"Effective correlation: "
+        f"{effective_correlation:.3f}"
     )
 
-    sign = 1 if omega_shift >= 0.0 else -1
-
-    # In tuning mode, print nothing.
-    if tuning:
-        return best["distance"], best["root"], sign
-
-    direction = "increase" if sign > 0 else "decrease"
-
-    # Print the experimental comparison
     print()
     print("Experimental Comparison")
     print("-----------------------")
-    print(f"Experimental E_vac(eV): {E_vac_fit:.3f}")
-    print(f"Experimental χ(eV):     {chi_fit:.3f}")
-    print(f"α_opt:                  {C:.4f}")
-
-    print()
     print(
         f"{'State':<6} "
         f"{'E_pred':<10} "
@@ -844,18 +864,11 @@ def susceptibility_check(
         f"{'Δγ':<10} "
         f"{'dE':<10} "
         f"{'dχ':<10} "
-        f"{'Distance':<10} "
-        f"{'r_min':<10}"
+        f"{'M-dist':<10} "
+        f"{'ΔJ²':<10}"
     )
 
     for row in diagnostics:
-        if row is best:
-            r_text = "Best"
-        elif np.isinf(row["r_min"]):
-            r_text = "None"
-        else:
-            r_text = f"{row['r_min']:.3f}"
-
         print(
             f"{row['state']:<6} "
             f"{row['E_pred']:<10.3f} "
@@ -864,103 +877,63 @@ def susceptibility_check(
             f"{row['dE']:<10.3f} "
             f"{row['dchi']:<10.3f} "
             f"{row['distance']:<10.3f} "
-            f"{r_text:<10}"
+            f"{row['delta_j2']:<10.3f}"
         )
 
     print()
-    print("Tuning Diagnostic")
-    print("-----------------")
+    print("Distance Evaluation")
+    print("-------------------")
     print(
-        f"Current best match: {best['state']} "
-        f"(distance = {best['distance']:.3f} eV)"
+        f"Numerical best match: "
+        f"{numerical_best['state']} "
+        f"(Mahalanobis distance = "
+        f"{numerical_best['distance']:.3f})"
     )
-    chemical_accuracy = 0.043 #eV
-    distance_tolerance = np.sqrt(2.0) * chemical_accuracy
 
-    # The current result is already sufficiently accurate
-    if best["distance"] <= distance_tolerance:
-        rms_error = best["distance"] / np.sqrt(2.0)
+    similar_names = ", ".join(
+        row["state"]
+        for row in sorted(
+            similar_states,
+            key=lambda row: row["root"],
+        )
+    )
 
-        print(
-            f"The RMS discrepancy is {rms_error:.3f} eV, "
-            f"which is within chemical accuracy "
-            f"({chemical_accuracy:.3f} eV)."
-        )
-        print("No further ω tuning is recommended.")
+    print(
+        f"States within ΔJ² ≤ "
+        f"{state_tolerance:.2f}: "
+        f"{similar_names}"
+    )
 
-        if best["root"] == 1:
-            print("Recommended action: retain S1 at the current ω.")
-        else:
-            print(
-                f"Recommended action: optimize {best['state']} "
-                "with state tracking at the current ω."
-            )
-
-    # S1 is already the current best state
-    elif best["root"] == 1:
-        print("S1 is already the best-matching state.")
+    if selected is numerical_best:
         print(
-            f"Recommended action: {direction} ω and repeat "
-            "the calculation."
+            f"Selected state: {selected['state']}"
         )
-
-    # S1 could plausibly become better than the current top candidate
-    elif (
-        np.isfinite(s1["r_min"])
-        and s1["r_min"] <= r_max
-    ):
-        print(
-            f"Although {best['state']} is currently the best match, "
-            "S1 may achieve a better match through ω tuning."
-        )
-        print(
-            f"S1 requires a minimum response ratio of approximately "
-            f"r = {s1['r_min']:.3f} to outperform {best['state']}."
-        )
-        print(
-            f"This is within the assumed plausible range "
-            f"(r ≤ {r_max:.2f})."
-        )
-        print(
-            f"Recommended action: {direction} ω and repeat "
-            "the calculation."
-        )
-        print(
-            "Track the state ordering during tuning because another "
-            "state may cross and become S1."
-        )
-
-    # S1 is unlikely to become better through plausible omega tuning
     else:
-        if np.isfinite(s1["r_min"]):
-            print(
-                f"S1 would require a response ratio of approximately "
-                f"r = {s1['r_min']:.3f} to outperform "
-                f"{best['state']}."
-            )
-            print(
-                f"This is outside the assumed plausible range "
-                f"(r ≤ {r_max:.2f})."
-            )
-        else:
-            print(
-                f"S1 cannot outperform {best['state']} within the "
-                "linear ω-response model."
-            )
-
         print(
-            f"{best['state']} is therefore the more plausible "
-            "target state."
-        )
-        print(
-            f"Recommended action: {direction} ω using "
-            f"{best['state']} as the tuning target."
-        )
-        print(
-            f"If {best['state']} remains the best match at the final ω, "
-            "optimize it with state tracking."
+            f"Selected state: {selected['state']} "
+            "because it is the lowest state within the "
+            "ambiguity region."
         )
 
+    # Joint 68% region for two fitted quantities.
+    confidence_limit = np.sqrt(2.30)
+
+    if selected["distance"] <= confidence_limit:
+        print(
+            "The selected state lies within the joint 68% "
+            "combined uncertainty region."
+        )
+    else:
+        print(
+            "The selected state lies outside the joint 68% "
+            "combined uncertainty region."
+        )
+
+    if tuning == 2:
+        print(
+            "This is the final distance evaluation after "
+            "the ω-tuning procedure."
+        )
 
 ##FETCHES REFRACTIVE INDEX#####################################
 def get_nr():
@@ -1207,6 +1180,7 @@ def tuning():
 ##RUNS EMPIRICAL W TUNING################################################
 def empirical_omega():
     geomlog = fetch_file("input or log", [".in"])
+    fit_data = fetch_file("File with spec2epsilon fit data", [".npy"])
     omega1 = "0.15"
     passo = "0.02"
     print(f"Initial Omega: {omega1} bohr^-1")
@@ -1223,9 +1197,7 @@ def empirical_omega():
         )
     script = fetch_file("batch script", ["batch.sh"])
     nproc = input("Number of threads for each calculation\n")
-    e_vac = input("Experimental E_vac(eV)?\n")
-    chi = input("Experimental χ(eV)?\n")
-
+    
     with open("limit.lx", "w",encoding="utf-8") as f:
         f.write("10")
     subprocess.Popen(
@@ -1237,8 +1209,7 @@ def empirical_omega():
             omega1,
             passo,
             script,
-            e_vac,
-            chi,            
+            fit_data,
             "&",
         ]
     )
