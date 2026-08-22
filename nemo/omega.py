@@ -137,7 +137,7 @@ def rodar_omega(atomos, geom, nproc, omega, batch_file, relax, rem, numjobs):
         the_watcher = nemo.tools.Watcher('.',key="OPT-")
         the_watcher.run(batch_file, nproc, 1)
         the_watcher.hold_watch()
-        geom, atomos = nemo.parser.pega_geom(file[:-3] + "log")
+        geom, atomos = nemo.parser.pega_geom_qchem(file[:-3] + "log")
         file2 = gera_file(
             'omega_sp',
             rem,
@@ -342,9 +342,9 @@ def main():
                 d_omega = [abs(omega1 - om) for om in omegas]
                 geom_log = omegas[d_omega.index(min(d_omega))]
                 geom_log = f"Logs/OPT-{geom_log:03.0f}-.log"
-                G, atomos = nemo.parser.pega_geom(geom_log)
+                G, atomos = nemo.parser.pega_geom_qchem(geom_log)
             except (ValueError, FileNotFoundError):
-                G, atomos = nemo.parser.pega_geom(geomlog)   
+                G, atomos = nemo.parser.pega_geom_qchem(geomlog)
             J = rodar_omega(
                 atomos, G, nproc, omega1, script, relax, rem, numjobs
                 )
@@ -387,7 +387,7 @@ def main():
     write_tolog(omegas, Js, "#Done! Optimized value:")
     menor = omegas[Js.index(min(Js, key=abs))] 
     log = f"Logs/OPT-{menor:.0f}-.log"
-    G, atomos = nemo.parser.pega_geom(log)
+    G, atomos = nemo.parser.pega_geom_qchem(log)
     rem, _, _ = nemo.parser.busca_input(log)
     gera_file("td-dft", rem, atomos, G, "s0_sp.com", cm="0 1", stat=3.0, optic=1.96, num_ex=5, soc="false")
     
