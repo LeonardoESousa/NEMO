@@ -21,56 +21,80 @@ EPSILON_0 = nemo.parser.EPSILON_0
 
 ##Defines the standard deviation used for IC and ISC rates ##############################
 def sigma_function(e_col, freq=None):
+    import numpy as np
+
     kbt = 0.026
-    if not(freq): # --- emission or absorption
-        return kbt
-    hw = HBAR_EV*freq
-    coth=1.0/np.tanh(hw/(2.0*kbt))
 
-    if len(e_col.shape)==1:
-        e_col=e_col[:,np.newaxis]
-    
-    thresh=0.0#25
-    sigma=[]
-    for i in range(e_col.shape[1]): # number of states
-        energy=e_col[:,i]
-        mean = np.average(energy)
-        var = np.var(energy)
-        skew = np.average((energy - mean)**3)
+    if freq is None:
+        return kbt/2.0
 
-        coeffs = [4.0, 0, -6.0*var, skew]# 4u³ + 0u² - 6varu + skew=0
+    hw = HBAR_EV * freq
+    coth = 1.0 / np.tanh(hw / (2.0 * kbt))
+    hwc = hw * coth
+
+    e_col = np.asarray(e_col, dtype=float)
+
+    if e_col.ndim == 1:
+        e_col = e_col[:, np.newaxis]
+
+    sigma = []
+
+    for i in range(e_col.shape[1]):
+        energy = e_col[:, i]
+        energy = energy[np.isfinite(energy)]
+
+        # Fallback for single geometry or unusable data
+        if len(energy) < 2:
+            sigma.append(kbt/2.0)
+            continue
+
+        mean = np.mean(energy)
+        M2 = np.mean((energy - mean)**2)
+        M3 = np.mean((energy - mean)**3)
+
+        # Fallback if M2 cannot define a width
+        if not np.isfinite(M2) or M2 <= 0.0:
+            sigma.append(kbt/2.0)
+            continue
+
+        candidates = []
+
+        # Cubic: 4u^3 - 6M2 u + M3 = 0
+        coeffs = [4.0, 0.0, -6.0 * M2, M3]
         roots = np.roots(coeffs)
-        
-        # --- find physical root with lowest reorganization energy
-        lamb_f=-10.0
-        a_sf = 1.0
-        n_solutions=0
         for root in roots:
-            a_s = 1.0 + 4.0*root/(hw*coth)
-            if a_s<0.0: 
+            if abs(root.imag) > 1e-10:
                 continue
-            lamb = (var - 2.0*root**2)/(a_s*hw*coth)
-            if lamb <= 0.0: 
+
+            u = root.real
+
+            a_raw = 1.0 + 4.0 * u / hwc
+
+            # Keep only physically meaningful raw curvature ratios
+            if a_raw <= 0.0:
                 continue
-            if abs(lamb)<=abs(lamb_f):
-                n_solutions+=1
-                a_sf = a_s
-                lamb_f=lamb
-        if n_solutions>1:
-            print(f"Warning: more than one solution found for transition {i}.")
-            print(f"The smallest positive one is selected. a_sf={a_sf}, lamb_f={lamb_f}, n_solutions={n_solutions}")
 
-        if abs(a_sf)<thresh:               # --- change a_sf in formula for thresh
-            lamb_f=lamb_f*abs(a_sf)/thresh # --- abs(a_sf) is used no to change the sign of lamb_f
+            # Regularize curvature ratio
+            a_reg = a_raw#a_reg = min(max(a_raw, 0.5), 1.5)
 
-        if lamb_f<=0:
-            sigma.append(kbt)
-            print("roots not found, sigma=", sigma)
-        if lamb_f>0:
-            sigma.append(lamb_f)
+            lamb = (M2 - 2.0 * u**2) / (a_reg * hwc)
 
-    sigma=np.array(sigma)
-    return sigma
+            if np.isfinite(lamb) and lamb > 0.0:
+                candidates.append(lamb)
+
+        # If no valid regularized cubic solution survives,
+        # fall back to equal-curvature Marcus model: u=0, a=1
+        if len(candidates) == 0:
+            lamb = M2 / hwc
+        else:
+            lamb = min(candidates)
+
+        # Final lower-bound regularization
+        lamb = max(lamb, kbt/2.0)
+
+        sigma.append(lamb)
+
+    return np.array(sigma)
 #########################################################################################
 
 ##RETURNS LIST OF LOG FILES WITH NORMAL TERMINATION######################################
@@ -119,8 +143,16 @@ def get_osc_phosph(files, singlets, triplets, n_state, ind_s, ind_t, phosph_osc)
 
 
 ##GETS ALL RELEVANT INFORMATION FROM LOG FILES###########################################
-def analysis(files, n_state, get_energies):
+def analysis(files, n_state, get_energies, mag_file, freq_log):
     numbers = []
+    geom, _ = nemo.parser.pega_geom(freq_log)
+    normal_modes = nemo.parser.pega_modos(geom, freq_log)
+    freqs, masses = nemo.parser.pega_freq(freq_log)
+
+    modes_data = []
+    modes_data.append(normal_modes)
+    modes_data.append(freqs)
+    modes_data.append(masses)
     for file in files:
         (
             singlets,
@@ -130,21 +162,26 @@ def analysis(files, n_state, get_energies):
             ind_t,
             ss_s,
             ss_t,
+            r_s,
             theta_s,
             phi_s,
+            r_t,
             theta_t,
             phi_t,
             ground_pol,
             y_s,
             y_t,
-        ) = get_energies("Geometries/" + file)
+            b_ic
+        ) = get_energies("Geometries/" + file, modes_data)
         singlets = np.array([singlets[:n_state]])
         triplets = np.array([triplets[:n_state]])
         oscs = np.array([oscs[:n_state]])
         ss_s = np.array([ss_s[:n_state]])
         ss_t = np.array([ss_t[:n_state]])
+        r_s = np.array([r_s[:n_state]])
         theta_s = np.array([theta_s[:n_state]])
         phi_s = np.array([phi_s[:n_state]])
+        r_t = np.array([r_t[:n_state]])
         theta_t = np.array([theta_t[:n_state]])
         phi_t = np.array([phi_t[:n_state]])
         ind_s = np.array([ind_s[:n_state]])
@@ -152,14 +189,17 @@ def analysis(files, n_state, get_energies):
         y_s = np.array([y_s[:n_state]])
         y_t = np.array([y_t[:n_state]])
         ground_pol = np.array([ground_pol])
+        b_ic['geometry']=int(file.split("-")[1])
         try:
             total_singlets = np.vstack((total_singlets, singlets))
             total_triplets = np.vstack((total_triplets, triplets))
             total_oscs = np.vstack((total_oscs, oscs))
             total_ss_s = np.vstack((total_ss_s, ss_s))
             total_ss_t = np.vstack((total_ss_t, ss_t))
+            total_r_s = np.vstack((total_r_s, r_s))
             total_theta_s = np.vstack((total_theta_s, theta_s))
             total_phi_s = np.vstack((total_phi_s, phi_s))
+            total_r_t = np.vstack((total_r_t, r_t))
             total_theta_t = np.vstack((total_theta_t, theta_t))
             total_phi_t = np.vstack((total_phi_t, phi_t))
             total_ind_s = np.vstack((total_ind_s, ind_s))
@@ -167,14 +207,17 @@ def analysis(files, n_state, get_energies):
             total_y_s = np.vstack((total_y_s, y_s))
             total_y_t = np.vstack((total_y_t, y_t))
             total_ground_pol = np.append(total_ground_pol, ground_pol)
+            total_b_ic = pd.concat([total_b_ic, b_ic])
         except NameError:
             total_singlets = singlets
             total_triplets = triplets
             total_oscs = oscs
             total_ss_s = ss_s
             total_ss_t = ss_t
+            total_r_s = r_s
             total_theta_s = theta_s
             total_phi_s = phi_s
+            total_r_t = r_t
             total_theta_t = theta_t
             total_phi_t = phi_t
             total_ind_s = ind_s
@@ -182,6 +225,7 @@ def analysis(files, n_state, get_energies):
             total_y_s = y_s
             total_y_t = y_t
             total_ground_pol = ground_pol
+            total_b_ic = b_ic
         numbers.append(int(file.split("-")[1]))
     numbers = np.array(numbers)[:, np.newaxis]
     return (
@@ -191,8 +235,10 @@ def analysis(files, n_state, get_energies):
         total_oscs,
         total_ss_s,
         total_ss_t,
+        total_r_s,
         total_theta_s,
         total_phi_s,
+        total_r_t,
         total_theta_t,
         total_phi_t,
         total_ground_pol,
@@ -200,6 +246,7 @@ def analysis(files, n_state, get_energies):
         total_ind_t,
         total_y_s,
         total_y_t,
+        total_b_ic
     )
 
 
@@ -288,6 +335,8 @@ def gather_data(initial, save=True):
     alphast1 = nemo.tools.get_alpha(eps_i)
     kbt = nemo.tools.detect_sigma()
     total_states, calculation_type = read_cis(files[0])
+    mag_file = nemo.tools.fetch_file("Magnitudes", ['Magnitudes'])
+    freq_log = nemo.tools.fetch_file("frequency", [".out", ".log"])
     (
     numbers,
     singlets,
@@ -295,8 +344,10 @@ def gather_data(initial, save=True):
     oscs,
     ss_s,
     ss_t,
+    r_s,
     theta_s,
     phi_s,
+    r_t,
     theta_t,
     phi_t,
     ground_pol,
@@ -304,7 +355,8 @@ def gather_data(initial, save=True):
     ind_t,
     y_s,
     y_t,
-        ) = analysis(files, total_states, get_energies[calculation_type])
+    data_dc,
+        ) = analysis(files, total_states, get_energies[calculation_type], mag_file, freq_log)
     ss_s = ss_s/alphaopt1
     ss_t = ss_t/alphaopt1
     gamma_s0 = ground_pol/alphast1
@@ -326,12 +378,18 @@ def gather_data(initial, save=True):
     for i in range(ss_t.shape[1]):
         data[f"chi_t{i+1}"] = ss_t[:, i]
         formats[f"chi_t{i+1}"] = "{:.4f}"
+    for i in range(r_s.shape[1]):
+        data[f"r_s{i+1}"] = r_s[:, i]
+        formats[f"r_s{i+1}"] = "{:.4f}"
     for i in range(theta_s.shape[1]):
         data[f"theta_s{i+1}"] = theta_s[:, i]
         formats[f"theta_s{i+1}"] = "{:.4f}"
     for i in range(phi_s.shape[1]):
         data[f"phi_s{i+1}"] = phi_s[:, i]
         formats[f"phi_s{i+1}"] = "{:.4f}"
+    for i in range(r_t.shape[1]):
+        data[f"r_t{i+1}"] = r_t[:, i]
+        formats[f"r_t{i+1}"] = "{:.4f}"
     for i in range(theta_t.shape[1]):
         data[f"theta_t{i+1}"] = theta_t[:, i]
         formats[f"theta_t{i+1}"] = "{:.4f}"
@@ -408,10 +466,8 @@ def gather_data(initial, save=True):
             pass
 
     arquivo = f"Ensemble_{initial.upper()}_.lx"
-    #arquivo = f"Ensemble_{initial.upper()}_.h5"
 
     # --- save Magnitudes
-    mag_file = nemo.tools.fetch_file("Magnitudes", ['Magnitudes'])
     data_mag=pd.read_csv(mag_file)
     # --------------------------------------------------
 
@@ -430,21 +486,21 @@ def gather_data(initial, save=True):
     dc_computation, states = nemo.parser.check_derivative_couplings(files[0])
     if dc_computation:
         ###### OBTAINS THE B PARAMETERS ########
-        freq_log = nemo.tools.fetch_file("frequency", [".out", ".log"])
-        (
-            initial_state,
-            final_state,
-            geometry,
-            mode,
-            b
-        ) = nemo.parser.get_derivative_couplings(states, states, files, freq_log)
+        #freq_log = nemo.tools.fetch_file("frequency", [".out", ".log"])
+        #(
+        #    initial_state,
+        #    final_state,
+        #    geometry,
+        #    mode,
+        #    b
+        #) = nemo.parser.get_derivative_couplings(states, states, files, freq_log)
 
-        data_dc = pd.DataFrame()
-        data_dc["initial_state"] = np.array(initial_state).astype(str)
-        data_dc["final_state"] = np.array(final_state).astype(str)
-        data_dc["geometry"] = geometry
-        data_dc["mode"] = mode
-        data_dc["B"] = b
+        #data_dc_teste = pd.DataFrame()
+        #data_dc_teste["initial_state"] = np.array(initial_state).astype(str)
+        #data_dc_teste["final_state"] = np.array(final_state).astype(str)
+        #data_dc_teste["geometry"] = geometry
+        #data_dc_teste["mode"] = mode
+        #data_dc_teste["B"] = b
 
         ###### OBTAINS THE V PARAMETERS ########
         (
@@ -459,7 +515,6 @@ def gather_data(initial, save=True):
         data_V["mode"] = mode_V
         data_V["v1"] = v1
         data_V["v2"] = v2
-
 
     else: 
         data_dc = pd.DataFrame()
@@ -635,7 +690,8 @@ def fetch(data, criteria_list):
 
 
 def total_reorganization_energy(lambda_b, kbt, std):
-    return np.sqrt(2 * lambda_b * kbt + std**2)
+    return np.sqrt(2 * (lambda_b + std) * kbt)
+    #return np.sqrt(2 * lambda_b * kbt + std**2)
 
 
 def rate_and_uncertainty(y_axis):
@@ -894,25 +950,35 @@ def rates(initial, dielec, data_dict={}, ensemble_average=False, detailed=False,
     y_axis = (
         (2 * np.pi / HBAR_EV) * (socs_complete**2) * nemo.tools.gauss(delta_isc, sigma)
     )
-    #tau_D = (refractive_index**2 / eps)*1e-12
-    #g_ad = 0#np.nan_to_num((2 * np.pi * (socs_complete**2) * tau_D)/ (HBAR_EV * lambda_b_isc))
-    #y_axis =  y_axis / (1 + g_ad)
+    #g_ad = np.nan_to_num((2.0 * np.pi * (socs_complete**2) * tau_D)/ (HBAR_EV * lambda_b_isc))
+    tau_D = 1.0/freq_eff#*np.sqrt(kbt/sigma)#(refractive_index**2 / eps)*1e-12
+    g_ad = np.nan_to_num((4.0 * np.pi * (socs_complete**2) * tau_D)/ (HBAR_EV * sigma))#http://dx.doi.org/10.1063/1.454632 Eq(4)
+    #g_ad = np.nan_to_num((2.0 * np.pi * (socs_complete**2) * tau_D)/ (HBAR_EV * sigma))
+    y_axis =  y_axis / (1.0 + g_ad)
     if not data_dc.empty:
         if 's' in initial:
-            sigma_ic = total_reorganization_energy(lambda_b_ic, kbt, sigma_int_ic)
-            term_pos = nemo.tools.gauss(delta_ic-HBAR_EV*freq_row[:,:,np.newaxis],sigma_ic)
-            term_neg = nemo.tools.gauss(delta_ic+HBAR_EV*freq_row[:,:,np.newaxis],sigma_ic) 
-            rate_abs = (2.0*np.pi/HBAR_EV) * b * v1[:,:,np.newaxis] * term_pos / E_CHARGE**2 # s-1
-            rate_emi = (2.0*np.pi/HBAR_EV) * b * v2[:,:,np.newaxis] * term_neg / E_CHARGE**2 # s-1
+            sigma_ic        = total_reorganization_energy(lambda_b_ic, kbt, sigma_int_ic)
+            term_abs        = nemo.tools.gauss(delta_ic-HBAR_EV*freq_row[:,:,np.newaxis],sigma_ic)
+            term_emi        = nemo.tools.gauss(delta_ic+HBAR_EV*freq_row[:,:,np.newaxis],sigma_ic) 
+            ic_coupling_abs = b * v1[:,:,np.newaxis] / E_CHARGE**2 # eV**2
+            ic_coupling_emi = b * v2[:,:,np.newaxis] / E_CHARGE**2 # eV**2
+            rate_abs        = (2.0*np.pi/HBAR_EV) * ic_coupling_abs * term_abs # s-1
+            rate_emi        = (2.0*np.pi/HBAR_EV) * ic_coupling_emi * term_emi # s-1
+
+            ic_coupling = np.sum(ic_coupling_abs+ic_coupling_emi, axis=1)
 
             if save_phonon_spectra:
                 phonon_spectra(initial, rate_abs, rate_emi, freq_row)
             y_axis_ic = np.sum(rate_abs+rate_emi, axis=1) # sum over normal modes
 
+            tau_D = 1.0/freq_eff#*np.sqrt(kbt/sigma_ic[:,0,:])
+            g_ad = np.nan_to_num((4.0 * np.pi * (ic_coupling) * tau_D) / (HBAR_EV * sigma_ic[:,0,:]))
+            y_axis_ic = y_axis_ic / (1.0 + g_ad)
+
             # hstack y and espectro
             y_axis = np.hstack((y_axis, y_axis_ic))
             sigma = np.hstack((sigma, sigma_ic[:,0,:]))
-            couplings = np.hstack((socs_complete, delta_ic[:,0,:])) #C change to actual coupling
+            couplings = np.hstack((socs_complete, ic_coupling))
             gap = np.hstack((delta_isc,delta_ic[:,0,:]))
         else:
             mean_soc = 1000 * means(socs_complete, y_axis, ensemble_average)[:, np.newaxis]

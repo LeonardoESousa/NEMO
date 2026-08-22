@@ -1,5 +1,8 @@
 import numpy as np
 import nemo.parser
+import nemo.tools
+import pandas as pd
+import re
 
 ##SOME CONSTANTS##############################################
 HBAR_J      = nemo.parser.HBAR_J # J s
@@ -9,8 +12,12 @@ E_CHARGE    = nemo.parser.E_CHARGE # C
 
 
 def extract_chi(filename):
-    dipole_singlets = []
-    dipole_triplets = []
+    #dipole_singlets = []
+    #dipole_triplets = []
+    vec_s =[]
+    vec_t =[]
+    vec_pattern = r"\s+Dipole\s+moment\s+\(a.u.\):\s+[\d.]+\s+\(X\s+([-\d.]+),\s+Y\s+([-\d.]+),\s+Z\s+([-\d.]+)\)"
+    polar_s=polar_t=[]
     ground_dipole = None
     molecular_volume = None
 
@@ -37,12 +44,16 @@ def extract_chi(filename):
                 parts = line.strip().split()
                 if len(parts) >= 4:
                     try:
-                        dipole_au = float(parts[3])
-                        dipole_debye = dipole_au * AU_TO_DEBYE
+                        #dipole_au = float(parts[3])
+                        #dipole_debye = dipole_au * AU_TO_DEBYE
+                        groups = re.match(vec_pattern, line).groups()
+                        vec_debye = [float(x) * AU_TO_DEBYE for x in groups]
                         if current_section == "singlet":
-                            dipole_singlets.append(dipole_debye)
+                            #dipole_singlets.append(dipole_debye)
+                            vec_s.append(np.array(vec_debye))
                         elif current_section == "triplet":
-                            dipole_triplets.append(dipole_debye)
+                            #dipole_triplets.append(dipole_debye)
+                            vec_t.append(np.array(vec_debye))
                     except ValueError:
                         print("Could not convert to float:", parts[3])
 
@@ -50,12 +61,15 @@ def extract_chi(filename):
         for i in range(len(lines)):
             if "Dipole Moment (Debye)" in lines[i]:
                 for j in range(i + 1, min(i + 5, len(lines))):
-                    if "Tot" in lines[j]:
-                        try:
-                            ground_dipole = float(lines[j].strip().split()[-1])
-                        except (ValueError, IndexError):
-                            print("Error parsing ground dipole")
-                        break
+                    if " X " in lines[j]:
+                        parts=lines[j].strip().split()
+                        ground_dipole = np.array([float(parts[1]), float(parts[3]), float(parts[5])])
+                    #if "Tot" in lines[j]:
+                    #    try:
+                    #        ground_dipole = float(lines[j].strip().split()[-1])
+                    #    except (ValueError, IndexError):
+                    #        print("Error parsing ground dipole")
+                    #    break
                 break
 
         # Extract molecular volume
@@ -74,24 +88,33 @@ def extract_chi(filename):
             return [], []
 
         # Compute χ values in eV
-        chi_singlets = [0.5 * ((mu - ground_dipole) ** 2) / molecular_volume * DEBYE2_PER_ANG3_TO_EV
-                        for mu in dipole_singlets]
-        chi_triplets = [0.5 * ((mu - ground_dipole) ** 2) / molecular_volume * DEBYE2_PER_ANG3_TO_EV
-                        for mu in dipole_triplets]
+        chi_singlets = [0.5 * np.sum((mu - ground_dipole) ** 2) / molecular_volume * DEBYE2_PER_ANG3_TO_EV
+                        for mu in vec_s]
+        chi_triplets = [0.5 * np.sum((mu - ground_dipole) ** 2) / molecular_volume * DEBYE2_PER_ANG3_TO_EV
+                        for mu in vec_t]
+        for vec in vec_s:
+            r, theta, phi = nemo.tools.cartesian_to_spherical(vec-ground_dipole)
+            polar_s.append([r/AU_TO_DEBYE, theta, phi])
+        for vec in vec_t:
+            r, theta, phi = nemo.tools.cartesian_to_spherical(vec-ground_dipole)
+            polar_t.append([r/AU_TO_DEBYE, theta, phi])
 
-        return chi_singlets, chi_triplets
+        return chi_singlets, chi_triplets, polar_s, polar_t
 
     except FileNotFoundError:
         print(f"File not found: {filename}")
-        return [], []
+        return [], [], [], []
     except Exception as e:
         print(f"An error occurred: {e}")
-        return [], []
+        return [], [], [], []
 
 
 
 ##GETS ENERGIES, OSCS, AND INDICES FOR Sn AND Tn STATES##################################
-def pega_energias(file):
+def pega_energias(file, modes_data):
+    _, nr_i = nemo.tools.get_nr()
+    alphaopt1 = nemo.tools.get_alpha(nr_i**2)
+
     with open(file, "r", encoding="utf-8") as log_file:
         fetch_osc = False
         energies, spins, oscs, ind, double = [], [], [], [], []
@@ -124,9 +147,11 @@ def pega_energias(file):
             [energies[i] for i in range(len(energies)) if spins[i] == "Singlet"]
         )
         #double_s = np.array([double[i] for i in range(len(double)) if spins[i] == "Singlet"])
-        ss_s, ss_t = extract_chi(file)
+        ss_s, ss_t, polar_s, polar_t = extract_chi(file)
         ss_s = np.array(ss_s)
         ss_t = np.array(ss_t)
+        polar_s=np.array(polar_s)
+        polar_t=np.array(polar_t)
         ind_s = np.array([ind[i] for i in range(len(ind)) if spins[i] == "Singlet"])
         oscs = np.array(
             [oscs[i] for i in range(len(energies)) if spins[i] == "Singlet"]
@@ -150,21 +175,47 @@ def pega_energias(file):
         ind_t = ind_t[order_t]
         ss_s = ss_s[order_s]
         ss_t = ss_t[order_t]
+        polar_s = polar_s[order_s]
+        polar_t = polar_t[order_t]
+        r_s=polar_s[:,0]
+        theta_s=polar_s[:,1]
+        phi_s=polar_s[:,2]
+        r_t=polar_t[:,0]
+        theta_t=polar_t[:,1]
+        phi_t=polar_t[:,2]
+
         #double_s = double_s[order_s]
         #double_t = double_t[order_t]
         y_s = np.zeros(len(singlets))
         y_t = np.zeros(len(triplets))
+
+        # Temporary
+        b_ic = pd.DataFrame({
+            'initial_state': [],
+            'final_state': [],
+            'geometry': [],
+            'mode': [],
+            'B': []
+        })
+
         return (
             singlets,
             triplets,
             oscs,
             ind_s,
             ind_t,
-            ss_s,
-            ss_t,
+            ss_s*alphaopt1,
+            ss_t*alphaopt1,
+            r_s,
+            theta_s,
+            phi_s,
+            r_t,
+            theta_t,
+            phi_t,
             (sol_int - total_free) * 27.2114,
             y_s,
             y_t,
+            b_ic,
         )
     
 #########################################################################################
