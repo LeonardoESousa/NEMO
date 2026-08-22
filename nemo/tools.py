@@ -8,7 +8,6 @@ from importlib.metadata import version
 from subprocess import Popen
 import numpy as np
 import pandas as pd
-from scipy.stats import norm
 from joblib import Parallel, delayed
 import nemo.parser
 
@@ -137,24 +136,222 @@ def start_counter():
 ###############################################################
 
 
-def sample_single_geometry(args):
-    geom, atomos, old, scales, normal_coord = args
-    rejected_geoms = 0
-    ok = False
-    
-    while not ok:
-        start_geom = geom.copy()
-        qs = [norm(scale=scale, loc=0).rvs(size=1) for scale in scales]
-        qs = np.array(qs)
-        start_geom += np.sum(qs.reshape(1, 1, -1) * normal_coord, axis=2)
-        new = adjacency(start_geom, atomos)
-        if 0.5 * np.sum(np.abs(old - new)) < 1:
-            ok = True
-            return (start_geom, qs.T, rejected_geoms)
-        else:
-            rejected_geoms += 1
+def _is_hydrogen(atom):
+    return str(atom).strip().upper() in ("1", "H")
 
-def sample_geometries(freqlog, num_geoms, temp, show_progress=False):
+
+def _fragment_after_cut(adj, atom_a, atom_b):
+    """Return the smaller fragment made by cutting atom_a--atom_b.
+
+    Ring bonds return None because cutting them does not split the graph.
+    """
+    stack = [atom_b]
+    seen = {atom_b}
+
+    while stack:
+        atom = stack.pop()
+        for neighbor in np.flatnonzero(adj[atom]):
+            if ((atom == atom_a and neighbor == atom_b) or
+                    (atom == atom_b and neighbor == atom_a)):
+                continue
+            if neighbor not in seen:
+                seen.add(int(neighbor))
+                stack.append(int(neighbor))
+
+    if atom_a in seen:
+        return None
+
+    other = set(range(len(adj))) - seen
+    fragment = seen if len(seen) <= len(other) else other
+    return np.asarray(sorted(fragment), dtype=int)
+
+
+def _rotation_field(geom, atom_a, atom_b, atoms):
+    """Cartesian derivative, in Angstrom/radian, for an axial rotation."""
+    field = np.zeros_like(geom, dtype=float)
+    axis = geom[atom_b] - geom[atom_a]
+    axis_length = np.linalg.norm(axis)
+    if axis_length == 0:
+        return field
+
+    axis /= axis_length
+    field[atoms] = np.cross(axis, geom[atoms] - geom[atom_a])
+    return field
+
+
+def _find_rotatable_bonds(geom, atomos, adj):
+    """Return acyclic, non-terminal heavy-atom bonds and their two sides."""
+    degrees = np.sum(adj, axis=1)
+    bonds = []
+
+    for atom_a in range(len(geom)):
+        for atom_b in range(atom_a + 1, len(geom)):
+            if not adj[atom_a, atom_b]:
+                continue
+            if _is_hydrogen(atomos[atom_a]) or _is_hydrogen(atomos[atom_b]):
+                continue
+            if degrees[atom_a] <= 1 or degrees[atom_b] <= 1:
+                continue
+
+            fragment = _fragment_after_cut(adj, atom_a, atom_b)
+            if fragment is not None:
+                other = np.setdiff1d(np.arange(len(geom)), fragment)
+                bonds.append((atom_a, atom_b, fragment, other))
+
+    return bonds
+
+
+def _canonical_torsion(geom, atom_a, atom_b, fragment, other):
+    """Return the minimum-norm field for one radian of relative rotation."""
+    fragment_field = _rotation_field(
+        geom, atom_a, atom_b, fragment
+    )
+    other_field = _rotation_field(geom, atom_a, atom_b, other)
+    fragment_norm = np.sum(fragment_field * fragment_field)
+    other_norm = np.sum(other_field * other_field)
+    total = fragment_norm + other_norm
+    if total == 0:
+        return None
+
+    # These counterrotations differ by exactly one radian. Their weights give
+    # the smallest Cartesian displacement among all such counterrotations.
+    fragment_weight = other_norm / total
+    other_weight = fragment_norm / total
+    field = (
+        fragment_weight * fragment_field
+        - other_weight * other_field
+    )
+    rotor = (
+        atom_a, atom_b, fragment, other,
+        fragment_weight, other_weight
+    )
+    return field, rotor
+
+
+def _build_torsional_subspace(geom, atomos, adj, freqs, normal_coord,
+                              cutoff_cm=100.0, svd_cutoff=1e-8):
+    """Project all low-frequency modes onto all acyclic torsion fields."""
+    cutoff = cutoff_cm * LIGHT_SPEED * 100 * 2 * np.pi
+    low_modes = np.flatnonzero(
+        (freqs > 0) & (freqs <= cutoff)
+    )
+    low_modes = low_modes[
+        np.all(np.isfinite(normal_coord[:, :, low_modes]), axis=(0, 1))
+    ]
+
+    fields = []
+    rotors = []
+    for atom_a, atom_b, fragment, other in _find_rotatable_bonds(
+            geom, atomos, adj):
+        result = _canonical_torsion(
+            geom, atom_a, atom_b, fragment, other
+        )
+        if result is not None:
+            field, rotor = result
+            fields.append(field.reshape(-1))
+            rotors.append(rotor)
+
+    if len(low_modes) == 0 or not fields:
+        return {
+            "low_modes": low_modes,
+            "residual_modes": normal_coord[:, :, low_modes].copy(),
+            "angle_from_q": np.zeros((0, len(low_modes))),
+            "rotors": [],
+            "singular_values": np.array([]),
+        }
+
+    torsion_matrix = np.column_stack(fields)
+    mode_matrix = normal_coord[:, :, low_modes].reshape(
+        -1, len(low_modes)
+    )
+    left, singular_values, right_t = np.linalg.svd(
+        torsion_matrix, full_matrices=False
+    )
+    threshold = svd_cutoff * singular_values[0]
+    inverse = np.zeros_like(singular_values)
+    inverse[singular_values > threshold] = (
+        1.0 / singular_values[singular_values > threshold]
+    )
+    pseudoinverse = (right_t.T * inverse).dot(left.T)
+    angle_from_q = pseudoinverse.dot(mode_matrix)
+    residual_matrix = mode_matrix - torsion_matrix.dot(angle_from_q)
+
+    return {
+        "low_modes": low_modes,
+        "residual_modes": residual_matrix.reshape(
+            len(geom), 3, len(low_modes)
+        ),
+        "angle_from_q": angle_from_q,
+        "rotors": rotors,
+        "singular_values": singular_values,
+    }
+
+
+def _rotate_fragment(geom, atom_a, atom_b, fragment, angle):
+    """Rotate one fragment around atom_a--atom_b using Rodrigues' formula."""
+    axis = geom[atom_b] - geom[atom_a]
+    axis_length = np.linalg.norm(axis)
+    if axis_length == 0:
+        return
+    axis /= axis_length
+    relative = geom[fragment] - geom[atom_a]
+
+    cosine = np.cos(angle)
+    sine = np.sin(angle)
+    rotated = (
+        relative * cosine
+        + np.cross(axis, relative) * sine
+        + np.outer(relative.dot(axis), axis) * (1.0 - cosine)
+    )
+    geom[fragment] = geom[atom_a] + rotated
+
+
+def sample_single_geometry(args):
+    (geom, atomos, old, scales, normal_coord, torsion_model,
+     random_seed, max_attempts) = args
+    rng = np.random.RandomState(random_seed)
+    low_modes = torsion_model["low_modes"]
+    high_modes = np.setdiff1d(np.arange(len(scales)), low_modes)
+
+    for rejected_geoms in range(max_attempts):
+        start_geom = geom.copy()
+        qs = rng.normal(loc=0.0, scale=scales)
+        if len(high_modes):
+            start_geom += np.sum(
+                qs[high_modes].reshape(1, 1, -1)
+                * normal_coord[:, :, high_modes], axis=2
+            )
+        if len(low_modes):
+            start_geom += np.sum(
+                qs[low_modes].reshape(1, 1, -1)
+                * torsion_model["residual_modes"], axis=2
+            )
+
+        angles = torsion_model["angle_from_q"].dot(qs[low_modes])
+        for angle, rotor in zip(angles, torsion_model["rotors"]):
+            (atom_a, atom_b, fragment, other,
+             fragment_weight, other_weight) = rotor
+            _rotate_fragment(
+                start_geom, atom_a, atom_b, fragment,
+                fragment_weight * angle
+            )
+            _rotate_fragment(
+                start_geom, atom_a, atom_b, other,
+                -other_weight * angle
+            )
+
+        if np.array_equal(old, adjacency(start_geom, atomos)):
+            return start_geom, qs.reshape(1, -1), rejected_geoms
+
+    raise RuntimeError(
+        "Could not sample a geometry without changing its connectivity "
+        "after {} attempts".format(max_attempts)
+    )
+
+
+def sample_geometries(freqlog, num_geoms, temp, show_progress=False,
+                      rotor_cutoff=100.0, rotor_svd_cutoff=1e-8,
+                      seed=None, max_attempts=10000):
     geom, atomos = nemo.parser.pega_geom(freqlog)
     old = adjacency(geom, atomos)
     freqs, masses = nemo.parser.pega_freq(freqlog)
@@ -168,7 +365,23 @@ def sample_geometries(freqlog, num_geoms, temp, show_progress=False):
     scales = 1e10 * np.sqrt(
         HBAR_J / (2 * masses * freqs * temp_factor))
 
-    args = [(geom, atomos, old, scales, normal_coord) for _ in range(num_geoms)]
+    torsion_model = _build_torsional_subspace(
+        geom, atomos, old, freqs, normal_coord,
+        cutoff_cm=rotor_cutoff, svd_cutoff=rotor_svd_cutoff
+    )
+    random = np.random.RandomState(seed)
+    seeds = random.randint(0, 2**31 - 1, size=num_geoms)
+    args = [
+        (geom, atomos, old, scales, normal_coord, torsion_model,
+         int(random_seed), max_attempts)
+        for random_seed in seeds
+    ]
+
+    if show_progress and torsion_model["rotors"]:
+        print("Torsional subspace: {} modes, {} rotors".format(
+            len(torsion_model["low_modes"]),
+            len(torsion_model["rotors"])
+        ))
 
     # Use joblib to parallelize the geometry generation
     results = Parallel(n_jobs=-1, verbose=show_progress)(
