@@ -708,8 +708,8 @@ def susceptibility_check(
         + chemical_accuracy**2 * np.eye(2)
     )
 
-    sigma_E = np.sqrt(cov_matrix[0, 0])
-    sigma_chi = np.sqrt(cov_matrix[1, 1])
+    sigma_chi = np.sqrt(cov_matrix[0, 0])
+    sigma_E = np.sqrt(cov_matrix[1, 1])
 
     correlation = (
         cov_matrix[0, 1]
@@ -733,7 +733,7 @@ def susceptibility_check(
 
     def mahalanobis_distance(dE, dchi):
         residual = np.array(
-            [dE, dchi],
+            [dchi, dE],
             dtype=float,
         )
 

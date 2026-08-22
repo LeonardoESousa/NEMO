@@ -586,7 +586,6 @@ def parse_block(block, modes_data, collect_corrections=False):
             parts = line.split()
             if len(parts) >= 4:
                 try:
-                    # 4. Split once, use multiple times
                     vec = np.array([float(parts[1]), float(parts[2]), float(parts[3])])
                     if fetch_0:
                         vec0 = vec
