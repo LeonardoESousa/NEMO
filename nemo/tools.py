@@ -681,7 +681,7 @@ def susceptibility_check(
     if cov_matrix.shape != (2, 2):
         raise ValueError(
             "covariance_matrix must have shape (2, 2), "
-            "ordered as (E_vac, chi)."
+            "ordered as (chi, E_vac)."
         )
 
     if not np.allclose(
@@ -716,10 +716,10 @@ def susceptibility_check(
         / (sigma_E * sigma_chi)
     )
 
-    effective_sigma_E = np.sqrt(
+    effective_sigma_chi = np.sqrt(
         effective_cov_matrix[0, 0]
     )
-    effective_sigma_chi = np.sqrt(
+    effective_sigma_E = np.sqrt(
         effective_cov_matrix[1, 1]
     )
 

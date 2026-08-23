@@ -498,7 +498,7 @@ def parse_block(block, modes_data, collect_corrections=False):
     strike = 0
     vec0 = None
 
-    if not (modes_data==None):
+    if modes_data is not None:
         num_atoms = np.shape(modes_data[0])[0]
     n_miss = 0
     start = fetch = False
@@ -617,8 +617,7 @@ def parse_block(block, modes_data, collect_corrections=False):
             continue
 
         # IC section
-        if 'between states ' in line:
-            # 5. np.full is faster than np.zeros + np.nan
+        if modes_data is not None and 'between states ' in line:
             dc_real = np.full((num_atoms, 3), np.nan)
             start = True
             parts = line.split()
@@ -649,7 +648,6 @@ def parse_block(block, modes_data, collect_corrections=False):
                 dc_real /= BOHR
                 dc_normal = transform_dR_to_dQ(modes_data[0], dc_real)
                 
-                # 6. Vectorize the math loop
                 freqs = modes_data[1]
                 red_masses = modes_data[2]
                 n_modes = len(freqs)
@@ -665,7 +663,7 @@ def parse_block(block, modes_data, collect_corrections=False):
         data['composition'].append(current_comp)
 
     # Convert IC lists to DataFrame all at once
-    if not (modes_data==None):
+    if modes_data is not None:
         data['b_ic'] = pd.DataFrame({
             'initial_state': initial_state,
             'final_state': final_state,
@@ -758,14 +756,14 @@ def pega_energias(file, modes_data=None):
 
     blocks = content.split("Have a nice day")
 
+    b_ic = empty_derivative_couplings()
     if len(blocks) < 3:
         vac_data  = parse_block(blocks[0], modes_data, collect_corrections=False)
         corr_data = parse_block(blocks[0], modes_data, collect_corrections=True )
     else:
         vac_data  = parse_block(blocks[0], modes_data, collect_corrections=False)
         corr_data = parse_block(blocks[1], modes_data, collect_corrections=True )
-        b_ic = 0.0
-        if not (modes_data==None):
+        if modes_data is not None:
             ic_data = parse_block(blocks[2], modes_data, collect_corrections=False )
 
     min_len_s = min(vac_data['len_s'], corr_data['len_s'])
@@ -805,7 +803,7 @@ def pega_energias(file, modes_data=None):
     theta_t = np.array(vac_data['theta_t'])
     phi_t = np.array(vac_data['phi_t'])
 
-    if not (modes_data==None):
+    if modes_data is not None:
         b_ic = ic_data['b_ic']
         b_ic = b_ic[b_ic['initial_state']<=min_len_s]
         b_ic = b_ic[b_ic['final_state']<=min_len_s]
@@ -1400,4 +1398,14 @@ def get_V(mag_file, files):
         v1,
         v2
     )        
-
+#----------------------------------------------------
+def empty_derivative_couplings():
+    return pd.DataFrame(
+            {
+                "initial_state": pd.Series(dtype=int),
+                "final_state": pd.Series(dtype=int),
+                "geometry": pd.Series(dtype=int),
+                "mode": pd.Series(dtype=int),
+                "B": pd.Series(dtype=int),
+            }
+        )

@@ -14,10 +14,11 @@ E_CHARGE    = nemo.parser.E_CHARGE # C
 def extract_chi(filename):
     #dipole_singlets = []
     #dipole_triplets = []
+    vec_pattern = r"\s+Dipole\s+moment\s+\(a.u.\):\s+[\d.]+\s+\(X\s+([-\d.]+),\s+Y\s+([-\d.]+),\s+Z\s+([-\d.]+)\)"
     vec_s =[]
     vec_t =[]
-    vec_pattern = r"\s+Dipole\s+moment\s+\(a.u.\):\s+[\d.]+\s+\(X\s+([-\d.]+),\s+Y\s+([-\d.]+),\s+Z\s+([-\d.]+)\)"
-    polar_s=polar_t=[]
+    polar_s=[]
+    polar_t=[]
     ground_dipole = None
     molecular_volume = None
 
@@ -85,7 +86,7 @@ def extract_chi(filename):
         # Validation
         if ground_dipole is None or molecular_volume is None:
             print("Missing ground dipole or volume.")
-            return [], []
+            return [], [], [], []
 
         # Compute χ values in eV
         chi_singlets = [0.5 * np.sum((mu - ground_dipole) ** 2) / molecular_volume * DEBYE2_PER_ANG3_TO_EV
@@ -111,7 +112,7 @@ def extract_chi(filename):
 
 
 ##GETS ENERGIES, OSCS, AND INDICES FOR Sn AND Tn STATES##################################
-def pega_energias(file, modes_data):
+def pega_energias(file, modes_data=None):
     _, nr_i = nemo.tools.get_nr()
     alphaopt1 = nemo.tools.get_alpha(nr_i**2)
 

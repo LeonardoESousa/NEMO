@@ -729,8 +729,8 @@ def breakdown_emi(chi_s, chi_t, delta_emi, l_total, individual, labels):
 
 
 def lambda_solvent(chi_i, theta_i, phi_i, chi_f, theta_f, phi_f, alphaopt, alphast):
-    cos = compute_cos(theta_i,phi_i, theta_f, phi_f)
-    chi_t = chi_i + chi_f - 2 * np.sqrt(chi_i * chi_f) * cos
+    cos_gamma = compute_cos(theta_i, theta_f, phi_i, phi_f)
+    chi_t = chi_i + chi_f - 2 * np.sqrt(chi_i * chi_f) * cos_gamma
     lambda_b = chi_t * (alphast - alphaopt)
     return lambda_b
 
@@ -978,7 +978,7 @@ def rates(initial, dielec, data_dict={}, ensemble_average=False, detailed=False,
             # hstack y and espectro
             y_axis = np.hstack((y_axis, y_axis_ic))
             sigma = np.hstack((sigma, sigma_ic[:,0,:]))
-            couplings = np.hstack((socs_complete, ic_coupling))
+            couplings = np.hstack((socs_complete, np.sqrt(np.maximum(ic_coupling, 0.0))))
             gap = np.hstack((delta_isc,delta_ic[:,0,:]))
         else:
             mean_soc = 1000 * means(socs_complete, y_axis, ensemble_average)[:, np.newaxis]
