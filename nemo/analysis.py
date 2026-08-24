@@ -21,7 +21,6 @@ EPSILON_0 = nemo.parser.EPSILON_0
 
 ##Defines the standard deviation used for IC and ISC rates ##############################
 def sigma_function(e_col, freq=None):
-    import numpy as np
 
     kbt = 0.026
 
