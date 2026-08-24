@@ -765,6 +765,7 @@ def pega_energias(file, modes_data=None):
         corr_data = parse_block(blocks[1], modes_data, collect_corrections=True )
         if modes_data is not None:
             ic_data = parse_block(blocks[2], modes_data, collect_corrections=False )
+            b_ic = ic_data['b_ic']
 
     min_len_s = min(vac_data['len_s'], corr_data['len_s'])
     min_len_t = min(vac_data['len_t'], corr_data['len_t'])
@@ -803,8 +804,7 @@ def pega_energias(file, modes_data=None):
     theta_t = np.array(vac_data['theta_t'])
     phi_t = np.array(vac_data['phi_t'])
 
-    if modes_data is not None:
-        b_ic = ic_data['b_ic']
+    if not b_ic.empty:
         b_ic = b_ic[b_ic['initial_state']<=min_len_s]
         b_ic = b_ic[b_ic['final_state']<=min_len_s]
 
@@ -1406,6 +1406,6 @@ def empty_derivative_couplings():
                 "final_state": pd.Series(dtype=int),
                 "geometry": pd.Series(dtype=int),
                 "mode": pd.Series(dtype=int),
-                "B": pd.Series(dtype=int),
+                "B": pd.Series(dtype=float),
             }
         )
