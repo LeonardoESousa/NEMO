@@ -42,8 +42,6 @@ def _geometry_number(file_name, fallback):
 def _resolve_log_file(filename, source_dir=None):
     """Resolve a user-provided log filename/path and ensure it exists."""
     log_path = filename
-    if not str(log_path).lower().endswith(".log"):
-        log_path = f"{log_path}.log"
     if source_dir and not os.path.isabs(log_path):
         log_path = os.path.join(source_dir, log_path)
     log_path = os.path.abspath(log_path)
