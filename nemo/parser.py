@@ -590,7 +590,7 @@ def parse_block(block, modes_data, collect_corrections=False):
                     if fetch_0:
                         vec0 = vec
                     elif vec0 is not None:
-                        r, theta, phi = nemo.tools.cartesian_to_spherical(vec - vec0)
+                        r, theta, phi = cartesian_to_spherical(vec - vec0)
                         if fetch_singlet:
                             data['r_s'].append(r)
                             data['theta_s'].append(theta)
@@ -1409,3 +1409,13 @@ def empty_derivative_couplings():
                 "B": pd.Series(dtype=float),
             }
         )
+#----------------------------------------------------
+def cartesian_to_spherical(vec):
+    x=vec[0]
+    y=vec[1]
+    z=vec[2]
+    r = np.sqrt(x**2 + y**2 + z**2)
+    theta = np.arccos(z / r) if r != 0 else 0
+    phi = np.arctan2(y, x)
+    return r, theta, phi
+
