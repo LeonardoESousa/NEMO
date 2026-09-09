@@ -10,6 +10,8 @@ MAX_SCF_CYCLES          200
 GEOM_OPT_MAX_CYCLES     100
 state_follow            true
 set_state_deriv         {state}
+GEOM_OPT_DMAX           100
+XC_GRID                 3
 $end
 
 

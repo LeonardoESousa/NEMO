@@ -514,39 +514,200 @@ def fetch_nr(file):
                 return epsilon, refractive_index
     return epsilon, refractive_index        
 
-def susceptibility_check(file, tuning=False):
-    # Fetch energy levels and other data
-    s_vac, t_vac, _, _, _, ss_s, ss_t, ss_g, y_s, y_t = nemo.parser.pega_energias(file)
-    
+def susceptibility_check(
+    file,
+    fit=None,
+    tuning=0,
+    chemical_accuracy=0.043,
+    state_tolerance=5.99,
+):
+    """Report susceptibilities and optionally compare singlets with a fit.
+
+    ``tuning=1`` is silent and returns ``(Mahalanobis distance, root)`` so
+    empirical tuning can optimize the selected excited state. The fit ``.npy``
+    dictionary must contain ``E_vac``, ``chi`` and ``covariance_matrix``; the
+    covariance ordering is ``(chi, E_vac)``.
+    """
+    C = 0.3243
+    if tuning not in (0, 1, 2):
+        raise ValueError("tuning must be 0, 1, or 2.")
+    if chemical_accuracy < 0.0:
+        raise ValueError("chemical_accuracy must be non-negative.")
+    if state_tolerance < 0.0:
+        raise ValueError("state_tolerance must be non-negative.")
+
+    # twocalc has the ten-value parser interface; two_ic has a longer tuple.
+    (
+        s_vac,
+        t_vac,
+        _,
+        _,
+        _,
+        ss_s,
+        ss_t,
+        ss_g,
+        y_s,
+        y_t,
+    ) = nemo.parser.pega_energias(file)
+
     eps, nr = fetch_nr(file)
-    
-    # Calculate alpha and susceptibility chi values
+    if eps is None or nr is None:
+        raise ValueError(
+            f"Could not find both Dielectric and OpticalDielectric in {file}."
+        )
     alpha_opt = (nr**2 - 1) / (nr**2 + 1)
-    chi_s = ss_s / alpha_opt
-    chi_t = ss_t / alpha_opt
     alpha_st = (eps - 1) / (eps + 1)
-    y_g = ss_g / alpha_st
-    y_s = y_s / alpha_st
-    y_t = y_t / alpha_st
-    
-    if tuning:
-        return s_vac[0], chi_s[0]
+    if np.isclose(alpha_opt, 0.0) or np.isclose(alpha_st, 0.0):
+        raise ValueError(
+            "Dielectric and OpticalDielectric must describe a non-vacuum medium."
+        )
+
+    chi_s = np.asarray(ss_s, dtype=float) / alpha_opt
+    chi_t = np.asarray(ss_t, dtype=float) / alpha_opt
+    y_g = float(ss_g) / alpha_st
+    y_s = np.asarray(y_s, dtype=float) / alpha_st
+    y_t = np.asarray(y_t, dtype=float) / alpha_st
+
+    if tuning != 1:
+        print(
+            f"{'State':<6} {'E_vac(eV)':<12} "
+            f"{'χ(eV)':<10} {'γ(eV)':<10}"
+        )
+        print(f"{'S0':<6} {0.0:<12.3f} {0.0:<10.3f} {y_g:<10.3f}")
+        for i, (energy, chi, gamma) in enumerate(
+            zip(s_vac, chi_s, y_s), start=1
+        ):
+            print(f"{f'S{i}':<6} {energy:<12.3f} {chi:<10.3f} {gamma:<10.3f}")
+        for i, (energy, chi, gamma) in enumerate(
+            zip(t_vac, chi_t, y_t), start=1
+        ):
+            print(f"{f'T{i}':<6} {energy:<12.3f} {chi:<10.3f} {gamma:<10.3f}")
+
+    if fit is None:
+        if tuning == 1:
+            raise ValueError("A fit file is required when tuning=1.")
+        return None
+
+    try:
+        data = np.load(fit, allow_pickle=True).item()
+    except (OSError, ValueError, AttributeError) as error:
+        raise ValueError(f"Could not load fit data from {fit}.") from error
+    try:
+        E_vac_fit = float(data["E_vac"])
+        chi_fit = float(data["chi"])
+        cov_matrix = np.asarray(data["covariance_matrix"], dtype=float)
+    except (KeyError, TypeError) as error:
+        raise ValueError(
+            "The fit file must contain E_vac, chi, and covariance_matrix."
+        ) from error
+
+    if cov_matrix.shape != (2, 2):
+        raise ValueError(
+            "covariance_matrix must have shape (2, 2), ordered as (chi, E_vac)."
+        )
+    if not np.all(np.isfinite(cov_matrix)):
+        raise ValueError("covariance_matrix must contain only finite values.")
+    if not np.allclose(cov_matrix, cov_matrix.T, rtol=1.0e-8, atol=1.0e-12):
+        raise ValueError("covariance_matrix must be symmetric.")
+    try:
+        np.linalg.cholesky(cov_matrix)
+    except np.linalg.LinAlgError as error:
+        raise ValueError("covariance_matrix must be positive definite.") from error
+
+    effective_cov = cov_matrix + chemical_accuracy**2 * np.eye(2)
+    sigma_chi = np.sqrt(cov_matrix[0, 0])
+    sigma_E = np.sqrt(cov_matrix[1, 1])
+    correlation = cov_matrix[0, 1] / (sigma_chi * sigma_E)
+    effective_correlation = effective_cov[0, 1] / np.sqrt(
+        effective_cov[0, 0] * effective_cov[1, 1]
+    )
+
+    diagnostics = []
+    for root, (energy, chi, gamma) in enumerate(
+        zip(s_vac, chi_s, y_s), start=1
+    ):
+        delta_gamma = gamma - y_g
+        E_pred = energy - 0.5 * delta_gamma * C
+        chi_pred = chi + 0.5 * delta_gamma
+        dE = E_vac_fit - E_pred
+        dchi = chi_fit - chi_pred
+        residual = np.array([dchi, dE], dtype=float)
+        distance_squared = float(
+            residual @ np.linalg.solve(effective_cov, residual)
+        )
+        diagnostics.append(
+            {
+                "root": root,
+                "state": f"S{root}",
+                "E_pred": E_pred,
+                "chi_pred": chi_pred,
+                "delta_gamma": delta_gamma,
+                "dE": dE,
+                "dchi": dchi,
+                "distance": np.sqrt(max(distance_squared, 0.0)),
+            }
+        )
+    if not diagnostics:
+        raise ValueError(f"No singlet excited states were parsed from {file}.")
+
+    diagnostics.sort(key=lambda row: row["distance"])
+    numerical_best = diagnostics[0]
+    minimum_distance_squared = numerical_best["distance"] ** 2
+    for row in diagnostics:
+        row["delta_j2"] = max(
+            row["distance"] ** 2 - minimum_distance_squared, 0.0
+        )
+    similar_states = [
+        row for row in diagnostics if row["delta_j2"] <= state_tolerance
+    ]
+    selected = min(similar_states, key=lambda row: row["root"])
+
+    if tuning == 1:
+        return selected["distance"], selected["root"]
+
+    print("\nExperimental Fit\n----------------")
+    print(f"E_vac: {E_vac_fit:.3f} ± {sigma_E:.3f} eV")
+    print(f"χ:     {chi_fit:.3f} ± {sigma_chi:.3f} eV")
+    print(f"Experimental correlation: {correlation:.3f}")
+    print(f"Computational uncertainty: {chemical_accuracy:.3f} eV")
+    print(f"Effective correlation: {effective_correlation:.3f}")
+    print("\nExperimental Comparison\n-----------------------")
+    print(
+        f"{'State':<6} {'E_pred':<10} {'χ_pred':<10} {'Δγ':<10} "
+        f"{'dE':<10} {'dχ':<10} {'M-dist':<10} {'ΔJ²':<10}"
+    )
+    for row in diagnostics:
+        print(
+            f"{row['state']:<6} {row['E_pred']:<10.3f} "
+            f"{row['chi_pred']:<10.3f} {row['delta_gamma']:<10.3f} "
+            f"{row['dE']:<10.3f} {row['dchi']:<10.3f} "
+            f"{row['distance']:<10.3f} {row['delta_j2']:<10.3f}"
+        )
+    print("\nDistance Evaluation\n-------------------")
+    print(
+        f"Numerical best match: {numerical_best['state']} "
+        f"(Mahalanobis distance = {numerical_best['distance']:.3f})"
+    )
+    similar_names = ", ".join(
+        row["state"] for row in sorted(similar_states, key=lambda row: row["root"])
+    )
+    print(f"States within ΔJ² ≤ {state_tolerance:.2f}: {similar_names}")
+    if selected is numerical_best:
+        print(f"Selected state: {selected['state']}")
     else:
-        chi_symbol = '\u03C7(eV)'
-        gamma_symbol = '\u03B3(eV)'
-        # Print header with aligned columns
-        print(fr"{'State':<6} {'E_vac(eV)':<12} {chi_symbol:<10} {gamma_symbol:<10}")
-        
-        print(f"S{0:<5} {0:<12.3f} {0:<10.3f} {y_g:<10.3f}")
-
-        # Print singlet states
-        for i, (e, chi, y) in enumerate(zip(s_vac, chi_s, y_s), start=1):
-            print(f"S{i:<5} {e:<12.3f} {chi:<10.3f} {y:<10.3f}")
-
-        # Print triplet states
-        for i, (e, chi, y) in enumerate(zip(t_vac, chi_t, y_t), start=1):
-            print(f"T{i:<5} {e:<12.3f} {chi:<10.3f} {y:<10.3f}")
-
+        print(
+            f"Selected state: {selected['state']} because it is the lowest "
+            "state within the ambiguity region."
+        )
+    confidence_limit = np.sqrt(2.30)
+    relation = "within" if selected["distance"] <= confidence_limit else "outside"
+    print(
+        f"The selected state lies {relation} the joint 68% combined "
+        "uncertainty region."
+    )
+    if tuning == 2:
+        print("This is the final distance evaluation after the ω-tuning procedure.")
+    return None
 
 
 ##FETCHES REFRACTIVE INDEX#####################################
@@ -787,6 +948,51 @@ def tuning():
             parallel,
             "&",
         ]
+    )
+
+###############################################################
+
+##RUNS EMPIRICAL W TUNING######################################
+def empirical_omega():
+    geomlog = fetch_file("input", [".in"])
+    fit_data = fetch_file("file with spec2epsilon fit data", [".npy"])
+    omega1 = "0.15"
+    passo = "0.02"
+    relax = "yes"
+    print(f"Initial Omega: {omega1} bohr^-1")
+    print(f"Step: {passo} bohr^-1")
+    print(f"Optimize at each step? {relax}")
+    change = input("Are you satisfied with these parameters? y or n?\n")
+    if change.lower() == "n":
+        omega1 = default(
+            omega1,
+            f"Initial omega is {omega1} bohr^-1. If ok, Enter. Otherwise, type it.\n",
+        )
+        passo = default(
+            passo,
+            f"Initial step is {passo} bohr^-1. If ok, Enter. Otherwise, type it.\n",
+        )
+        relax = default(
+            relax,
+            f"Optimize at each step? {relax}. If ok, Enter. Otherwise, type n.\n",
+        )
+    script = fetch_file("batch script", ["batch.sh"])
+    nproc = input("Number of threads for each calculation\n")
+
+    with open("limit.lx", "w", encoding="utf-8") as f:
+        f.write("10")
+    subprocess.Popen(
+        [
+            "empirical_tuning",
+            geomlog,
+            nproc,
+            omega1,
+            passo,
+            relax,
+            script,
+            fit_data,
+        ],
+        start_new_session=True,
     )
 
 ###############################################################

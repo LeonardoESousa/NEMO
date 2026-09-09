@@ -25,6 +25,7 @@ dependencies = [
 nemo = "nemo.__main__:main"
 nemo_batch_run = "nemo.batch:run_batch"
 nemo_tuning = "nemo.omega:main"
+empirical_tuning = "nemo.empirical:main"
 
 [tool.setuptools]
 include-package-data = true

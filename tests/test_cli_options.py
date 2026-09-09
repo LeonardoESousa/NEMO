@@ -21,7 +21,20 @@ def test_cli_check_option_calls_susceptibility_and_exits(monkeypatch):
         nemo_main.main()
 
     assert exc.value.code == 0
-    susceptibility_mock.assert_called_once_with("sample.log")
+    susceptibility_mock.assert_called_once_with("sample.log", fit=None)
+
+
+def test_cli_check_option_accepts_fit_file(monkeypatch):
+    _set_argv(monkeypatch, "-c", "sample.log", "fit.npy")
+
+    susceptibility_mock = MagicMock()
+    monkeypatch.setattr(nemo_main.nemo.tools, "susceptibility_check", susceptibility_mock)
+
+    with pytest.raises(SystemExit) as exc:
+        nemo_main.main()
+
+    assert exc.value.code == 0
+    susceptibility_mock.assert_called_once_with("sample.log", fit="fit.npy")
 
 
 def test_cli_geom_option_prints_geometry_and_exits(monkeypatch, capsys):
