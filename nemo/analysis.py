@@ -42,8 +42,6 @@ def _geometry_number(file_name, fallback):
 def _resolve_log_file(filename, source_dir=None):
     """Resolve a user-provided log filename/path and ensure it exists."""
     log_path = filename
-    if not str(log_path).lower().endswith(".log"):
-        log_path = f"{log_path}.log"
     if source_dir and not os.path.isabs(log_path):
         log_path = os.path.join(source_dir, log_path)
     log_path = os.path.abspath(log_path)
@@ -61,17 +59,7 @@ def _detect_single_file_setup(file_name):
     ):
         try:
             singlets, triplets, oscs, ind_s, ind_t, ss_s, ss_t, _, y_s, y_t = parser_fn(file_path)
-            n_state = min(
-                len(singlets),
-                len(triplets),
-                len(oscs),
-                len(ind_s),
-                len(ind_t),
-                len(ss_s),
-                len(ss_t),
-                len(y_s),
-                len(y_t),
-            )
+            n_state = len(singlets)
             if n_state <= 0:
                 continue
             return n_state, calculation_type

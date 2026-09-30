@@ -6,7 +6,7 @@ import pandas as pd
 import pytest
 
 import nemo
-from nemo.analysis import Ensemble
+from nemo.nemo import Molecule
 
 
 SOLVENT = (2.38, 1.49)
@@ -72,13 +72,18 @@ def generated_ensembles(request):
             assert filepath.is_file(), f"Expected file was not created for {state}: {filepath}"
             assert filepath.stat().st_size > 0, f"Generated file is empty for {state}: {filepath.name}"
 
-        ensembles = {
-            state: Ensemble(str(filepath))
-            for state, filepath in expected_ensemble_files.items()
-        }
+        molecule = Molecule(
+            str(expected_ensemble_files["s0"]),
+            str(expected_ensemble_files["s1"]),
+            str(expected_ensemble_files["t1"]),
+            name=dataset_name,
+        )
 
-        ensembles["dataset_name"] = dataset_name
-        ensembles["dataset_dir"] = dataset_dir
+        ensembles = {
+            "molecule": molecule,
+            "dataset_name": dataset_name,
+            "dataset_dir": dataset_dir,
+        }
 
         os.chdir(old_cwd)
         yield ensembles
@@ -102,12 +107,13 @@ def test_ensemble_files_are_generated(generated_ensembles):
 
 
 def test_s0_absorption_default(generated_ensembles):
-    absorption = generated_ensembles["s0"].absorption(SOLVENT)
+    absorption = generated_ensembles["molecule"].absorption("S0", SOLVENT)
     assert_valid_dataframe(absorption, "s0.absorption(solvent)")
 
 
 def test_s0_absorption_wavelength_extinction(generated_ensembles):
-    absorption = generated_ensembles["s0"].absorption(
+    absorption = generated_ensembles["molecule"].absorption(
+        "S0",
         SOLVENT,
         wavelength=True,
         extinction=True,
@@ -119,37 +125,37 @@ def test_s0_absorption_wavelength_extinction(generated_ensembles):
 
 
 def test_s1_rates(generated_ensembles):
-    rates = generated_ensembles["s1"].rate(SOLVENT)
+    rates = generated_ensembles["molecule"].rate("S1", SOLVENT)
     assert_valid_dataframe(rates, "s1.rate(solvent)")
     assert "AvgCoupling(meV)" in rates.columns
 
 
 def test_s1_absorption(generated_ensembles):
-    absorption = generated_ensembles["s1"].absorption(SOLVENT)
+    absorption = generated_ensembles["molecule"].absorption("S1", SOLVENT)
     assert_valid_dataframe(absorption, "s1.absorption(solvent)")
 
 
 def test_s1_emission_default(generated_ensembles):
-    fluor = generated_ensembles["s1"].emission(SOLVENT)
+    fluor = generated_ensembles["molecule"].emission("S1", SOLVENT)
     assert_valid_dataframe(fluor, "s1.emission(solvent)")
 
 
 def test_s1_emission_wavelength(generated_ensembles):
-    fluor = generated_ensembles["s1"].emission(SOLVENT, wavelength=True)
+    fluor = generated_ensembles["molecule"].emission("S1", SOLVENT, wavelength=True)
     assert_valid_dataframe(fluor, "s1.emission(solvent, wavelength=True)")
 
 
 def test_t1_rates(generated_ensembles):
-    rates_t1 = generated_ensembles["t1"].rate(SOLVENT)
+    rates_t1 = generated_ensembles["molecule"].rate("T1", SOLVENT)
     assert_valid_dataframe(rates_t1, "t1.rate(solvent)")
     assert "AvgCoupling(meV)" in rates_t1.columns
 
 
 def test_t1_emission(generated_ensembles):
-    phosph = generated_ensembles["t1"].emission(SOLVENT)
+    phosph = generated_ensembles["molecule"].emission("T1", SOLVENT)
     assert_valid_dataframe(phosph, "t1.emission(solvent)")
 
 
 def test_s1_breakdown(generated_ensembles):
-    details = generated_ensembles["s1"].breakdown(SOLVENT)
+    details = generated_ensembles["molecule"].breakdown("S1", SOLVENT)
     assert_valid_dataframe(details, "s1.breakdown(solvent)")
