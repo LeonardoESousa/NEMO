@@ -112,7 +112,7 @@ def get_osc_phosph(files, singlets, triplets, n_state, phosph_osc):
     for j in range(singlets.shape[0]):
         tos = phosph_osc(
             files[j],
-            n_state,
+            min(n_state, eng_triplets.shape[1]),
             eng_singlets[j, :],
             eng_triplets[j, :],
         )
@@ -307,8 +307,8 @@ def _build_gather_dataframe(initial, files, total_states, calculation_type, eps_
                 formats[f"osc_s{i+1}"] = "{:.5e}"
         else:
             for i in range(oscs.shape[1]):
-                data[f"osce_s{n_state+1+i}"] = oscs[:, i]
-                formats[f"osce_s{n_state+1+i}"] = "{:.5e}"
+                data[f"osce_s{i+1}"] = oscs[:, i]
+                formats[f"osce_s{i+1}"] = "{:.5e}"
 
             noscs = get_oscs[calculation_type](files, initial)
             for i in range(noscs.shape[1]):
@@ -318,7 +318,7 @@ def _build_gather_dataframe(initial, files, total_states, calculation_type, eps_
         try:
             for i in range(singlets.shape[1]):
                 socs_partial = get_avg_socs[calculation_type](files, "singlet", i)
-                for j in range(singlets.shape[1]):
+                for j in range(triplets.shape[1]):
                     data[f"soc_s{i+1}_t{j+1}"] = socs_partial[:, j]
                     formats[f"soc_s{i+1}_t{j+1}"] = "{:.5e}"
         except IndexError:
@@ -333,8 +333,8 @@ def _build_gather_dataframe(initial, files, total_states, calculation_type, eps_
         )
 
         for i in range(oscs.shape[1]):
-            data[f"osce_t{n_state+1+i}"] = oscs[:, i]
-            formats[f"osce_t{n_state+1+i}"] = "{:.5e}"
+            data[f"osce_t{i+1}"] = oscs[:, i]
+            formats[f"osce_t{i+1}"] = "{:.5e}"
 
         noscs = get_oscs[calculation_type](files, initial)
 
@@ -349,7 +349,7 @@ def _build_gather_dataframe(initial, files, total_states, calculation_type, eps_
 
                 data[f"soc_t{i+1}_s0"] = soc_ground[:, 0]
                 formats[f"soc_t{i+1}_s0"] = "{:.5e}"
-                for j in range(triplets.shape[1]):
+                for j in range(singlets.shape[1]):
                     data[f"soc_t{i+1}_s{j+1}"] = soc_triplet[:, j]
                     formats[f"soc_t{i+1}_s{j+1}"] = "{:.5e}"
         except IndexError:
@@ -450,24 +450,19 @@ def export_results(data, emission, dielec):
 
 
 def reorder(initial_state, final_state, ss_i, ss_f, gamma_i, gamma_f, socs):
-    argsort = np.argsort(initial_state, axis=1)
-    initial_state = np.take_along_axis(initial_state, argsort, axis=1)
-    ss_i = np.take_along_axis(ss_i, argsort, axis=1)
-    gamma_i = np.take_along_axis(gamma_i, argsort, axis=1)
-    corredor = int(np.sqrt(socs.shape[1]))
-    socs_complete = socs.reshape((socs.shape[0], corredor, corredor))
-    for j in range(socs_complete.shape[1]):
-        socs_complete[:, j, :] = np.take_along_axis(
-            socs_complete[:, j, :], argsort, axis=1
-        )
-    argsort = np.argsort(final_state, axis=1)
-    final_state = np.take_along_axis(final_state, argsort, axis=1)
-    ss_f = np.take_along_axis(ss_f, argsort, axis=1)
-    gamma_f = np.take_along_axis(gamma_f, argsort, axis=1)
-    for j in range(socs_complete.shape[1]):
-        socs_complete[:, :, j] = np.take_along_axis(
-            socs_complete[:, :, j], argsort, axis=1
-        )
+    order_i = np.argsort(initial_state, axis=1, kind="stable")
+    order_f = np.argsort(final_state, axis=1, kind="stable")
+    socs_complete = socs.reshape(
+        socs.shape[0], initial_state.shape[1], final_state.shape[1]
+    )
+    initial_state = np.take_along_axis(initial_state, order_i, axis=1)
+    ss_i = np.take_along_axis(ss_i, order_i, axis=1)
+    gamma_i = np.take_along_axis(gamma_i, order_i, axis=1)
+    final_state = np.take_along_axis(final_state, order_f, axis=1)
+    ss_f = np.take_along_axis(ss_f, order_f, axis=1)
+    gamma_f = np.take_along_axis(gamma_f, order_f, axis=1)
+    socs_complete = np.take_along_axis(socs_complete, order_i[:, :, None], axis=1)
+    socs_complete = np.take_along_axis(socs_complete, order_f[:, None, :], axis=2)
     return initial_state, final_state, ss_i, ss_f, gamma_i, gamma_f, socs_complete
 
 
@@ -528,9 +523,11 @@ def check_number_geoms(data):
 
 def fetch(data, criteria_list):
     regex_list = [re.compile(c) for c in criteria_list]
-    filtered_data = data[
-        [i for i in data.columns.values if all(r.search(i) for r in regex_list)]
-    ].to_numpy()
+    columns = [i for i in data.columns.values if all(r.search(i) for r in regex_list)]
+    columns.sort(key=lambda column: tuple(
+        int(part) if part.isdigit() else part for part in re.split(r"(\d+)", column)
+    ))
+    filtered_data = data[columns].to_numpy()
     return filtered_data
 
 
@@ -621,18 +618,22 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
     )
     if "t" in initial:
         constante *= 1 / 3
+        initial_state = energies - (chi_t + gamma_t) * alphast2
         delta_emi_unsorted =  energies - (gamma_t - gamma_s0 + chi_t) * alphast2 - chi_t * (alphast2 - alphaopt2) 
         #reorganization energy
         lambda_be = lambda_solvent(chi_t, alphaopt2, alphast2)
     elif "s" in initial:    
+        initial_state = energies - (chi_s + gamma_s) * alphast2
         delta_emi_unsorted =  energies - (gamma_s - gamma_s0 + chi_s) * alphast2 - chi_s * (alphast2 - alphaopt2) 
         #reorganization energy
         lambda_be = lambda_solvent(chi_s, alphaopt2, alphast2)
-    #make dimensions match
-    lambda_be = np.repeat(lambda_be, energies.shape[1], axis=1)
-
-    oscs = fetch(data, ["^osce_"])
-    delta_emi, oscs, lambda_be = sorting_parameters(delta_emi_unsorted, oscs, lambda_be)
+    # Emission follows the starting-state rank, rather than the photon-energy rank.
+    emission_order = np.argsort(initial_state, axis=1, kind="stable")
+    oscs = fetch(data, [rf"^osce_{initial[0]}\d+$"])
+    delta_emi, oscs, lambda_be = [
+        np.take_along_axis(values, emission_order, axis=1)
+        for values in (delta_emi_unsorted, oscs, lambda_be)
+    ]
     delta_emi, oscs, lambda_be = select_columns(n_state, delta_emi, oscs, lambda_be)
     
     l_total = total_reorganization_energy(lambda_be, kbt)    
@@ -670,7 +671,7 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
     if "s" in initial:
         initial_state = singlets - (chi_s + gamma_s) * alphast2  
         final_state = triplets - gamma_t * alphast2  - chi_t * alphaopt2 
-        socs_complete = fetch(data, ["^soc_s"])
+        socs_complete = fetch(data, [r"^soc_s\d+_t\d+$"])
         initial_state, final_state, chi_s, chi_t, gamma_s, gamma_t, socs_complete = reorder(
             initial_state, final_state, chi_s, chi_t, gamma_s, gamma_t, socs_complete
         )
@@ -678,11 +679,7 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
         socs_complete = socs_complete[:, n_state, :]
         delta = final_state - initial_state[:, np.newaxis]
         lambda_b = lambda_solvent(chi_t, alphaopt2, alphast2) 
-        final = [
-            i.split("_")[2].upper()
-            for i in data.columns.values
-            if "soc_" + initial.lower() + "_" in i
-        ]
+        final = [f"T{i+1}" for i in range(final_state.shape[1])]
         ##FOR WHEN IC IS AVAILABLE
         # socs_complete = np.hstack((socs_complete,0.0001*np.ones((Singlets.shape[0],Singlets.shape[1]-1))))
         # delta_ss = Singlets + np.repeat((alphast2/alphaopt1)*Ss_s[:,n_state][:,np.newaxis] - Singlets[:,n_state][:,np.newaxis],Singlets.shape[1],axis=1) - (alphaopt2/alphaopt1)*Ss_s    #Sm (final) - Sn (initial) + lambda_b
@@ -694,7 +691,7 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
         # Tn to Sm ISC
         initial_state = triplets - (chi_t + gamma_t) * alphast2 
         final_state = singlets - gamma_s * alphast2 - chi_s * alphaopt2
-        socs_complete = fetch(data, ["^soc_t.*s[1-9]"])
+        socs_complete = fetch(data, [r"^soc_t\d+_s[1-9]\d*$"])
         initial_state, final_state, chi_t, chi_s, gamma_t, gamma_s, socs_complete = reorder(
             initial_state, final_state, chi_t, chi_s, gamma_t, gamma_s, socs_complete
         )
@@ -702,16 +699,10 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
         socs_complete = socs_complete[:, n_state, :]
         delta = final_state - initial_state[:, np.newaxis]
         lambda_b = lambda_solvent(chi_s, alphaopt2, alphast2)
-        final = [
-            i.split("_")[2].upper()
-            for i in data.columns.values
-            if "soc_" + initial.lower() + "_" in i and i.count("t") == 1
-        ]
+        final = ["S0"] + [f"S{i+1}" for i in range(final_state.shape[1])]
         # Tn to S0 ISC
-        socs_s0 = fetch(data, ["^soc_t.*s0"])
-        delta_emi, socs_s0 = sorting_parameters(delta_emi_unsorted, socs_s0)
-        delta_emi = delta_emi[:, n_state]
-        socs_s0 = socs_s0[:, n_state]
+        socs_s0 = fetch(data, [r"^soc_t\d+_s0$"])
+        socs_s0 = np.take_along_axis(socs_s0, emission_order, axis=1)[:, n_state]
         socs_complete = np.hstack((socs_s0[:, np.newaxis], socs_complete))
         delta = np.hstack((delta_emi[:, np.newaxis], delta))
         lambda_b = np.hstack((lambda_be[:, np.newaxis], lambda_b))
