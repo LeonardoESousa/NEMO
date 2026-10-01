@@ -58,7 +58,7 @@ def _detect_single_file_setup(file_name):
         ("eom-ccsd", nemo.eom.pega_energias),
     ):
         try:
-            singlets, triplets, oscs, ind_s, ind_t, ss_s, ss_t, _, y_s, y_t = parser_fn(file_path)
+            singlets, triplets, oscs, ss_s, ss_t, _, y_s, y_t = parser_fn(file_path)
             n_state = len(singlets)
             if n_state <= 0:
                 continue
@@ -105,7 +105,7 @@ def read_cis(file):
 #########################################################################################
 
 
-def get_osc_phosph(files, singlets, triplets, n_state, ind_s, ind_t, phosph_osc):
+def get_osc_phosph(files, singlets, triplets, n_state, phosph_osc):
     # removed correction from phosph_osc calculation
     eng_singlets = singlets  # - (alphast2/alphaopt1)*Ss_s
     eng_triplets = triplets  # - (alphast2/alphaopt1)*Ss_t
@@ -113,8 +113,6 @@ def get_osc_phosph(files, singlets, triplets, n_state, ind_s, ind_t, phosph_osc)
         tos = phosph_osc(
             files[j],
             n_state,
-            ind_s[j, :],
-            ind_t[j, :],
             eng_singlets[j, :],
             eng_triplets[j, :],
         )
@@ -133,8 +131,6 @@ def analysis(files, n_state, get_energies):
             singlets,
             triplets,
             oscs,
-            ind_s,
-            ind_t,
             ss_s,
             ss_t,
             ground_pol,
@@ -146,8 +142,6 @@ def analysis(files, n_state, get_energies):
         oscs = np.array([oscs[:n_state]])
         ss_s = np.array([ss_s[:n_state]])
         ss_t = np.array([ss_t[:n_state]])
-        ind_s = np.array([ind_s[:n_state]])
-        ind_t = np.array([ind_t[:n_state]])
         y_s = np.array([y_s[:n_state]])
         y_t = np.array([y_t[:n_state]])
         ground_pol = np.array([ground_pol])
@@ -157,8 +151,6 @@ def analysis(files, n_state, get_energies):
             total_oscs = np.vstack((total_oscs, oscs))
             total_ss_s = np.vstack((total_ss_s, ss_s))
             total_ss_t = np.vstack((total_ss_t, ss_t))
-            total_ind_s = np.vstack((total_ind_s, ind_s))
-            total_ind_t = np.vstack((total_ind_t, ind_t))
             total_y_s = np.vstack((total_y_s, y_s))
             total_y_t = np.vstack((total_y_t, y_t))
             total_ground_pol = np.append(total_ground_pol, ground_pol)
@@ -168,8 +160,6 @@ def analysis(files, n_state, get_energies):
             total_oscs = oscs
             total_ss_s = ss_s
             total_ss_t = ss_t
-            total_ind_s = ind_s
-            total_ind_t = ind_t
             total_y_s = y_s
             total_y_t = y_t
             total_ground_pol = ground_pol
@@ -183,8 +173,6 @@ def analysis(files, n_state, get_energies):
         total_ss_s,
         total_ss_t,
         total_ground_pol,
-        total_ind_s,
-        total_ind_t,
         total_y_s,
         total_y_t,
     )
@@ -278,8 +266,6 @@ def _build_gather_dataframe(initial, files, total_states, calculation_type, eps_
         ss_s,
         ss_t,
         ground_pol,
-        ind_s,
-        ind_t,
         y_s,
         y_t,
     ) = analysis(files, total_states, get_energies[calculation_type])
@@ -324,14 +310,14 @@ def _build_gather_dataframe(initial, files, total_states, calculation_type, eps_
                 data[f"osce_s{n_state+1+i}"] = oscs[:, i]
                 formats[f"osce_s{n_state+1+i}"] = "{:.5e}"
 
-            noscs = get_oscs[calculation_type](files, ind_s, initial)
+            noscs = get_oscs[calculation_type](files, initial)
             for i in range(noscs.shape[1]):
                 data[f"osc_s{n_state+2+i}"] = noscs[:, i]
                 formats[f"osc_s{n_state+2+i}"] = "{:.5e}"
 
         try:
             for i in range(singlets.shape[1]):
-                socs_partial = get_avg_socs[calculation_type](files, "singlet", i, ind_s, ind_t)
+                socs_partial = get_avg_socs[calculation_type](files, "singlet", i)
                 for j in range(singlets.shape[1]):
                     data[f"soc_s{i+1}_t{j+1}"] = socs_partial[:, j]
                     formats[f"soc_s{i+1}_t{j+1}"] = "{:.5e}"
@@ -343,8 +329,6 @@ def _build_gather_dataframe(initial, files, total_states, calculation_type, eps_
             singlets,
             triplets,
             total_states,
-            ind_s,
-            ind_t,
             get_phosph_osc[calculation_type],
         )
 
@@ -352,7 +336,7 @@ def _build_gather_dataframe(initial, files, total_states, calculation_type, eps_
             data[f"osce_t{n_state+1+i}"] = oscs[:, i]
             formats[f"osce_t{n_state+1+i}"] = "{:.5e}"
 
-        noscs = get_oscs[calculation_type](files, ind_t, initial)
+        noscs = get_oscs[calculation_type](files, initial)
 
         for i in range(noscs.shape[1]):
             data[f"osc_t{n_state+2+i}"] = noscs[:, i]
@@ -360,8 +344,8 @@ def _build_gather_dataframe(initial, files, total_states, calculation_type, eps_
 
         try:
             for i in range(triplets.shape[1]):
-                soc_ground = get_avg_socs[calculation_type](files, "ground", i, ind_s, ind_t)
-                soc_triplet = get_avg_socs[calculation_type](files, "triplet", i, ind_s, ind_t)
+                soc_ground = get_avg_socs[calculation_type](files, "ground", i)
+                soc_triplet = get_avg_socs[calculation_type](files, "triplet", i)
 
                 data[f"soc_t{i+1}_s0"] = soc_ground[:, 0]
                 formats[f"soc_t{i+1}_s0"] = "{:.5e}"
