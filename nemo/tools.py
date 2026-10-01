@@ -536,12 +536,10 @@ def susceptibility_check(
     if state_tolerance < 0.0:
         raise ValueError("state_tolerance must be non-negative.")
 
-    # twocalc has the ten-value parser interface; two_ic has a longer tuple.
+    # twocalc has the eight-value parser interface; two_ic has a longer tuple.
     (
         s_vac,
         t_vac,
-        _,
-        _,
         _,
         ss_s,
         ss_t,

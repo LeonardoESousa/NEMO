@@ -9,8 +9,6 @@ def test_tuning_returns_mahalanobis_distance_and_selected_root(monkeypatch, tmp_
         np.array([2.0, 3.0]),
         np.array([1.5]),
         None,
-        None,
-        None,
         np.array([0.2, 0.4]) * alpha_opt,
         np.array([0.1]) * alpha_opt,
         0.05,
@@ -44,8 +42,6 @@ def test_plain_check_preserves_report_only_mode(monkeypatch, capsys):
     parser_result = (
         np.array([2.0]),
         np.array([1.5]),
-        None,
-        None,
         None,
         np.array([0.1]),
         np.array([0.1]),
