@@ -177,7 +177,7 @@ def pega_soc_triplet(file, n_state):
     with open("Geometries/" + file, "r", encoding="utf-8") as log_file:
         catch_A, catch_B, catch_C = False, False, False
         for line in log_file:
-            if "State B: eomee_ccsd/rhfref/triplets:" in line and f'{n_state}/A' in line:
+            if "State B: eomee_ccsd/rhfref/triplets:" in line and line.split()[-1] == f'{n_state}/A':
                 catch_A = True
             elif "State A: eomee_ccsd/rhfref/singlets:" in line:                    
                 catch_B = True
@@ -203,9 +203,9 @@ def pega_soc_ground(file, n_state):
             if "State A: ccsd: 0/A" in line:
                 catch_A = True
                 catch_B = False
-            elif catch_A and "State B: eomee_ccsd/rhfref/triplets:" in line and f'{n_state}/A' in line:                    
+            elif catch_A and "State B: eomee_ccsd/rhfref/triplets:" in line and line.split()[-1] == f'{n_state}/A':
                 catch_B = True
-            elif catch_A and "State B: eomee_ccsd/rhfref/triplets:" in line and f'{n_state}/A' not in line:                    
+            elif catch_A and "State B: eomee_ccsd/rhfref/triplets:" in line and line.split()[-1] != f'{n_state}/A':
                 catch_A = False
             elif catch_A and catch_B and "Arithmetically averaged transition SO matrices" in line:
                 catch_C = True
@@ -344,7 +344,8 @@ def pega_dipole_ground(file):
                 dipole = [float(line[1]),float(line[3]),float(line[5])]
                 catch = False
                 break    
-    return np.array(dipole)[np.newaxis, :] 
+    # Match the atomic units used by the excited-state dipoles.
+    return np.array(dipole)[np.newaxis, :] / 2.541746
 
 def pega_dipole_ground_singlet(file):
     dipole = np.zeros((1, 3))
@@ -535,7 +536,7 @@ def soc_t1(file, mqn, n_state):
     with open("Geometries/" + file, "r", encoding="utf-8") as log_file:
         catch_A, catch_B = False, False
         for line in log_file:
-            if "State B: eomee_ccsd/rhfref/triplets:" in line and f'{n_state}/A' in line:
+            if "State B: eomee_ccsd/rhfref/triplets:" in line and line.split()[-1] == f'{n_state}/A':
                 catch_A = True
             elif "State A: eomee_ccsd/rhfref/singlets:" in line:                    
                 catch_B = True

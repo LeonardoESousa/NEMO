@@ -77,7 +77,7 @@ def test_rates_keep_one_state_identity_for_every_process(initial):
         width = np.sqrt(2*ci*(ast-aopt)*data.kbT[row] + data.kbT[row]**2)
         np.testing.assert_allclose(details.eng[row], photon)
         np.testing.assert_allclose(details.sigma[row], width)
-        expected_radiative.append(constant*photon**2*data[f"osce_{spin}{source+1}"][row]/analysis.HBAR_EV)
+        expected_radiative.append(constant*photon**3/ei*data[f"osce_{spin}{source+1}"][row]/analysis.HBAR_EV)
         for target_rank, target in enumerate(orders[other][row]):
             ef, cf = arrays[other][0][row, target], arrays[other][1][row, target]
             gap = ef - cf*aopt - (ei-ci*ast)

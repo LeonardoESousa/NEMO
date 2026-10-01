@@ -630,6 +630,8 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
     # Emission follows the starting-state rank, rather than the photon-energy rank.
     emission_order = np.argsort(initial_state, axis=1, kind="stable")
     oscs = fetch(data, [rf"^osce_{initial[0]}\d+$"])
+    # Keep vacuum transition dipoles fixed at the corrected photon energies.
+    oscs = oscs * delta_emi_unsorted / energies
     delta_emi, oscs, lambda_be = [
         np.take_along_axis(values, emission_order, axis=1)
         for values in (delta_emi_unsorted, oscs, lambda_be)
@@ -650,7 +652,7 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
         emi_error = np.sqrt(np.sum((espectro /HBAR_EV - emi_rate) ** 2, axis=0) / (number_geoms * (number_geoms - 1)))
     emi_error = np.nan_to_num(emi_error, nan=0.0)
     gap_emi = means(delta_emi, espectro, ensemble_average)
-    mean_emi_coupling = 1000 * means(np.sqrt(espectro / 2 * np.pi), espectro, ensemble_average)
+    mean_emi_coupling = 1000 * means(np.sqrt(espectro / (2 * np.pi)), espectro, ensemble_average)
     mean_sigma_emi = means(l_total, espectro, ensemble_average)
     mean_part_emi = (100 / number_geoms) / means(
         espectro / np.sum(espectro), espectro, ensemble_average
@@ -899,6 +901,10 @@ def absorption(initial, dielec, data=None, save=False, detailed=False, nstates=-
         final_state = engs - gammas * alphast2 - chis * alphaopt2
         deltae_lambda = final_state - initial_state
 
+    # Keep vacuum transition dipoles fixed at the corrected transition energies.
+    vacuum_gap = engs if initial == "s0" else engs - base
+    oscs = oscs * deltae_lambda / vacuum_gap
+
     # Sorting states by energy
     deltae_lambda, oscs, lambda_b = sorting_parameters(
         deltae_lambda, oscs, lambda_b
@@ -912,11 +918,11 @@ def absorption(initial, dielec, data=None, save=False, detailed=False, nstates=-
         nstates, deltae_lambda, l_total, oscs, lambda_b
     )
     y_axis = constante * oscs * nemo.tools.gauss(x_axis, deltae_lambda, l_total)
-    mean_y, sigma = rate_and_uncertainty(y_axis)
+    mean_y, _ = rate_and_uncertainty(y_axis)
+    # Sum transitions before averaging to retain their covariance.
+    _, sigma = rate_and_uncertainty(np.sum(y_axis, axis=1))
     mean_y = mean_y.T
-    sigma = sigma.T
     total = np.sum(mean_y, axis=1)
-    sigma = np.sum(sigma, axis=1)
     # append total to mean_y
     mean_y = np.append(mean_y, total[:, np.newaxis], axis=1)
 
