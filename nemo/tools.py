@@ -3,6 +3,7 @@ import os
 import subprocess
 import sys
 import time
+import warnings
 import requests
 from importlib.metadata import version
 from subprocess import Popen
@@ -201,20 +202,23 @@ def _find_rotatable_bonds(geom, atomos, adj):
     return bonds
 
 
-def _canonical_torsion(geom, atom_a, atom_b, fragment, other):
+def _canonical_torsion(geom, atom_a, atom_b, fragment, other,
+                       atomic_masses=None):
     """Return the minimum-norm field for one radian of relative rotation."""
     fragment_field = _rotation_field(
         geom, atom_a, atom_b, fragment
     )
     other_field = _rotation_field(geom, atom_a, atom_b, other)
-    fragment_norm = np.sum(fragment_field * fragment_field)
-    other_norm = np.sum(other_field * other_field)
+    weights = (np.ones(len(geom)) if atomic_masses is None
+               else np.asarray(atomic_masses))[:, None]
+    fragment_norm = np.sum(weights * fragment_field * fragment_field)
+    other_norm = np.sum(weights * other_field * other_field)
     total = fragment_norm + other_norm
     if total == 0:
         return None
 
     # These counterrotations differ by exactly one radian. Their weights give
-    # the smallest Cartesian displacement among all such counterrotations.
+    # the smallest mass-weighted displacement among such counterrotations.
     fragment_weight = other_norm / total
     other_weight = fragment_norm / total
     field = (
@@ -228,12 +232,75 @@ def _canonical_torsion(geom, atom_a, atom_b, fragment, other):
     return field, rotor
 
 
+def _sampling_atomic_masses(atomos, freqlog):
+    """Use Gaussian's printed isotope masses, otherwise standard atomic weights.
+
+    For isotope calculations without printed Gaussian masses, supply the
+    atomic_masses argument to sample_geometries (amu, in geometry order).
+    """
+    import re
+    printed = []
+    with open(freqlog, encoding="utf-8") as handle:
+        for line in handle:
+            match = re.search(r"Atom\s+\d+\s+has atomic number\s+\d+"
+                              r"\s+and mass\s+([\d.EeDd+-]+)", line)
+            if match:
+                printed.append(float(match[1].replace("D", "E")))
+                if len(printed) == len(atomos):
+                    return np.asarray(printed)
+    symbols = ("H He Li Be B C N O F Ne Na Mg Al Si P S Cl Ar K Ca "
+               "Sc Ti V Cr Mn Fe Co Ni Cu Zn Ga Ge As Se Br Kr Rb Sr Y Zr "
+               "Nb Mo Tc Ru Rh Pd Ag Cd In Sn Sb Te I Xe").split()
+    weights = [1.008, 4.0026, 6.94, 9.0122, 10.81, 12.011, 14.007,
+               15.999, 18.998, 20.180, 22.990, 24.305, 26.982, 28.085,
+               30.974, 32.06, 35.45, 39.948, 39.098, 40.078, 44.956,
+               47.867, 50.942, 51.996, 54.938, 55.845, 58.933, 58.693,
+               63.546, 65.38, 69.723, 72.630, 74.922, 78.971, 79.904,
+               83.798, 85.468, 87.62, 88.906, 91.224, 92.906, 95.95,
+               98.0, 101.07, 102.906, 106.42, 107.868, 112.414, 114.818,
+               118.710, 121.760, 127.60, 126.904, 131.293]
+    lookup = dict(zip(symbols, weights))
+    lookup.update({str(i + 1): value for i, value in enumerate(weights)})
+    return np.array([lookup[str(atom).strip()] for atom in atomos])
+
+
+def _rigid_basis(geom, atomic_masses):
+    """Orthonormal translations/rotations in mass-weighted Cartesian space."""
+    centered = geom - np.average(geom, axis=0, weights=atomic_masses)
+    root_mass = np.repeat(np.sqrt(atomic_masses), 3)
+    fields = [np.tile(axis, (len(geom), 1)).ravel() for axis in np.eye(3)]
+    fields += [np.cross(axis, centered).ravel() for axis in np.eye(3)]
+    left, values, _ = np.linalg.svd(root_mass[:, None] * np.column_stack(fields),
+                                  full_matrices=False)
+    return left[:, values > values[0] * 1e-10]
+
+
+def _align_geometry(geom, reference, atomic_masses):
+    """Remove the overall translation/rotation introduced by finite torsions."""
+    center = np.average(geom, axis=0, weights=atomic_masses)
+    target_center = np.average(reference, axis=0, weights=atomic_masses)
+    source = geom - center
+    target = reference - target_center
+    left, _, right = np.linalg.svd((source * atomic_masses[:, None]).T @ target)
+    correction = np.eye(3)
+    correction[-1, -1] = np.linalg.det(left @ right)
+    return source @ (left @ correction @ right) + target_center
+
+
 def _build_torsional_subspace(geom, atomos, adj, freqs, normal_coord,
-                              cutoff_cm=100.0, svd_cutoff=1e-8):
-    """Project all low-frequency modes onto all acyclic torsion fields."""
-    cutoff = cutoff_cm * LIGHT_SPEED * 100 * 2 * np.pi
+                              cutoff_cm=100.0, svd_cutoff=1e-8,
+                              atomic_masses=None, scales=None,
+                              min_angle=0.15):
+    """Fit torsional fields in the mass metric, excluding rigid-body motion.
+
+    Without atomic_masses, retain the legacy Cartesian helper convention.
+    Additional modes can qualify through torsional character and amplitude.
+    """
+    cutoff = (np.inf if cutoff_cm is None else
+              cutoff_cm * LIGHT_SPEED * 100 * 2 * np.pi)
     low_modes = np.flatnonzero(
-        (freqs > 0) & (freqs <= cutoff)
+        (freqs > 0) & ((freqs <= cutoff) |
+                       (scales is not None and min_angle is not None))
     )
     low_modes = low_modes[
         np.all(np.isfinite(normal_coord[:, :, low_modes]), axis=(0, 1))
@@ -244,7 +311,7 @@ def _build_torsional_subspace(geom, atomos, adj, freqs, normal_coord,
     for atom_a, atom_b, fragment, other in _find_rotatable_bonds(
             geom, atomos, adj):
         result = _canonical_torsion(
-            geom, atom_a, atom_b, fragment, other
+            geom, atom_a, atom_b, fragment, other, atomic_masses
         )
         if result is not None:
             field, rotor = result
@@ -264,16 +331,38 @@ def _build_torsional_subspace(geom, atomos, adj, freqs, normal_coord,
     mode_matrix = normal_coord[:, :, low_modes].reshape(
         -1, len(low_modes)
     )
+    mass = (np.ones(len(geom)) if atomic_masses is None
+            else np.asarray(atomic_masses))
+    root_mass = np.repeat(np.sqrt(mass), 3)
+    weighted_torsions = root_mass[:, None] * torsion_matrix
+    field_scale = np.linalg.norm(weighted_torsions)
+    weighted_modes = root_mass[:, None] * mode_matrix
+    if atomic_masses is not None:
+        rigid = _rigid_basis(geom, mass)
+        weighted_torsions -= rigid @ (rigid.T @ weighted_torsions)
+        weighted_modes -= rigid @ (rigid.T @ weighted_modes)
+        torsion_matrix = weighted_torsions / root_mass[:, None]
     left, singular_values, right_t = np.linalg.svd(
-        torsion_matrix, full_matrices=False
+        weighted_torsions, full_matrices=False
     )
-    threshold = svd_cutoff * singular_values[0]
+    # Do not invert roundoff from a field that is purely rigid-body motion.
+    threshold = max(svd_cutoff * singular_values[0], 1e-12 * field_scale)
     inverse = np.zeros_like(singular_values)
     inverse[singular_values > threshold] = (
         1.0 / singular_values[singular_values > threshold]
     )
     pseudoinverse = (right_t.T * inverse).dot(left.T)
-    angle_from_q = pseudoinverse.dot(mode_matrix)
+    angle_from_q = pseudoinverse.dot(weighted_modes)
+    if scales is not None and min_angle is not None:
+        projected = weighted_torsions @ angle_from_q
+        norm2 = np.sum(weighted_modes ** 2, axis=0)
+        fraction = np.sum(projected ** 2, axis=0) / np.maximum(norm2, 1e-30)
+        angular_sd = np.max(np.abs(angle_from_q) * scales[low_modes], axis=0)
+        selected = ((freqs[low_modes] <= cutoff) |
+                    ((fraction >= 0.5) & (angular_sd >= min_angle)))
+        low_modes = low_modes[selected]
+        mode_matrix = mode_matrix[:, selected]
+        angle_from_q = angle_from_q[:, selected]
     residual_matrix = mode_matrix - torsion_matrix.dot(angle_from_q)
 
     return {
@@ -284,6 +373,7 @@ def _build_torsional_subspace(geom, atomos, adj, freqs, normal_coord,
         "angle_from_q": angle_from_q,
         "rotors": rotors,
         "singular_values": singular_values,
+        "atomic_masses": atomic_masses,
     }
 
 
@@ -304,6 +394,21 @@ def _rotate_fragment(geom, atom_a, atom_b, fragment, angle):
         + np.outer(relative.dot(axis), axis) * (1.0 - cosine)
     )
     geom[fragment] = geom[atom_a] + rotated
+
+
+def _sampling_geometry_valid(geometry, reference, atomos, adj,
+                             bond_tolerance=0.35):
+    """Connectivity plus a broad relative bond-length guard, not an energy test."""
+    if not np.all(np.isfinite(geometry)):
+        return False
+    if bond_tolerance is not None:
+        i, j = np.where(np.triu(adj, 1))
+        lengths = np.linalg.norm(geometry[i] - geometry[j], axis=1)
+        original = np.linalg.norm(reference[i] - reference[j], axis=1)
+        if np.any(np.abs(lengths / original - 1.0) > bond_tolerance):
+            return False
+    # Also rejects new nonbonded contacts within the covalent-distance cutoff.
+    return np.array_equal(adj, adjacency(geometry, atomos))
 
 
 def sample_single_geometry(args):
@@ -327,6 +432,7 @@ def sample_single_geometry(args):
                 * torsion_model["residual_modes"], axis=2
             )
 
+        before_rotation = start_geom.copy()
         angles = torsion_model["angle_from_q"].dot(qs[low_modes])
         for angle, rotor in zip(angles, torsion_model["rotors"]):
             (atom_a, atom_b, fragment, other,
@@ -340,22 +446,75 @@ def sample_single_geometry(args):
                 -other_weight * angle
             )
 
-        if np.array_equal(old, adjacency(start_geom, atomos)):
+        atomic_masses = torsion_model.get("atomic_masses")
+        if len(angles) and atomic_masses is not None:
+            start_geom = _align_geometry(start_geom, before_rotation, atomic_masses)
+
+        if _sampling_geometry_valid(
+                start_geom, geom, atomos, old,
+                torsion_model.get("bond_tolerance", 0.35)):
             return start_geom, qs.reshape(1, -1), rejected_geoms
 
     raise RuntimeError(
-        "Could not sample a geometry without changing its connectivity "
+        "Could not sample a finite geometry passing connectivity and bond checks "
         "after {} attempts".format(max_attempts)
     )
 
 
 def sample_geometries(freqlog, num_geoms, temp, show_progress=False,
                       rotor_cutoff=100.0, rotor_svd_cutoff=1e-8,
-                      seed=None, max_attempts=10000):
+                      seed=None, max_attempts=10000, atomic_masses=None,
+                      rotor_min_angle=0.15, bond_tolerance=0.35):
+    """Sample harmonic amplitudes with a finite-rotation torsional correction.
+
+    atomic_masses: optional per-atom masses in amu (e.g. isotope overrides).
+    rotor_min_angle: above-cutoff modes qualify when >=50% torsional and any
+        rotor has >= this one-sigma amplitude in radians; None disables this.
+    rotor_cutoff: cm^-1; None projects all modes, 0 with rotor_min_angle=None
+        disables torsional treatment.
+    bond_tolerance: allowed fractional bond-length change; None disables this
+        guard, but retains connectivity rejection. Rejection conditions the
+        distribution; this is not an anharmonic/hindered-rotor Boltzmann sampler.
+    """
+    for name, value in (("num_geoms", num_geoms), ("max_attempts", max_attempts)):
+        if isinstance(value, (bool, np.bool_)) or not isinstance(value, (int, np.integer)) or value < 1:
+            raise ValueError(name + " must be a positive integer")
+    if not np.isfinite(temp) or temp < 0:
+        raise ValueError("Temperature must be finite and nonnegative")
+    if rotor_cutoff is not None and (not np.isfinite(rotor_cutoff) or rotor_cutoff < 0):
+        raise ValueError("rotor_cutoff must be nonnegative or None")
+    if not np.isfinite(rotor_svd_cutoff) or not 0 < rotor_svd_cutoff < 1:
+        raise ValueError("rotor_svd_cutoff must lie strictly between 0 and 1")
+    if rotor_min_angle is not None and (not np.isfinite(rotor_min_angle) or rotor_min_angle <= 0):
+        raise ValueError("rotor_min_angle must be positive or None")
+    if bond_tolerance is not None and (not np.isfinite(bond_tolerance) or not 0 < bond_tolerance < 1):
+        raise ValueError("bond_tolerance must lie strictly between 0 and 1, or be None")
     geom, atomos = nemo.parser.pega_geom(freqlog)
-    old = adjacency(geom, atomos)
     freqs, masses = nemo.parser.pega_freq(freqlog)
     normal_coord = nemo.parser.pega_modos(geom, freqlog)
+    geom = np.asarray(geom, dtype=float)
+    freqs, masses = np.asarray(freqs), np.asarray(masses)
+    normal_coord = np.asarray(normal_coord)
+    if geom.shape != (len(atomos), 3) or not len(atomos) or not np.all(np.isfinite(geom)):
+        raise ValueError("Invalid reference geometry")
+    if (freqs.ndim != 1 or not len(freqs) or masses.shape != freqs.shape or
+            not np.all(np.isfinite(freqs)) or np.any(freqs <= 0) or
+            not np.all(np.isfinite(masses)) or np.any(masses <= 0)):
+        raise ValueError("Sampling requires finite, strictly positive frequencies and reduced masses")
+    if (normal_coord.shape != (len(atomos), 3, len(freqs)) or
+            not np.all(np.isfinite(normal_coord)) or
+            np.any(np.linalg.norm(normal_coord, axis=(0, 1)) == 0)):
+        raise ValueError("Normal modes are missing, nonfinite, zero, or have inconsistent dimensions")
+    if atomic_masses is None:
+        atomic_masses = _sampling_atomic_masses(atomos, freqlog)
+    atomic_masses = np.asarray(atomic_masses, dtype=float)
+    if (atomic_masses.shape != (len(atomos),) or
+            not np.all(np.isfinite(atomic_masses)) or np.any(atomic_masses <= 0)):
+        raise ValueError("atomic_masses must contain one positive finite mass per atom")
+    distances = distance_matrix(geom)
+    if np.any(distances[np.triu_indices(len(geom), 1)] <= 1e-10):
+        raise ValueError("Reference geometry contains coincident atoms")
+    old = adjacency(geom, atomos)
 
     if temp == 0:
         temp_factor = 1.0
@@ -364,11 +523,15 @@ def sample_geometries(freqlog, num_geoms, temp, show_progress=False,
     
     scales = 1e10 * np.sqrt(
         HBAR_J / (2 * masses * freqs * temp_factor))
+    if not np.all(np.isfinite(scales)):
+        raise ValueError("Nonfinite Wigner amplitudes; check frequencies and temperature")
 
     torsion_model = _build_torsional_subspace(
         geom, atomos, old, freqs, normal_coord,
-        cutoff_cm=rotor_cutoff, svd_cutoff=rotor_svd_cutoff
+        cutoff_cm=rotor_cutoff, svd_cutoff=rotor_svd_cutoff,
+        atomic_masses=atomic_masses, scales=scales, min_angle=rotor_min_angle
     )
+    torsion_model["bond_tolerance"] = bond_tolerance
     random = np.random.RandomState(seed)
     seeds = random.randint(0, 2**31 - 1, size=num_geoms)
     args = [
@@ -382,6 +545,18 @@ def sample_geometries(freqlog, num_geoms, temp, show_progress=False,
             len(torsion_model["low_modes"]),
             len(torsion_model["rotors"])
         ))
+        low = torsion_model["low_modes"]
+        angular_sd = np.sqrt(np.sum(
+            (torsion_model["angle_from_q"] * scales[low]) ** 2, axis=1))
+        for rotor, sd in zip(torsion_model["rotors"], angular_sd):
+            print("  Bond {}-{}: angular SD {:.1f} degrees".format(
+                rotor[0] + 1, rotor[1] + 1, np.degrees(sd)))
+        residual_rms = np.sqrt(np.sum(
+            (torsion_model["residual_modes"] * scales[low]) ** 2, axis=(1, 2)))
+        print("  Largest per-atom residual RMS: {:.3f} Angstrom".format(
+            np.max(residual_rms)))
+        if np.any(angular_sd > 1.0):
+            print("  Broad torsional sampling: local curvature does not determine barriers.")
 
     # Use joblib to parallelize the geometry generation
     results = Parallel(n_jobs=-1, verbose=show_progress)(
@@ -403,6 +578,11 @@ def sample_geometries(freqlog, num_geoms, temp, show_progress=False,
 
     if show_progress:
         print(f"\nAccepted Geometries: {progress} Rejected Geometries: {rejected}")
+        print("Rejection fraction: {:.1%}".format(rejected / (progress + rejected)))
+    if rejected > progress:
+        warnings.warn("More than half of proposed geometries were rejected; "
+                      "the accepted ensemble is strongly conditioned by geometry checks.",
+                      RuntimeWarning, stacklevel=2)
 
     numbers = np.round(numbers, 4)
     return numbers, atomos, structures
