@@ -381,8 +381,8 @@ def pega_soc_triplet_triplet(file, n_state):
 
 
 ##DECIDES WHICH FUNCTION TO USE IN ORDER TO GET SOCS#####################################
-def avg_socs(files, tipo, n_state):
-    col = None
+def avg_socs(files, tipo, n_state, nstates=None):
+    col = nstates
     if tipo == "singlet":
         pega_soc = pega_soc_singlet
     elif tipo == "triplet":
@@ -465,8 +465,8 @@ def moment(file, ess, ets, dipss, dipts, n_triplet):
     ess = np.insert(ess, 0, 0)
     moments = []
     for mqn in ["1", "-1", "0"]:
-        socst1 = soc_t1(file, mqn, n_triplet)
-        socss0 = soc_s0(file, mqn)
+        socst1 = soc_t1(file, mqn, n_triplet)[:len(ess)-1]
+        socss0 = soc_s0(file, mqn)[:len(ets)]
         socst1 = np.vstack((socss0[n_triplet, :], socst1))
         # Conjugate to get <S0|H|T1>
         socst1[0] = socst1[0].conjugate()
@@ -546,38 +546,47 @@ def phosph_osc(file, n_state, singlets, triplets):
     return osc_strength[np.newaxis, :]
 
 ##GETS TRANSITION DIPOLE MOMENTS#########################################################
-def pega_oscs(files, initial):
+def pega_oscs(files, initial, nstates=None):
     spin = initial[0].upper()
     num = int(initial[1:]) - 1
     mapa = {"S": "Singlet", "T": "Triplet"}
     frase = "Transition Moments Between " + mapa[spin] + " Excited States"
-    for i, file in enumerate(files):
-        oscs = []
+    if nstates is None:
+        nstates = len(_state_numbers(files[0], mapa[spin]))
+    rows = []
+    for file in files:
         state_numbers = _state_numbers(file, mapa[spin])
-        ind = str(state_numbers[num])
-        higher_states = state_numbers[num + 1 :]
+        if len(state_numbers) < nstates:
+            raise ValueError(f"{file}: expected {nstates} {mapa[spin]} roots, found {len(state_numbers)}")
+        state_numbers = state_numbers[:nstates]
+        source = state_numbers[num]
+        targets = state_numbers[num + 1 :]
+        strengths = {}
+        reading, seen_row = False, False
         with open("Geometries/" + file, "r", encoding="utf-8") as log_file:
-            dip = False
-            check = False
             for line in log_file:
                 if frase in line:
-                    oscs = []
-                    dip = True
-                elif dip and "--" not in line:
-                    if 'States' not in line:
-                        check = True
-                    line = line.split()
-                    if (line[0] == ind and int(line[1]) in higher_states) or (
-                        line[1] == ind and int(line[0]) in higher_states
-                    ):
-                        oscs.append(float(line[-1]))
-                elif check and "---" in line:
-                    dip = False
-            try:
-                total_oscs = np.vstack((total_oscs, np.array(oscs)[np.newaxis, :]))
-            except NameError:
-                total_oscs = np.array(oscs)[np.newaxis, :]
-    return total_oscs
+                    reading, seen_row = True, False
+                    strengths = {}
+                elif reading and "---" in line:
+                    if seen_row:
+                        reading = False
+                elif reading:
+                    parts = line.split()
+                    try:
+                        first, second = int(parts[0]), int(parts[1])
+                    except (ValueError, IndexError):
+                        continue
+                    seen_row = True
+                    if first == source and second in targets:
+                        strengths[second] = float(parts[-1])
+                    elif second == source and first in targets:
+                        strengths[first] = float(parts[-1])
+        missing = [int(root) for root in targets if root not in strengths]
+        if missing:
+            raise ValueError(f"{file}: missing {initial.upper()} oscillator strengths to dipole-table roots {missing}")
+        rows.append([strengths[root] for root in targets])
+    return np.array(rows, dtype=float)
 
 
 #########################################################################################

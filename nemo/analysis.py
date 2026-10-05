@@ -233,14 +233,14 @@ def gather_data(initial, save=True):
         else:
             label_oscs = [f"osce_s{i+1}" for i in range(oscs.shape[1])]
             any({formats.update({f"osce_s{i+1}": "{:.5e}"}) for i in range(oscs.shape[1])})
-            noscs = get_oscs[calculation_type](files, initial)
+            noscs = get_oscs[calculation_type](files, initial, singlets.shape[1])
             label_oscs.extend([f"osc_s{n_state+2+i}" for i in range(noscs.shape[1])])
             any({formats.update({f"osc_s{n_state+2+i}": "{:.5e}"}) for i in range(noscs.shape[1])})
             oscs = np.hstack((oscs, noscs))
         try:
             header7 = []
             for i in range(singlets.shape[1]):
-                socs_partial = get_avg_socs[calculation_type](files, "singlet", i)
+                socs_partial = get_avg_socs[calculation_type](files, "singlet", i, triplets.shape[1])
                 header7.extend(
                     [f"soc_s{i+1}_t{j}" for j in range(1, 1 + socs_partial.shape[1])]
                 )
@@ -258,7 +258,7 @@ def gather_data(initial, save=True):
         oscs = get_osc_phosph(files, singlets, triplets, total_states, get_phosph_osc[calculation_type])
         label_oscs = [f"osce_t{i+1}" for i in range(oscs.shape[1])]
         any({formats.update({f"osce_t{i+1}": "{:.5e}"}) for i in range(oscs.shape[1])})
-        noscs =  get_oscs[calculation_type](files, initial)
+        noscs =  get_oscs[calculation_type](files, initial, triplets.shape[1])
         oscs = np.hstack((oscs, noscs))
         label_oscs.extend([f"osc_t{n_state+2+i}" for i in range(noscs.shape[1])])
         any({formats.update({f"osc_t{n_state+2+i}": "{:.5e}"}) for i in range(noscs.shape[1])})
@@ -268,8 +268,8 @@ def gather_data(initial, save=True):
                 socs_partial = np.hstack(
                     (
                         get_avg_socs[calculation_type](files, "ground", i),
-                        get_avg_socs[calculation_type](files, "triplet", i),
-                        get_avg_socs[calculation_type](files, "tts", i),
+                        get_avg_socs[calculation_type](files, "triplet", i, singlets.shape[1]),
+                        get_avg_socs[calculation_type](files, "tts", i, triplets.shape[1]-1),
                     )
                 )
                 indices = [

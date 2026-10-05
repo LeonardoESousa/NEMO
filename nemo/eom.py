@@ -145,8 +145,8 @@ def pega_soc_triplet_triplet(file, n_state):
     return np.zeros((1, len(triplets)-1))
 
 ##DECIDES WHICH FUNCTION TO USE IN ORDER TO GET SOCS#####################################
-def avg_socs(files, tipo, n_state):
-    col = None
+def avg_socs(files, tipo, n_state, nstates=None):
+    col = nstates
     if tipo == "singlet":
         pega_soc = pega_soc_singlet
     elif tipo == "triplet":
@@ -228,8 +228,8 @@ def moment(file, ess, ets, dipss, dipts, n_triplet):
     ess = np.insert(ess, 0, 0)
     moments = []
     for mqn in ["1", "-1", "0"]:
-        socst1 = soc_t1(file, mqn, n_triplet)
-        socss0 = soc_s0(file, mqn)
+        socst1 = soc_t1(file, mqn, n_triplet)[:len(ess)-1]
+        socss0 = soc_s0(file, mqn)[:len(ets)]
         socst1 = np.vstack((socss0[n_triplet, :], socst1))
         # Conjugate to get <S0|H|T1>
         socst1[0] = socst1[0].conjugate()
@@ -336,7 +336,7 @@ def pega_dipole_triplet_triplet(file,state):
 def phosph_osc(file, n_state, singlets, triplets):
     total_moments = []
     ground_dipoles = pega_dipole_ground(file)
-    ground_singlet_dipoles = pega_dipole_ground_singlet(file)
+    ground_singlet_dipoles = pega_dipole_ground_singlet(file)[:len(singlets)]
     ground_dipoles = np.vstack((ground_dipoles, ground_singlet_dipoles))
     for n_triplet in range(len(triplets)):
         triplet_dipoles = pega_dipole_triplets(file,n_triplet)
@@ -362,46 +362,37 @@ def phosph_osc(file, n_state, singlets, triplets):
     return osc_strength[np.newaxis, :]
 
 ##GETS TRANSITION DIPOLE MOMENTS#########################################################
-def pega_oscs(files, initial):
+def pega_oscs(files, initial, nstates=None):
     spin = initial[0].upper()
-    num = int(initial[1:]) - 1
+    source = int(initial[1:])
     mapa = {"S": "singlets", "T": "triplets"}
-    states = []
-    for i, file in enumerate(files):
-        oscs = []
-        #ind = str(ind)
+    if nstates is None:
+        energies = pega_energias("Geometries/" + files[0])
+        nstates = len(energies[0 if spin == "S" else 1])
+    targets = range(source + 1, nstates + 1)
+    rows = []
+    for file in files:
+        strengths = {}
+        first, second = None, None
         with open("Geometries/" + file, "r", encoding="utf-8") as log_file:
-            #check_A, check_B = False, False
             for line in log_file:
-                if f'State A: eomee_ccsd/rhfref/{mapa[spin]}:' in line:
-                    line = line.split()
-                    state_num = int(line[-1].replace('/A',''))
-                    states.append(state_num)
-                elif f'State B: eomee_ccsd/rhfref/{mapa[spin]}:' in line:
-                    #check_B = True
-                    line = line.split()
-                    state_num = int(line[-1].replace('/A',''))
-                    states.append(state_num)  
+                if "State A:" in line:
+                    first = int(line.split()[-1].split("/")[0]) if f"eomee_ccsd/rhfref/{mapa[spin]}:" in line else None
+                    second = None
+                elif "State B:" in line:
+                    second = int(line.split()[-1].split("/")[0]) if f"eomee_ccsd/rhfref/{mapa[spin]}:" in line else None
+                elif "Oscillator strength (a.u.):" in line:
+                    if first == source and second in targets:
+                        strengths[second] = float(line.split()[-1])
+                    elif second == source and first in targets:
+                        strengths[first] = float(line.split()[-1])
                 elif '-----------------------' in line:
-                    states = []
-                elif len(states) == 2 and "Oscillator strength (a.u.):" in line:
-                    if num+1 in states:
-                        if states[0] == num+1:
-                            x = states[1]
-                        else:
-                            x = states[0] 
-                        oscs.append(float(line.split()[3]))       
-                        #total_oscs = np.vstack((total_oscs, [x,float(line.split()[3])]))
-                    #check_A, check_B = False, False      
-                    states = []
-        try:        
-            total_oscs = np.vstack((total_oscs, oscs))
-        except NameError:
-            total_oscs = np.array(oscs)[np.newaxis,:]            
-    # sort by first column
-    #total_oscs = total_oscs[total_oscs[:, 0].argsort()]                
-    
-    return total_oscs
+                    first, second = None, None
+        missing = [root for root in targets if root not in strengths]
+        if missing:
+            raise ValueError(f"{file}: missing {initial.upper()} oscillator strengths to roots {missing}")
+        rows.append([strengths[root] for root in targets])
+    return np.array(rows, dtype=float)
 
 
 #########################################################################################
