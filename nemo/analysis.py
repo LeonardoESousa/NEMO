@@ -71,7 +71,7 @@ def read_cis(file):
 #########################################################################################
 
 
-def get_osc_phosph(files, singlets, triplets, n_state, ind_s, ind_t, phosph_osc):
+def get_osc_phosph(files, singlets, triplets, n_state, phosph_osc):
     # removed correction from phosph_osc calculation
     eng_singlets = singlets  # - (alphast2/alphaopt1)*Ss_s
     eng_triplets = triplets  # - (alphast2/alphaopt1)*Ss_t
@@ -79,8 +79,6 @@ def get_osc_phosph(files, singlets, triplets, n_state, ind_s, ind_t, phosph_osc)
         tos = phosph_osc(
             files[j],
             n_state,
-            ind_s[j, :],
-            ind_t[j, :],
             eng_singlets[j, :],
             eng_triplets[j, :],
         )
@@ -99,8 +97,6 @@ def analysis(files, n_state, get_energies):
             singlets,
             triplets,
             oscs,
-            ind_s,
-            ind_t,
             ss_s,
             ss_t,
             ground_pol,
@@ -110,8 +106,6 @@ def analysis(files, n_state, get_energies):
         oscs = np.array([oscs[:n_state]])
         ss_s = np.array([ss_s[:n_state]])
         ss_t = np.array([ss_t[:n_state]])
-        ind_s = np.array([ind_s[:n_state]])
-        ind_t = np.array([ind_t[:n_state]])
         ground_pol = np.array([ground_pol])
         try:
             total_singlets = np.vstack((total_singlets, singlets))
@@ -119,8 +113,6 @@ def analysis(files, n_state, get_energies):
             total_oscs = np.vstack((total_oscs, oscs))
             total_ss_s = np.vstack((total_ss_s, ss_s))
             total_ss_t = np.vstack((total_ss_t, ss_t))
-            total_ind_s = np.vstack((total_ind_s, ind_s))
-            total_ind_t = np.vstack((total_ind_t, ind_t))
             total_ground_pol = np.append(total_ground_pol, ground_pol)
         except NameError:
             total_singlets = singlets
@@ -128,8 +120,6 @@ def analysis(files, n_state, get_energies):
             total_oscs = oscs
             total_ss_s = ss_s
             total_ss_t = ss_t
-            total_ind_s = ind_s
-            total_ind_t = ind_t
             total_ground_pol = ground_pol
         numbers.append(int(file.split("-")[1]))
     numbers = np.array(numbers)[:, np.newaxis]
@@ -141,8 +131,6 @@ def analysis(files, n_state, get_energies):
         total_ss_s,
         total_ss_t,
         total_ground_pol,
-        total_ind_s,
-        total_ind_t,
     )
 
 
@@ -238,23 +226,21 @@ def gather_data(initial, save=True):
             ss_s,
             ss_t,
             ground_pol,
-            ind_s,
-            ind_t,
         ) = analysis(files, total_states, get_energies[calculation_type])
         if "s0" == initial.lower():
             label_oscs = [f"osc_s{i+1}" for i in range(oscs.shape[1])]
             any({formats.update({f"osc_s{i+1}": "{:.5e}"}) for i in range(oscs.shape[1])})
         else:
-            label_oscs = [f"osce_s{n_state+1+i}" for i in range(oscs.shape[1])]
-            any({formats.update({f"osce_s{n_state+1+i}": "{:.5e}"}) for i in range(oscs.shape[1])})
-            noscs = get_oscs[calculation_type](files, ind_s, initial)
+            label_oscs = [f"osce_s{i+1}" for i in range(oscs.shape[1])]
+            any({formats.update({f"osce_s{i+1}": "{:.5e}"}) for i in range(oscs.shape[1])})
+            noscs = get_oscs[calculation_type](files, initial)
             label_oscs.extend([f"osc_s{n_state+2+i}" for i in range(noscs.shape[1])])
             any({formats.update({f"osc_s{n_state+2+i}": "{:.5e}"}) for i in range(noscs.shape[1])})
             oscs = np.hstack((oscs, noscs))
         try:
             header7 = []
             for i in range(singlets.shape[1]):
-                socs_partial = get_avg_socs[calculation_type](files, "singlet", i, ind_s, ind_t)
+                socs_partial = get_avg_socs[calculation_type](files, "singlet", i)
                 header7.extend(
                     [f"soc_s{i+1}_t{j}" for j in range(1, 1 + socs_partial.shape[1])]
                 )
@@ -266,13 +252,13 @@ def gather_data(initial, save=True):
         except IndexError:
             pass
     else:
-        numbers, singlets, triplets, _, ss_s, ss_t, ground_pol, ind_s, ind_t = analysis(
+        numbers, singlets, triplets, _, ss_s, ss_t, ground_pol = analysis(
             files, total_states, get_energies[calculation_type]
         )
-        oscs = get_osc_phosph(files, singlets, triplets, total_states, ind_s, ind_t, get_phosph_osc[calculation_type])
-        label_oscs = [f"osce_t{n_state+1+i}" for i in range(oscs.shape[1])]
-        any({formats.update({f"osce_t{n_state+1+i}": "{:.5e}"}) for i in range(oscs.shape[1])})
-        noscs =  get_oscs[calculation_type](files, ind_t, initial)
+        oscs = get_osc_phosph(files, singlets, triplets, total_states, get_phosph_osc[calculation_type])
+        label_oscs = [f"osce_t{i+1}" for i in range(oscs.shape[1])]
+        any({formats.update({f"osce_t{i+1}": "{:.5e}"}) for i in range(oscs.shape[1])})
+        noscs =  get_oscs[calculation_type](files, initial)
         oscs = np.hstack((oscs, noscs))
         label_oscs.extend([f"osc_t{n_state+2+i}" for i in range(noscs.shape[1])])
         any({formats.update({f"osc_t{n_state+2+i}": "{:.5e}"}) for i in range(noscs.shape[1])})
@@ -281,9 +267,9 @@ def gather_data(initial, save=True):
             for i in range(triplets.shape[1]):
                 socs_partial = np.hstack(
                     (
-                        get_avg_socs[calculation_type](files, "ground", i, ind_s, ind_t),
-                        get_avg_socs[calculation_type](files, "triplet", i, ind_s, ind_t),
-                        get_avg_socs[calculation_type](files, "tts", i, ind_s, ind_t),
+                        get_avg_socs[calculation_type](files, "ground", i),
+                        get_avg_socs[calculation_type](files, "triplet", i),
+                        get_avg_socs[calculation_type](files, "tts", i),
                     )
                 )
                 indices = [
@@ -399,22 +385,17 @@ def export_results(data, emission, dielec):
 
 
 def reorder(initial_state, final_state, ss_i, ss_f, socs):
-    argsort = np.argsort(initial_state, axis=1)
-    initial_state = np.take_along_axis(initial_state, argsort, axis=1)
-    ss_i = np.take_along_axis(ss_i, argsort, axis=1)
-    corredor = int(np.sqrt(socs.shape[1]))
-    socs_complete = socs.reshape((socs.shape[0], corredor, corredor))
-    for j in range(socs_complete.shape[1]):
-        socs_complete[:, j, :] = np.take_along_axis(
-            socs_complete[:, j, :], argsort, axis=1
-        )
-    argsort = np.argsort(final_state, axis=1)
-    final_state = np.take_along_axis(final_state, argsort, axis=1)
-    ss_f = np.take_along_axis(ss_f, argsort, axis=1)
-    for j in range(socs_complete.shape[1]):
-        socs_complete[:, :, j] = np.take_along_axis(
-            socs_complete[:, :, j], argsort, axis=1
-        )
+    order_i = np.argsort(initial_state, axis=1, kind="stable")
+    order_f = np.argsort(final_state, axis=1, kind="stable")
+    socs_complete = socs.reshape(
+        (socs.shape[0], initial_state.shape[1], final_state.shape[1])
+    )
+    socs_complete = np.take_along_axis(socs_complete, order_i[:, :, None], axis=1)
+    socs_complete = np.take_along_axis(socs_complete, order_f[:, None, :], axis=2)
+    initial_state = np.take_along_axis(initial_state, order_i, axis=1)
+    final_state = np.take_along_axis(final_state, order_f, axis=1)
+    ss_i = np.take_along_axis(ss_i, order_i, axis=1)
+    ss_f = np.take_along_axis(ss_f, order_f, axis=1)
     return initial_state, final_state, ss_i, ss_f, socs_complete
 
 
@@ -441,7 +422,7 @@ def x_values(mean, std):
 
 def sorting_parameters(*args):
     args = list(args)
-    argsort = np.argsort(args[0], axis=1)
+    argsort = np.argsort(args[0], axis=1, kind="stable")
     for i in range(len(args)):
         args[i] = np.take_along_axis(args[i], argsort, axis=1)
     return args
@@ -462,9 +443,9 @@ def check_number_geoms(data):
 
 def fetch(data, criteria_list):
     regex_list = [re.compile(c) for c in criteria_list]
-    filtered_data = data[
-        [i for i in data.columns.values if all(r.search(i) for r in regex_list)]
-    ].to_numpy()
+    columns = [i for i in data.columns.values if all(r.search(i) for r in regex_list)]
+    columns.sort(key=lambda column: tuple(int(n) for n in re.findall(r"\d+", column)))
+    filtered_data = data[columns].to_numpy()
     return filtered_data
 
 
@@ -541,7 +522,7 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
     )
     if "t" in initial:
         constante *= 1 / 3
-    oscs = fetch(data, ["^osce_"])
+    oscs = fetch(data, [rf"^osce_{initial[0]}\d+$"])
     delta_emi, oscs, energies = sorting_parameters(delta_emi_unsorted, oscs, energies)
     delta_emi, oscs, energies = select_columns(n_state, delta_emi, oscs, energies)
     espectro = constante * ((delta_emi - lambda_be) ** 2) * oscs
@@ -578,7 +559,7 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
     if "s" in initial:
         initial_state = singlets - (alphast2 / alphaopt1) * ss_s
         final_state = triplets - (alphaopt2 / alphaopt1) * ss_t
-        socs_complete = fetch(data, ["^soc_s"])
+        socs_complete = fetch(data, [r"^soc_s\d+_t\d+$"])
         initial_state, final_state, ss_s, ss_t, socs_complete = reorder(
             initial_state, final_state, ss_s, ss_t, socs_complete
         )
@@ -588,11 +569,7 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
             initial_state[:, np.newaxis], final_state.shape[1], axis=1
         )
         lambda_b = (alphast2 / alphaopt1 - alphaopt2 / alphaopt1) * ss_t
-        final = [
-            i.split("_")[2].upper()
-            for i in data.columns.values
-            if "soc_" + initial.lower() + "_" in i
-        ]
+        final = [f"T{i+1}" for i in range(final_state.shape[1])]
         ##FOR WHEN IC IS AVAILABLE
         # socs_complete = np.hstack((socs_complete,0.0001*np.ones((Singlets.shape[0],Singlets.shape[1]-1))))
         # delta_ss = Singlets + np.repeat((alphast2/alphaopt1)*Ss_s[:,n_state][:,np.newaxis] - Singlets[:,n_state][:,np.newaxis],Singlets.shape[1],axis=1) - (alphaopt2/alphaopt1)*Ss_s    #Sm (final) - Sn (initial) + lambda_b
@@ -604,7 +581,7 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
         # Tn to Sm ISC
         initial_state = triplets - (alphast2 / alphaopt1) * ss_t
         final_state = singlets - (alphaopt2 / alphaopt1) * ss_s
-        socs_complete = fetch(data, ["^soc_t.*s[1-9]"])
+        socs_complete = fetch(data, [r"^soc_t\d+_s[1-9]\d*$"])
         initial_state, final_state, ss_t, ss_s, socs_complete = reorder(
             initial_state, final_state, ss_t, ss_s, socs_complete
         )
@@ -614,11 +591,7 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
             initial_state[:, np.newaxis], final_state.shape[1], axis=1
         )
         lambda_b = (alphast2 / alphaopt1 - alphaopt2 / alphaopt1) * ss_s
-        final = [
-            i.split("_")[2].upper()
-            for i in data.columns.values
-            if "soc_" + initial.lower() + "_" in i and i.count("t") == 1
-        ]
+        final = ["S0"] + [f"S{i+1}" for i in range(final_state.shape[1])]
         # Tn to S0 ISC
         socs_s0 = fetch(data, ["^soc_t.*s0"])
         delta_emi, socs_s0 = sorting_parameters(delta_emi_unsorted, socs_s0)

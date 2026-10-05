@@ -1,6 +1,6 @@
 # **NEMO** - Photophysics with the Nuclear Ensemble Method
 
-##  Version 1.3.4
+##  Version 1.4
 
 [![made-with-python](https://img.shields.io/badge/Made%20with-Python-1f425f.svg)](https://www.python.org/)
 [![license](https://img.shields.io/github/license/LeonardoESousa/NEMO?style=plastic)]()
@@ -59,6 +59,8 @@ Table of Contents
  -  To obtain the estimates of Förster radius, fluorescence lifetimes and singlet exciton diffusion lengths, it is necessary to first perform both absorption and fluorescence spectra calculations for the molecule of interest.
 
 ## How to install it?
+
+Python 3.11 or later is required.
 
 Run:
 

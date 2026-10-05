@@ -434,7 +434,7 @@ def fetch_nr(file):
 
 def susceptibility_check(file, tuning=False):
     # Fetch energy levels and other data
-    es, et, _, _, _, ss_s, ss_t, _ = nemo.parser.pega_energias(file)
+    es, et, _, ss_s, ss_t, _ = nemo.parser.pega_energias(file)
     _, nr = fetch_nr(file)
 
     # Calculate alpha and susceptibility chi values

@@ -1,4 +1,4 @@
-# **NEMO** Tutorial Version 1.3.3
+# **NEMO** Tutorial Version 1.4
 
 <img src="logo.png" alt="Alt Text" width="100%">
 
@@ -30,6 +30,8 @@ The theoretical aspects behind **NEMO** can be found in the following papers:
 
 
 # Installation of the **NEMO** package
+
+Python 3.11 or later is required.
 
 The easiest way to install is to use pip:
 

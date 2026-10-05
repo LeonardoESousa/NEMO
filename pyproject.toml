@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=69", "wheel", "build"]
+requires = ["setuptools>=77", "wheel", "build"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -7,15 +7,15 @@ name = "nemophoto"
 dynamic = ["version"]
 description = "Absorption, fluorescence, phosphorescence spectrum simulations and ISC rate calculations."
 readme = "README.md"
-requires-python = ">=3.6"
-license = { file =  "LICENSE"}
+requires-python = ">=3.11"
+license = "MIT"
+license-files = ["LICENSE"]
 authors = [{ name = "Leonardo Evaristo de Sousa", email = "ledso@dtu.dk" }]
 urls = { Homepage = "https://github.com/LeonardoESousa/NEMO" }
 
-# Keep pandas <2.0 and NumPy <2.0 (works well on Python 3.8–3.11)
 dependencies = [
-  "numpy<2.0",
-  "pandas<2.0",
+  "numpy>=1.26.4",
+  "pandas>=2.2",
   "scipy",
   "LeoX>=0.9.1"
 ]
