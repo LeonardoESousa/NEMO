@@ -843,6 +843,8 @@ def pega_dipolos(file, ind, frase, state):
     with open("Geometries/" + file, "r", encoding="utf-8") as log_file:
         dip = False
         for line in log_file:
+            if "Have a nice day" in line:
+                break
             if frase in line:
                 dip = True
             elif dip and "--" not in line:
@@ -895,16 +897,28 @@ def moment(file, ess, ets, e_s0, dipss, dipts, n_triplet):
     ess = np.array(ess)
     ets = np.array(ets)
     ess = np.insert(ess, 0, e_s0)
+    # Energies may have been truncated to the states shared by the vacuum
+    # and PCM calculations. Restrict both perturbative sums to those states.
+    dipss = dipss[:len(ess), :]
+    dipts = dipts[:len(ets), :]
     moments = []
     for mqn in ["1", "-1", "0"]:
         socst1 = soc_t1(file, mqn, n_triplet)
         socss0 = soc_s0(file, mqn)
+        socss0 = socss0[:len(ets), :]
         socst1 = np.vstack((socss0[n_triplet, :], socst1))
         # Conjugate to get <S0|H|T1>
         socst1[0] = socst1[0].conjugate()
         # Now conjugate socst1
         socst1 = socst1.conjugate()
-        ess = ess[: np.shape(socst1)[0]]
+        socst1 = socst1[:len(ess), :]
+        if (len(socss0) != len(ets) or len(dipts) != len(ets)
+                or len(socst1) != len(ess) or len(dipss) != len(ess)):
+            raise ValueError(
+                f"{file}: incomplete SOC or dipole data for phosphorescence "
+                f"of T{n_triplet + 1} ({len(ess) - 1} singlets, "
+                f"{len(ets)} triplets required)."
+            )
         if 0 in ets[n_triplet] - ess:
             return 0
         for i in [0, 1, 2]:
@@ -930,7 +944,7 @@ def _state_numbers(file, spin):
 
 def phosph_osc(file, n_state, singlets, triplets, e_s0=0):
     zero = ["0"]
-    zero.extend(_state_numbers(file, "Singlet"))
+    zero.extend(_state_numbers(file, "Singlet")[:len(singlets)])
     triplet_states = _state_numbers(file, "Triplet")[:n_state]
     total_moments = []
     ground_dipoles = pega_dipolos(
@@ -1012,6 +1026,8 @@ def soc_s0(file, mqn):
     with open("Geometries/" + file, "r", encoding="utf-8") as log_file:
         read = False
         for line in log_file:
+            if "Have a nice day" in line:
+                break
             if (
                 "SOC between the singlet ground state and excited triplet states (ms="
                 + mqn
@@ -1058,6 +1074,8 @@ def soc_t1(file, mqn, n_triplet):
     with open("Geometries/" + file, "r", encoding="utf-8") as log_file:
         read = False
         for line in log_file:
+            if "Have a nice day" in line:
+                break
             if "SOC between the S" in line and "(ms=" + mqn in line:
                 read = True
             elif read:
