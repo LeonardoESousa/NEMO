@@ -224,8 +224,8 @@ def pega_soc_triplet_triplet(file, n_state):
     return np.zeros((1, len(triplets)-1))
 
 ##DECIDES WHICH FUNCTION TO USE IN ORDER TO GET SOCS#####################################
-def avg_socs(files, tipo, n_state):
-    col = None
+def avg_socs(files, tipo, n_state, nstates=None):
+    col = nstates
     if tipo == "singlet":
         pega_soc = pega_soc_singlet
     elif tipo == "triplet":
@@ -236,6 +236,12 @@ def avg_socs(files, tipo, n_state):
         pega_soc = pega_soc_triplet_triplet
     for file in files:
         socs = pega_soc(file, n_state)
+        if nstates is not None and socs.shape[1] < nstates:
+            raise ValueError(
+                f"{file}: missing SOC targets for {tipo} root {n_state + 1}; "
+                f"expected {nstates}, found {socs.shape[1]}."
+            )
+        socs = socs[:, :col]
         try:
             socs = socs[:, :col]
             total_socs = np.vstack((total_socs, socs))
@@ -442,45 +448,44 @@ def phosph_osc(file, n_state, singlets, triplets):
     return osc_strength[np.newaxis, :]
 
 ##GETS TRANSITION DIPOLE MOMENTS#########################################################
-def pega_oscs(files, initial):
+def pega_oscs(files, initial, nstates=None):
     spin = initial[0].upper()
-    num = int(initial[1:]) - 1
-    mapa = {"S": "singlets", "T": "triplets"}
-    states = []
-    for i, file in enumerate(files):
-        oscs = []
+    source = int(initial[1:])
+    label = {"S": "singlets", "T": "triplets"}[spin]
+    rows = []
+    for file in files:
+        states = []
+        strengths = {}
         with open("Geometries/" + file, "r", encoding="utf-8") as log_file:
-            #check_A, check_B = False, False
             for line in log_file:
-                if f'State A: eomee_ccsd/rhfref/{mapa[spin]}:' in line:
-                    line = line.split()
-                    state_num = int(line[-1].replace('/A',''))
-                    states.append(state_num)
-                elif f'State B: eomee_ccsd/rhfref/{mapa[spin]}:' in line:
-                    #check_B = True
-                    line = line.split()
-                    state_num = int(line[-1].replace('/A',''))
-                    states.append(state_num)  
-                elif '-----------------------' in line:
+                if "Have a nice day" in line:
+                    break
+                if "State A:" in line:
+                    states = []
+                    if f"eomee_ccsd/rhfref/{label}:" in line:
+                        states.append(int(line.split()[-1].split("/")[0]))
+                elif "State B:" in line:
+                    if f"eomee_ccsd/rhfref/{label}:" in line:
+                        states.append(int(line.split()[-1].split("/")[0]))
+                elif "-----------------------" in line:
                     states = []
                 elif len(states) == 2 and "Oscillator strength (a.u.):" in line:
-                    if num+1 in states:
-                        if states[0] == num+1:
-                            x = states[1]
-                        else:
-                            x = states[0] 
-                        oscs.append(float(line.split()[3]))       
-                        #total_oscs = np.vstack((total_oscs, [x,float(line.split()[3])]))
-                    #check_A, check_B = False, False      
+                    if source in states:
+                        target = states[1] if states[0] == source else states[0]
+                        strengths[target] = float(line.split()[-1])
                     states = []
-        try:        
-            total_oscs = np.vstack((total_oscs, oscs))
-        except NameError:
-            total_oscs = np.array(oscs)[np.newaxis,:]            
-    # sort by first column
-    #total_oscs = total_oscs[total_oscs[:, 0].argsort()]                
-    
-    return total_oscs
+        if nstates is None:
+            targets = sorted(t for t in strengths if t > source)
+        else:
+            if source < 1 or source > nstates:
+                raise ValueError(f"{file}: {initial} is outside {nstates} retained states.")
+            targets = range(source + 1, nstates + 1)
+        missing = [t for t in targets if t not in strengths]
+        if missing:
+            raise ValueError(f"{file}: missing oscillator strengths from {initial} "
+                             f"to {spin} roots {missing}.")
+        rows.append([strengths[t] for t in targets])
+    return np.array(rows, dtype=float)
 
 
 #########################################################################################
