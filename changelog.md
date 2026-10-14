@@ -1,6 +1,10 @@
+## Version 1.4.0
+
+1 - Fixed bugs in phosphorescence rates and reordering of states.
+
 ## Version 1.3.4
 
-1 - Fixed bug in structure check and omega tuning restarting option
+1 - Fixed bug in structure check and omega tuning restarting option.
 
 ## Version 1.3.3
 
