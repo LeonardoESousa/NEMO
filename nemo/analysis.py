@@ -310,14 +310,18 @@ def _build_gather_dataframe(initial, files, total_states, calculation_type, eps_
                 data[f"osce_s{i+1}"] = oscs[:, i]
                 formats[f"osce_s{i+1}"] = "{:.5e}"
 
-            noscs = get_oscs[calculation_type](files, initial)
+            noscs = get_oscs[calculation_type](
+                files, initial, nstates=singlets.shape[1]
+            )
             for i in range(noscs.shape[1]):
                 data[f"osc_s{n_state+2+i}"] = noscs[:, i]
                 formats[f"osc_s{n_state+2+i}"] = "{:.5e}"
 
         try:
             for i in range(singlets.shape[1]):
-                socs_partial = get_avg_socs[calculation_type](files, "singlet", i)
+                socs_partial = get_avg_socs[calculation_type](
+                    files, "singlet", i, nstates=triplets.shape[1]
+                )
                 for j in range(triplets.shape[1]):
                     data[f"soc_s{i+1}_t{j+1}"] = socs_partial[:, j]
                     formats[f"soc_s{i+1}_t{j+1}"] = "{:.5e}"
@@ -336,7 +340,9 @@ def _build_gather_dataframe(initial, files, total_states, calculation_type, eps_
             data[f"osce_t{i+1}"] = oscs[:, i]
             formats[f"osce_t{i+1}"] = "{:.5e}"
 
-        noscs = get_oscs[calculation_type](files, initial)
+        noscs = get_oscs[calculation_type](
+            files, initial, nstates=triplets.shape[1]
+        )
 
         for i in range(noscs.shape[1]):
             data[f"osc_t{n_state+2+i}"] = noscs[:, i]
@@ -345,7 +351,9 @@ def _build_gather_dataframe(initial, files, total_states, calculation_type, eps_
         try:
             for i in range(triplets.shape[1]):
                 soc_ground = get_avg_socs[calculation_type](files, "ground", i)
-                soc_triplet = get_avg_socs[calculation_type](files, "triplet", i)
+                soc_triplet = get_avg_socs[calculation_type](
+                    files, "triplet", i, nstates=singlets.shape[1]
+                )
 
                 data[f"soc_t{i+1}_s0"] = soc_ground[:, 0]
                 formats[f"soc_t{i+1}_s0"] = "{:.5e}"

@@ -8,6 +8,9 @@ set_state_deriv        1
 cis_n_roots             5
 cis_singlets            true
 cis_triplets            false
+XC_GRID                 3
+FOLLOW_ENERGY           100000
+FOLLOW_OVERLAP           1
 $end
 
 $molecule
@@ -29,4 +32,5 @@ set_state_deriv        1
 cis_n_roots             5
 cis_singlets            true
 cis_triplets            false
+XC_GRID                 3
 $end

@@ -813,8 +813,8 @@ def pega_soc_triplet_triplet(file, n_state):
 
 
 ##DECIDES WHICH FUNCTION TO USE IN ORDER TO GET SOCS#####################################
-def avg_socs(files, tipo, n_state):
-    col = None
+def avg_socs(files, tipo, n_state, nstates=None):
+    col = nstates
     if tipo == "singlet":
         pega_soc = pega_soc_singlet
     elif tipo == "triplet":
@@ -825,6 +825,12 @@ def avg_socs(files, tipo, n_state):
         pega_soc = pega_soc_triplet_triplet
     for file in files:
         socs = pega_soc(file, n_state)
+        if nstates is not None and socs.shape[1] < nstates:
+            raise ValueError(
+                f"{file}: missing SOC targets for {tipo} root {n_state + 1}; "
+                f"expected {nstates}, found {socs.shape[1]}."
+            )
+        socs = socs[:, :col]
         try:
             socs = socs[:, :col]
             total_socs = np.vstack((total_socs, socs))
@@ -843,6 +849,8 @@ def pega_dipolos(file, ind, frase, state):
     with open("Geometries/" + file, "r", encoding="utf-8") as log_file:
         dip = False
         for line in log_file:
+            if "Have a nice day" in line:
+                break
             if frase in line:
                 dip = True
             elif dip and "--" not in line:
@@ -895,16 +903,28 @@ def moment(file, ess, ets, e_s0, dipss, dipts, n_triplet):
     ess = np.array(ess)
     ets = np.array(ets)
     ess = np.insert(ess, 0, e_s0)
+    # Energies may have been truncated to the states shared by the vacuum
+    # and PCM calculations. Restrict both perturbative sums to those states.
+    dipss = dipss[:len(ess), :]
+    dipts = dipts[:len(ets), :]
     moments = []
     for mqn in ["1", "-1", "0"]:
         socst1 = soc_t1(file, mqn, n_triplet)
         socss0 = soc_s0(file, mqn)
+        socss0 = socss0[:len(ets), :]
         socst1 = np.vstack((socss0[n_triplet, :], socst1))
         # Conjugate to get <S0|H|T1>
         socst1[0] = socst1[0].conjugate()
         # Now conjugate socst1
         socst1 = socst1.conjugate()
-        ess = ess[: np.shape(socst1)[0]]
+        socst1 = socst1[:len(ess), :]
+        if (len(socss0) != len(ets) or len(dipts) != len(ets)
+                or len(socst1) != len(ess) or len(dipss) != len(ess)):
+            raise ValueError(
+                f"{file}: incomplete SOC or dipole data for phosphorescence "
+                f"of T{n_triplet + 1} ({len(ess) - 1} singlets, "
+                f"{len(ets)} triplets required)."
+            )
         if 0 in ets[n_triplet] - ess:
             return 0
         for i in [0, 1, 2]:
@@ -930,7 +950,7 @@ def _state_numbers(file, spin):
 
 def phosph_osc(file, n_state, singlets, triplets, e_s0=0):
     zero = ["0"]
-    zero.extend(_state_numbers(file, "Singlet"))
+    zero.extend(_state_numbers(file, "Singlet")[:len(singlets)])
     triplet_states = _state_numbers(file, "Triplet")[:n_state]
     total_moments = []
     ground_dipoles = pega_dipolos(
@@ -968,39 +988,49 @@ def phosph_osc(file, n_state, singlets, triplets, e_s0=0):
     return osc_strength[np.newaxis, :]
 
 ##GETS TRANSITION DIPOLE MOMENTS#########################################################
-def pega_oscs(files, initial):
+def pega_oscs(files, initial, nstates=None):
     spin = initial[0].upper()
     num = int(initial[1:]) - 1
     mapa = {"S": "Singlet", "T": "Triplet"}
-    frase = "Transition Moments Between " + mapa[spin] + " Excited States"
-    for i, file in enumerate(files):
-        oscs = []
+    phrase = "Transition Moments Between " + mapa[spin] + " Excited States"
+    rows = []
+    for file in files:
         state_numbers = _state_numbers(file, mapa[spin])
-        ind = str(state_numbers[num])
-        higher_states = state_numbers[num + 1 :]
+        retained = len(state_numbers) if nstates is None else nstates
+        if num < 0 or num >= retained or len(state_numbers) < retained:
+            raise ValueError(f"{file}: insufficient {mapa[spin]} roots for {initial} "
+                             f"with {retained} retained states.")
+        source = int(state_numbers[num])
+        targets = state_numbers[num + 1:retained]
+        strengths = {}
+        reading = False
         with open("Geometries/" + file, "r", encoding="utf-8") as log_file:
-            dip = False
-            check = False
             for line in log_file:
-                if frase in line:
-                    oscs = []
-                    dip = True
-                    check = False
-                elif dip and "--" not in line:
-                    if 'States' not in line:
-                        check = True
-                    line = line.split()
-                    if (line[0] == ind and int(line[1]) in higher_states) or (
-                        line[1] == ind and int(line[0]) in higher_states
-                    ):
-                        oscs.append(float(line[-1]))
-                elif check and "---" in line:
-                    dip = False
-            try:
-                total_oscs = np.vstack((total_oscs, np.array(oscs)[np.newaxis, :]))
-            except NameError:
-                total_oscs = np.array(oscs)[np.newaxis, :]
-    return total_oscs
+                if "Have a nice day" in line:
+                    break
+                if phrase in line:
+                    reading = True
+                    strengths = {}
+                    continue
+                fields = line.split()
+                if reading and len(fields) >= 6:
+                    try:
+                        first, second = int(fields[0]), int(fields[1])
+                        strength = float(fields[-1])
+                    except ValueError:
+                        continue
+                    if first == source:
+                        strengths[second] = strength
+                    elif second == source:
+                        strengths[first] = strength
+                elif reading and strengths and "---" in line:
+                    reading = False
+        missing = [int(t) for t in targets if int(t) not in strengths]
+        if missing:
+            raise ValueError(f"{file}: missing oscillator strengths from {initial} "
+                             f"to dipole-table state IDs {missing}.")
+        rows.append([strengths[int(t)] for t in targets])
+    return np.array(rows, dtype=float)
 
 
 #########################################################################################
@@ -1012,6 +1042,8 @@ def soc_s0(file, mqn):
     with open("Geometries/" + file, "r", encoding="utf-8") as log_file:
         read = False
         for line in log_file:
+            if "Have a nice day" in line:
+                break
             if (
                 "SOC between the singlet ground state and excited triplet states (ms="
                 + mqn
@@ -1058,6 +1090,8 @@ def soc_t1(file, mqn, n_triplet):
     with open("Geometries/" + file, "r", encoding="utf-8") as log_file:
         read = False
         for line in log_file:
+            if "Have a nice day" in line:
+                break
             if "SOC between the S" in line and "(ms=" + mqn in line:
                 read = True
             elif read:
