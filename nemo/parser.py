@@ -481,7 +481,14 @@ def parse_block(block, collect_corrections=False):
         'correction2': [],
         'total_energy': [],
         'composition': [],
+        'transition_dipoles': [],
     }
+    orientation = block.split('Standard Nuclear Orientation (Angstroms)', 1)
+    geometry = orientation[1].split('Nuclear Repulsion Energy', 1)[0] if len(orientation) == 2 else ''
+    rows = re.findall(r'^\s*\d+\s+([A-Z][a-z]?)\s+([-+\d.Ee]+)\s+([-+\d.Ee]+)\s+([-+\d.Ee]+)\s*$',
+                      geometry, re.MULTILINE)
+    data['atoms'] = [row[0] for row in rows]
+    data['geometry'] = np.array([row[1:] for row in rows], dtype=float).reshape(-1, 3)
     exc = False
     corr = False
     current_comp = None
@@ -494,6 +501,7 @@ def parse_block(block, collect_corrections=False):
             data['oscillator'] = []
             data['indices'] = []
             data['composition'] = []
+            data['transition_dipoles'] = []
             exc = True
             current_comp = None
             continue
@@ -511,12 +519,16 @@ def parse_block(block, collect_corrections=False):
 
                 data['indices'].append(state_index)
                 data['energies'].append(energy_val)
+                data['transition_dipoles'].append([np.nan, np.nan, np.nan])
 
             elif "Multiplicity" in line:
                 data['spins'].append(line.split()[-1])
 
             elif "Strength" in line:
                 data['oscillator'].append(float(line.split()[-1]))
+
+            elif 'Trans. Mom.:' in line:
+                data['transition_dipoles'][-1] = [float(line.split()[i]) for i in (2, 4, 6)]
 
             elif re.match(r'\s*D\(', line):
                 match = re.search(
@@ -573,6 +585,7 @@ def parse_block(block, collect_corrections=False):
     data['osc_singlets'] = oscillator[singlet_idx]
     data['comp_singlets'] = composition[singlet_idx]
     data['comp_triplets'] = composition[triplet_idx]
+    data['tdm_singlets'] = np.array(data.pop('transition_dipoles')).reshape(-1, 3)[singlet_idx]
 
     del data['composition']
 
@@ -612,32 +625,118 @@ def compute_similarity(comp1, comp2):
     return np.dot(v1, v2) / denom
 
 
-def match_compositions(comp_list_1, comp_list_2):
+def composition_scores(comp_list_1, comp_list_2):
+    """Similarity matrix in the printed occupied/virtual orbital labels."""
+    return np.array([[compute_similarity(a, b) for b in comp_list_2]
+                     for a in comp_list_1], dtype=float).reshape(
+                         len(comp_list_1), len(comp_list_2))
+
+
+def _singlet_anchors(vacuum, pcm):
+    """High-similarity transition dipoles, aligned by the common nuclear geometry."""
+    x, y = vacuum['geometry'], pcm['geometry']
+    if (x.shape != y.shape or len(x) < 3 or vacuum['atoms'] != pcm['atoms']
+            or not np.isfinite(x).all() or not np.isfinite(y).all()):
+        return []
+    x, y = x - x.mean(axis=0), y - y.mean(axis=0)
+    u, singular, vh = np.linalg.svd(x.T @ y)
+    if singular[1] < 1e-10:
+        return []  # A linear geometry does not fix rotation about its molecular axis.
+    rotation = u @ np.diag([1., 1., np.linalg.det(u @ vh)]) @ vh
+    if np.sqrt(np.mean(np.sum((x @ rotation - y)**2, axis=1))) > 1e-3:
+        return []
+    a = np.nan_to_num(vacuum['tdm_singlets']) @ rotation
+    b = np.nan_to_num(pcm['tdm_singlets'])
+    aa, bb = np.sum(a*a, axis=1)[:, None], np.sum(b*b, axis=1)[None, :]
+    scores = np.divide(2*np.abs(a @ b.T), aa + bb,
+                       out=np.zeros((len(a), len(b))), where=(aa > 1e-6) & (bb > 1e-6))
+    # Dummy columns leave weak optical matches out of orbital-map inference.
+    rows, cols = linear_sum_assignment(-np.hstack((scores - 0.9, np.zeros((len(a), len(a))))))
+    return [(i, j, scores[i, j]) for i, j in zip(rows, cols)
+            if j < len(b) and scores[i, j] > 0.9
+            and any(vacuum['comp_singlets'][i].values()) and any(pcm['comp_singlets'][j].values())]
+
+
+def _orbital_relabeling(vacuum, pcm):
+    """Fit one PCM->vacuum orbital permutation to the singlet anchors only.
+
+    Alternate occupied/virtual assignments; a 0.03 penalty per changed label
+    favors small permutations over fitting changes in orbital mixing.
+    """
+    anchors = _singlet_anchors(vacuum, pcm)
+    if not anchors:
+        return {}, {}
+    pairs = [(vacuum['comp_singlets'][i], pcm['comp_singlets'][j]) for i, j, _ in anchors]
+    orbitals = [sorted({key[axis] for pair in pairs for comp in pair for key in comp})
+                for axis in (0, 1)]
+    lookup = [{label: i for i, label in enumerate(labels)} for labels in orbitals]
+    # Squared amplitudes indexed by anchor, occupied orbital and virtual orbital.
+    a = np.zeros((len(pairs), len(orbitals[0]), len(orbitals[1])))
+    b = np.zeros_like(a)
+    for k, pair in enumerate(pairs):
+        for target, comp in zip((a, b), pair):
+            for (occupied, virtual), amplitude in comp.items():
+                target[k, lookup[0][occupied], lookup[1][virtual]] = amplitude**2
+    weights = np.array([score for _, _, score in anchors]) / (
+        np.linalg.norm(a, axis=(1, 2)) * np.linalg.norm(b, axis=(1, 2)))
+    identity = [np.arange(len(labels)) for labels in orbitals]
+    # Marginal signatures can seed a joint occupied/virtual relabeling when
+    # neither type of label initially agrees. Also try the original labels.
+    marginal = []
+    for axis, order in zip((2, 1), identity):
+        cost = np.einsum('ki,kj,k->ij', b.sum(axis=axis), a.sum(axis=axis), weights)
+        marginal.append(linear_sum_assignment(-(cost + 0.03*np.eye(len(order))))[1])
+    best_score, best_orders = -np.inf, identity
+    for occupied, virtual in (identity, marginal):
+        for _ in range(20):
+            old_occupied, old_virtual = occupied.copy(), virtual.copy()
+            # Assignment rows are PCM labels; columns are vacuum labels.
+            cost = np.einsum('kiv,kjv,k->ij', b[:, :, np.argsort(virtual)], a, weights)
+            occupied = linear_sum_assignment(-(cost + 0.03*np.eye(len(occupied))))[1]
+            cost = np.einsum('koi,koj,k->ij', b[:, np.argsort(occupied), :], a, weights)
+            virtual = linear_sum_assignment(-(cost + 0.03*np.eye(len(virtual))))[1]
+            if np.array_equal(occupied, old_occupied) and np.array_equal(virtual, old_virtual):
+                break
+        mapped = b[:, np.argsort(occupied), :][:, :, np.argsort(virtual)]
+        changes = sum(np.count_nonzero(order != original)
+                      for order, original in zip((occupied, virtual), identity))
+        score = np.einsum('kov,kov,k->', a, mapped, weights) - 0.03*changes
+        if score > best_score + 1e-12:
+            best_score, best_orders = score, (occupied, virtual)
+    return tuple({labels[i]: labels[j] for i, j in enumerate(order) if i != j}
+                 for labels, order in zip(orbitals, best_orders))
+
+
+def _relabel_compositions(compositions, occupied, virtual):
+    return [{(occupied.get(i, i), virtual.get(a, a)): c for (i, a), c in comp.items()}
+            for comp in compositions]
+
+
+def match_compositions(comp_list_1, comp_list_2, return_scores=False):
     """
     Globally matches states from comp_list_1 to comp_list_2
     using maximum composition similarity.
+
+    With return_scores, also return the full similarity matrix used by the assignment.
     """
     n1 = len(comp_list_1)
     n2 = len(comp_list_2)
 
+    sim_matrix = composition_scores(comp_list_1, comp_list_2)
     if n1 == 0 or n2 == 0:
-        return np.array([], dtype=int)
-
-    sim_matrix = np.zeros((n1, n2))
-
-    for i, comp1 in enumerate(comp_list_1):
-        for j, comp2 in enumerate(comp_list_2):
-            sim_matrix[i, j] = compute_similarity(comp1, comp2)
+        empty = np.array([], dtype=int)
+        return (empty, sim_matrix) if return_scores else empty
 
     rows, cols = linear_sum_assignment(-sim_matrix)
 
     match_indices = np.full(n1, -1, dtype=int)
     match_indices[rows] = cols
 
-    return match_indices
+    return (match_indices, sim_matrix) if return_scores else match_indices
 
 
-def pega_energias(file):
+def pega_energias(file, return_matching=False):
+    """Read energies/corrections; optionally append vacuum/PCM matching diagnostics."""
     with open(file, "r", encoding="utf-8") as f:
         content = f.read()
 
@@ -653,14 +752,17 @@ def pega_energias(file):
     min_len_s = min(vac_data['len_s'], corr_data['len_s'])
     min_len_t = min(vac_data['len_t'], corr_data['len_t'])
 
-    match_singlets = match_compositions(
+    occupied, virtual = _orbital_relabeling(vac_data, corr_data) if len(blocks) >= 3 else ({}, {})
+    comp_s = _relabel_compositions(corr_data['comp_singlets'], occupied, virtual)
+    comp_t = _relabel_compositions(corr_data['comp_triplets'], occupied, virtual)
+    match_singlets, scores_s = match_compositions(
         vac_data['comp_singlets'][:min_len_s],
-        corr_data['comp_singlets'][:min_len_s]
+        comp_s, return_scores=True
     )
 
-    match_triplets = match_compositions(
+    match_triplets, scores_t = match_compositions(
         vac_data['comp_triplets'][:min_len_t],
-        corr_data['comp_triplets'][:min_len_t]
+        comp_t, return_scores=True
     )
 
     singlets_vac = vac_data['singlets'][:min_len_s]
@@ -682,10 +784,25 @@ def pega_energias(file):
     y_s = (singlets_vac - singlets_pcm) + s0_corr
     y_t = (triplets_vac - triplets_pcm) + s0_corr
 
+    if return_matching:
+        matching = {'two_calculations': len(blocks) >= 3}
+        for spin, count, indices, scores, raw_shift in (
+            ('s', min_len_s, match_singlets, scores_s, y_s),
+            ('t', min_len_t, match_triplets, scores_t, y_t),
+        ):
+            key = 'comp_singlets' if spin == 's' else 'comp_triplets'
+            matching[spin] = {
+                'pcm_roots': indices + 1,
+                'scores': scores[np.arange(count), indices],
+                'matrix': composition_scores(vac_data[key], comp_s if spin == 's' else comp_t),
+                'retained': count,
+                'raw_shift': raw_shift.copy(),
+            }
+
     y_s[y_s < 0] = 0
     y_t[y_t < 0] = 0
 
-    return (
+    result = (
         singlets_vac,
         triplets_vac,
         oscs,
@@ -695,6 +812,7 @@ def pega_energias(file):
         y_s,
         y_t,
     )
+    return result + (matching,) if return_matching else result
 
 #########################################################################################
 

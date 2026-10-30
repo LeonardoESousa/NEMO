@@ -536,7 +536,10 @@ def susceptibility_check(
     if state_tolerance < 0.0:
         raise ValueError("state_tolerance must be non-negative.")
 
-    # twocalc has the eight-value parser interface; two_ic has a longer tuple.
+    if tuning == 1:
+        parsed = nemo.parser.pega_energias(file)
+    else:
+        *parsed, matching = nemo.parser.pega_energias(file, return_matching=True)
     (
         s_vac,
         t_vac,
@@ -546,7 +549,7 @@ def susceptibility_check(
         ss_g,
         y_s,
         y_t,
-    ) = nemo.parser.pega_energias(file)
+    ) = parsed
 
     eps, nr = fetch_nr(file)
     if eps is None or nr is None:
@@ -569,17 +572,21 @@ def susceptibility_check(
     if tuning != 1:
         print(
             f"{'State':<6} {'E_vac(eV)':<12} "
-            f"{'χ(eV)':<10} {'γ(eV)':<10}"
+            f"{'χ(eV)':<10} {'γ(eV)':<10} {'MatchScore':<10}"
         )
-        print(f"{'S0':<6} {0.0:<12.3f} {0.0:<10.3f} {y_g:<10.3f}")
+        print(f"{'S0':<6} {0.0:<12.3f} {0.0:<10.3f} {y_g:<10.3f} {'-':<10}")
         for i, (energy, chi, gamma) in enumerate(
             zip(s_vac, chi_s, y_s), start=1
         ):
-            print(f"{f'S{i}':<6} {energy:<12.3f} {chi:<10.3f} {gamma:<10.3f}")
+            score = matching['s']['scores'][i-1]
+            print(f"{f'S{i}':<6} {energy:<12.3f} {chi:<10.3f} {gamma:<10.3f} "
+                  f"{score:<10.4f}")
         for i, (energy, chi, gamma) in enumerate(
             zip(t_vac, chi_t, y_t), start=1
         ):
-            print(f"{f'T{i}':<6} {energy:<12.3f} {chi:<10.3f} {gamma:<10.3f}")
+            score = matching['t']['scores'][i-1]
+            print(f"{f'T{i}':<6} {energy:<12.3f} {chi:<10.3f} {gamma:<10.3f} "
+                  f"{score:<10.4f}")
 
     if fit is None:
         if tuning == 1:
