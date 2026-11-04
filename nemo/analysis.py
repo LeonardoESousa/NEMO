@@ -539,8 +539,16 @@ def fetch(data, criteria_list):
     return filtered_data
 
 
-def total_reorganization_energy(lambda_b, kbt):
-    return np.sqrt(2 * lambda_b * kbt + kbt**2)
+def total_reorganization_energy(lambda_b, kbt, energies=None):
+    width = kbt
+    if energies is not None:
+        width = 0.28  # Single-geometry spectral broadening (standard deviation, eV).
+        if len(energies) > 1:
+            std = np.std(energies, axis=0, ddof=1)
+            iqr = np.subtract(*np.percentile(energies, [75, 25], axis=0)) / 1.349
+            width = 0.9 * np.minimum(std, np.where(iqr > 0, iqr, std)) * len(energies)**(-0.2)
+            return np.sqrt(np.maximum(2 * lambda_b * kbt, width**2))
+    return np.sqrt(2 * lambda_b * kbt + width**2)
 
 
 def rate_and_uncertainty(y_axis):
@@ -646,7 +654,7 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
     ]
     delta_emi, oscs, lambda_be = select_columns(n_state, delta_emi, oscs, lambda_be)
     
-    l_total = total_reorganization_energy(lambda_be, kbt)    
+    l_total = total_reorganization_energy(lambda_be, kbt, delta_emi)
     espectro = constante * (delta_emi ** 2) * oscs
     tdm = nemo.tools.calc_tdm(oscs, delta_emi, espectro)
     x_axis = x_values(delta_emi, l_total)
@@ -917,7 +925,7 @@ def absorption(initial, dielec, data=None, save=False, detailed=False, nstates=-
     deltae_lambda, oscs, lambda_b = sorting_parameters(
         deltae_lambda, oscs, lambda_b
     )
-    l_total = total_reorganization_energy(lambda_b, kbt)
+    l_total = total_reorganization_energy(lambda_b, kbt, deltae_lambda)
     x_axis = x_values(deltae_lambda, l_total)
     if nstates == -1:
         nstates = deltae_lambda.shape[1]
