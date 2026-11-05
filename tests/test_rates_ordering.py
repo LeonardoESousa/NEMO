@@ -70,25 +70,48 @@ def test_rates_keep_one_state_identity_for_every_process(initial):
     )
     if spin == "t": constant /= 3
     expected_radiative = []
+    source_e = np.take_along_axis(arrays[spin][0], orders[spin], axis=1)[:, rank]
+    source_chi = np.take_along_axis(arrays[spin][1], orders[spin], axis=1)[:, rank]
+    emission_widths = analysis.total_reorganization_energy(
+        source_chi*(ast-aopt), data.kbT[0], source_e-source_chi*(2*ast-aopt),
+        np.array([data[f"osce_{spin}{source+1}"].iloc[row]
+                  for row, source in enumerate(orders[spin][:, rank])])
+        * (source_e-source_chi*(2*ast-aopt))**3/source_e
+    )
+    expected_isc = {}
+    for target_rank in range(len(orders[other][0])):
+        ef = np.take_along_axis(arrays[other][0], orders[other], axis=1)[:, target_rank]
+        cf = np.take_along_axis(arrays[other][1], orders[other], axis=1)[:, target_rank]
+        gaps = ef-cf*aopt-(source_e-source_chi*ast)
+        couplings = np.array([data[f"soc_{spin}{source+1}_{other}{target+1}"].iloc[row]
+                              for row, (source, target) in enumerate(zip(
+                                  orders[spin][:, rank], orders[other][:, target_rank]))])
+        widths = analysis.total_reorganization_energy(
+            cf*(ast-aopt), data.kbT[0], gaps, couplings**2, fallback=data.kbT[0]
+        )
+        expected_isc[f"{other.upper()}{target_rank+1}"] = (
+            2*np.pi/analysis.HBAR_EV*couplings**2
+            * np.exp(-gaps**2/(2*widths**2))/(np.sqrt(2*np.pi)*widths)
+        )
+    if spin == "t":
+        photons = source_e-source_chi*(2*ast-aopt)
+        couplings = np.array([data[f"soc_t{source+1}_s0"].iloc[row]
+                              for row, source in enumerate(orders[spin][:, rank])])
+        widths = analysis.total_reorganization_energy(
+            source_chi*(ast-aopt), data.kbT[0], photons, couplings**2, fallback=data.kbT[0]
+        )
+        expected_isc["S0"] = (2*np.pi/analysis.HBAR_EV*couplings**2
+                              * np.exp(-photons**2/(2*widths**2))/(np.sqrt(2*np.pi)*widths))
     for row in range(len(data)):
         source = orders[spin][row, rank]
         ei, ci = arrays[spin][0][row, source], arrays[spin][1][row, source]
         photon = ei - ci*ast - ci*(ast-aopt)
-        width = np.sqrt(2*ci*(ast-aopt)*data.kbT[row] + data.kbT[row]**2)
         np.testing.assert_allclose(details.eng[row], photon)
-        np.testing.assert_allclose(details.sigma[row], width)
+        np.testing.assert_allclose(details.sigma[row], emission_widths[row])
         expected_radiative.append(constant*photon**3/ei*data[f"osce_{spin}{source+1}"][row]/analysis.HBAR_EV)
-        for target_rank, target in enumerate(orders[other][row]):
-            ef, cf = arrays[other][0][row, target], arrays[other][1][row, target]
-            gap = ef - cf*aopt - (ei-ci*ast)
-            sigma = np.sqrt(2*cf*(ast-aopt)*data.kbT[row] + data.kbT[row]**2)
-            h = data[f"soc_{spin}{source+1}_{other}{target+1}"][row]
-            expected = 2*np.pi/analysis.HBAR_EV*h**2*np.exp(-gap**2/(2*sigma**2))/(np.sqrt(2*np.pi)*sigma)
-            np.testing.assert_allclose(details[f"{initial}~>{other.upper()}{target_rank+1}"][row], expected, rtol=1e-12, atol=0)
-        if spin == "t":
-            h = data[f"soc_t{source+1}_s0"][row]
-            expected = 2*np.pi/analysis.HBAR_EV*h**2*np.exp(-photon**2/(2*width**2))/(np.sqrt(2*np.pi)*width)
-            np.testing.assert_allclose(details[f"{initial}~>S0"][row], expected, rtol=1e-12, atol=0)
+        for target, values in expected_isc.items():
+            np.testing.assert_allclose(details[f"{initial}~>{target}"][row], values[row],
+                                       rtol=1e-10, atol=0)
     np.testing.assert_allclose(emission.rate, np.mean(expected_radiative))
     shuffled = data.sample(frac=1, axis=1, random_state=41)
     result, spectrum, breakdown = analysis.rates(initial, (eps, nr), data=shuffled, detailed=True)

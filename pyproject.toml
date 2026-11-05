@@ -45,3 +45,6 @@ version = { attr = "nemo.__version__.__version__" }
 test = [
   "pytest"
 ]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]

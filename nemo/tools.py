@@ -802,7 +802,7 @@ def calc_tdm(osc, delta_e, pesos):
     dipoles = np.sqrt(3 * term * osc / (2 * MASS_E))
     # Conversion in au
     dipoles *= 1.179474389e29
-    return np.average(dipoles, weights=pesos)
+    return np.average(dipoles, weights=pesos) if np.any(pesos) else 0.0
 
 
 ###############################################################

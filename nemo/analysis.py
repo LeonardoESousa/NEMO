@@ -7,6 +7,7 @@ import warnings
 from contextlib import contextmanager
 import numpy as np
 import pandas as pd
+from scipy.optimize import brentq
 import nemo.tools
 import nemo.parser
 import nemo.eom
@@ -216,11 +217,7 @@ def means(variable, weight, ensemble_mean=False):
         try:
             mean = np.average(variable, axis=0, weights=weight)
         except ZeroDivisionError:
-            column_sums = np.sum(weight, axis=0)
-            # Identify columns where the sum is zero
-            zero_sum_columns = column_sums == 0
-            # Modify columns with zero sum by setting all their elements to 1
-            weight[:, zero_sum_columns] = 1
+            weight = np.where(np.sum(weight, axis=0) == 0, 1, weight)
             mean = np.average(variable, axis=0, weights=weight)
         except IndexError:
             mean = np.average(variable, weights=weight)
@@ -539,16 +536,45 @@ def fetch(data, criteria_list):
     return filtered_data
 
 
-def total_reorganization_energy(lambda_b, kbt, energies=None):
-    width = kbt
-    if energies is not None:
-        width = 0.28  # Single-geometry spectral broadening (standard deviation, eV).
-        if len(energies) > 1:
-            std = np.std(energies, axis=0, ddof=1)
-            iqr = np.subtract(*np.percentile(energies, [75, 25], axis=0)) / 1.349
-            width = 0.9 * np.minimum(std, np.where(iqr > 0, iqr, std)) * len(energies)**(-0.2)
-            return np.sqrt(np.maximum(2 * lambda_b * kbt, width**2))
-    return np.sqrt(2 * lambda_b * kbt + width**2)
+def total_reorganization_energy(lambda_b, kbt, energies=None, weights=None, fallback=0.28):
+    solvent_var = 2 * lambda_b * kbt
+    if energies is None:  # Preserve the legacy two-argument API.
+        return np.sqrt(solvent_var + kbt**2)
+    if len(energies) == 1:
+        return np.sqrt(solvent_var + fallback**2)
+    n = len(energies)
+    solvent_var = np.broadcast_to(solvent_var, energies.shape)
+    weights = np.ones_like(energies) if weights is None else np.broadcast_to(weights, energies.shape)
+    extra_var = np.full(energies.shape[1:] or (), fallback**2)
+    for j in range(extra_var.size):
+        w = weights.reshape(n, -1)[:, j]
+        active = w > 0
+        if not np.any(active):
+            continue
+        p = w[active] / np.sum(w[active])
+        e = energies.reshape(n, -1)[active, j]
+        v = solvent_var.reshape(n, -1)[active, j]
+        mean = np.sum(p * e)
+        total_var = np.sum(p * ((e - mean)**2 + v))
+        if total_var == 0:
+            continue
+        relative_var = v / total_var
+        # Amplitudes enter the variance as p**2; N remains the full ensemble size.
+        loss = lambda t: (np.sum(p**2 / np.sqrt(relative_var + t))
+                          + (1 - 1/n) / np.sqrt(1 + t)
+                          - 2*np.sqrt(2) / np.sqrt(2 + t) + 1)
+        grid = np.geomspace(1e-12, 16, 65)
+        scores = np.array([loss(t) for t in grid])
+        best = int(np.argmin(scores))
+        slope = lambda t: (-0.5*np.sum(p**2 / (relative_var + t)**1.5)
+                           - 0.5*(1 - 1/n)/(1 + t)**1.5 + np.sqrt(2)/(2 + t)**1.5)
+        lower, upper = grid[max(best-1, 0)], grid[min(best+1, len(grid)-1)]
+        t = (brentq(slope, lower, upper, xtol=1e-14)
+             if slope(lower) < 0 < slope(upper) else grid[best])
+        if np.all(relative_var > 0) and loss(0) <= loss(t):
+            t = 0.0
+        extra_var.flat[j] = t * total_var
+    return np.sqrt(solvent_var + extra_var)
 
 
 def rate_and_uncertainty(y_axis):
@@ -654,8 +680,8 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
     ]
     delta_emi, oscs, lambda_be = select_columns(n_state, delta_emi, oscs, lambda_be)
     
-    l_total = total_reorganization_energy(lambda_be, kbt, delta_emi)
     espectro = constante * (delta_emi ** 2) * oscs
+    l_total = total_reorganization_energy(lambda_be, kbt, delta_emi, espectro)
     tdm = nemo.tools.calc_tdm(oscs, delta_emi, espectro)
     x_axis = x_values(delta_emi, l_total)
     y_axis = espectro[:, np.newaxis] * nemo.tools.gauss(
@@ -670,9 +696,9 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
     gap_emi = means(delta_emi, espectro, ensemble_average)
     mean_emi_coupling = 1000 * means(np.sqrt(espectro / (2 * np.pi)), espectro, ensemble_average)
     mean_sigma_emi = means(l_total, espectro, ensemble_average)
-    mean_part_emi = (100 / number_geoms) / means(
-        espectro / np.sum(espectro), espectro, ensemble_average
-    )
+    mean_part_emi = ((100 if ensemble_average else
+                      100*np.sum(espectro)**2/(number_geoms*np.sum(espectro**2)))
+                     if np.any(espectro) else 0)
     emi = np.hstack(
         (x_axis[:, np.newaxis], mean_y[:, np.newaxis], error[:, np.newaxis])
     )
@@ -733,7 +759,7 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
         # lambda_b = np.hstack((lambda_b,lambda_bt[:,indices]))
         # final.extend([i.upper()[4:] for i in data.columns.values if 'soc_t' in i])
 
-    sigma = total_reorganization_energy(lambda_b, kbt)
+    sigma = total_reorganization_energy(lambda_b, kbt, delta, socs_complete**2, fallback=kbt)
     y_axis = (
         (2 * np.pi / HBAR_EV) * (socs_complete**2) * nemo.tools.gauss(delta, 0, sigma)
     )
@@ -750,7 +776,7 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
             [
                 emi_rate,
                 emi_error,
-                100 * emi_rate / total,
+                100 * emi_rate / total if total else 0,
                 gap_emi,
                 mean_emi_coupling,
                 mean_sigma_emi,
@@ -774,7 +800,7 @@ def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
         (
             rate,
             error,
-            100 * rate / total,
+            100 * rate / total if total else np.zeros_like(rate),
             mean_gap,
             mean_soc,
             mean_sigma,
@@ -925,7 +951,7 @@ def absorption(initial, dielec, data=None, save=False, detailed=False, nstates=-
     deltae_lambda, oscs, lambda_b = sorting_parameters(
         deltae_lambda, oscs, lambda_b
     )
-    l_total = total_reorganization_energy(lambda_b, kbt, deltae_lambda)
+    l_total = total_reorganization_energy(lambda_b, kbt, deltae_lambda, oscs)
     x_axis = x_values(deltae_lambda, l_total)
     if nstates == -1:
         nstates = deltae_lambda.shape[1]
