@@ -1,6 +1,6 @@
 import numpy as np
 import pytest
-from scipy.integrate import quad
+from scipy.integrate import quad, trapezoid
 from scipy.optimize import minimize_scalar
 from scipy.stats import norm
 
@@ -139,7 +139,7 @@ def test_absorption_uses_oscillator_weights_without_renormalizing_dark_geometrie
     np.testing.assert_allclose(after.iloc[:, 1:], 4*before.iloc[:, 1:], rtol=1e-10)
     np.testing.assert_allclose(after.Energy, before.Energy)
     np.testing.assert_allclose(detail_after.filter(regex="^sigma_"), detail_before.filter(regex="^sigma_"))
-    area = np.trapz(before.Total, before.Energy)
+    area = trapezoid(before.Total, before.Energy)
     expected = detail_before.filter(regex="^S0->").sum(axis=1).mean()
     np.testing.assert_allclose(area, expected, rtol=1e-3)
     data[["osc_s1", "osc_s2"]] = 0.
