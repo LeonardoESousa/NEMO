@@ -530,7 +530,9 @@ def parse_block(block, collect_corrections=False):
             elif 'Trans. Mom.:' in line:
                 data['transition_dipoles'][-1] = [float(line.split()[i]) for i in (2, 4, 6)]
 
-            elif re.match(r'\s*D\(', line):
+            # TDA prints D(...); full TDDFT prefixes excitation amplitudes with X:.
+            # Keep Y: de-excitations separate from the excitation composition.
+            elif re.match(r'\s*(?:X:\s*)?D\(', line):
                 match = re.search(
                     r'D\(\s*(\d+)\)\s*-->\s*V\(\s*(\d+)\)\s*amplitude\s*=\s*([+-]?\d*\.?\d+(?:[Ee][+-]?\d+)?)',
                     line
