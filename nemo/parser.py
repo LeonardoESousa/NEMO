@@ -636,6 +636,23 @@ def composition_scores(comp_list_1, comp_list_2):
                          len(comp_list_1), len(comp_list_2))
 
 
+def _population_scores(vacuum, pcm):
+    """Average cosine similarities of the occupied and virtual populations."""
+    states = list(vacuum) + list(pcm)
+    scores = np.zeros((len(vacuum), len(pcm)))
+    for axis in (0, 1):
+        labels = sorted({pair[axis] for state in states for pair in state})
+        columns = {label: i for i, label in enumerate(labels)}
+        populations = np.zeros((len(states), len(labels)))
+        for row, state in enumerate(states):
+            for pair, amplitude in state.items():
+                populations[row, columns[pair[axis]]] += amplitude**2
+        norms = np.linalg.norm(populations, axis=1, keepdims=True)
+        np.divide(populations, norms, out=populations, where=norms > 0)
+        scores += populations[:len(vacuum)] @ populations[len(vacuum):].T
+    return scores / 2
+
+
 def _dipole_rotation(vacuum, pcm):
     """Align vacuum vectors with the PCM nuclear frame."""
     x, y = vacuum['geometry'], pcm['geometry']
@@ -662,11 +679,10 @@ def _dipole_scores(a, b, rotation, transition=False):
     if transition:
         # A transition vector can change sign with the phase of the excited state.
         dots = np.where((aa > 1e-6) & (bb > 1e-6), np.abs(dots), 0.)
-    else:
-        dots = np.maximum(dots, 0.)
     floor = 1e-6 if transition else 0.
-    return np.divide(2*dots, aa + bb, out=np.full(dots.shape, np.nan),
+    similarity = np.divide(2*dots, aa + bb, out=np.full(dots.shape, np.nan),
                      where=np.isfinite(aa + bb) & ((aa > floor) | (bb > floor)))
+    return similarity if transition else (1 + similarity) / 2
 
 
 def _singlet_anchors(vacuum, pcm):
@@ -778,7 +794,7 @@ def match_compositions(comp_list_1, comp_list_2, return_scores=False, dipole_sco
 
     With return_scores, also return the composition similarity matrix.
     """
-    indices, matrix, _ = _match_compositions(comp_list_1, comp_list_2, dipole_scores)
+    indices, matrix, _, _ = _match_compositions(comp_list_1, comp_list_2, dipole_scores)
     return (indices, matrix) if return_scores else indices
 
 
@@ -792,28 +808,38 @@ def _energy_scores(vacuum, pcm):
     return scale / (scale + np.abs(vacuum[:, None] - pcm))
 
 
-def _match_compositions(comp_list_1, comp_list_2, dipole_scores, energy_scores=None):
+def _match_compositions(comp_list_1, comp_list_2, dipole_scores, energy_scores=None,
+                        prioritize_low_roots=False, dipole_weight=1., spin=None):
     n1 = len(comp_list_1)
     n2 = len(comp_list_2)
 
     sim_matrix = composition_scores(comp_list_1, comp_list_2)
     if n1 == 0 or n2 == 0:
-        return np.array([], dtype=int), sim_matrix, 0.
+        return np.array([], dtype=int), sim_matrix, np.array([], dtype=float), 0.
 
     scores = sim_matrix.copy()
-    counts = np.ones(sim_matrix.shape, dtype=int)
-    for extra in (dipole_scores, energy_scores):
+    if spin is not None:
+        population = _population_scores(comp_list_1, comp_list_2)
+        scores = (sim_matrix + population) / 2 if spin == 'singlet' else population
+    total_weight = np.ones(sim_matrix.shape)
+    for extra, weight in ((dipole_scores, dipole_weight), (energy_scores, 1.)):
         if extra is not None:
             valid = np.isfinite(extra)
-            scores[valid] += extra[valid]
-            counts += valid
-    scores /= counts
-    rows, cols = linear_sum_assignment(-scores)
+            scores[valid] += weight * extra[valid]
+            total_weight[valid] += weight
+    scores /= total_weight
+    objective = scores
+    if prioritize_low_roots:
+        # The vacuum roots are ordered by energy within each spin manifold.
+        weights = np.linspace(1.20, 1.00, n1)
+        objective = scores * weights[:, None]
+    rows, cols = linear_sum_assignment(-objective)
 
     match_indices = np.full(n1, -1, dtype=int)
     match_indices[rows] = cols
 
-    return match_indices, sim_matrix, fsum(scores[rows, cols])
+    pair_scores = scores[rows, cols]
+    return match_indices, sim_matrix, pair_scores, fsum(objective[rows, cols])
 
 
 def pega_energias(file, return_matching=False):
@@ -850,11 +876,14 @@ def pega_energias(file, return_matching=False):
             pcm_comp = corr_data[key]
             if any(orbital_map):
                 pcm_comp = _relabel_compositions(pcm_comp, *orbital_map)
-            indices, scores, total = _match_compositions(
+            indices, scores, pair_scores, total = _match_compositions(
                 vac_data[key][:count], pcm_comp, dipoles,
                 energies[:count] if energies is not None else None,
+                prioritize_low_roots=len(blocks) >= 3,
+                dipole_weight=0.5 if key == 'comp_singlets' else 1.,
+                spin=('singlet' if key == 'comp_singlets' else 'triplet') if len(blocks) >= 3 else None,
             )
-            matches.append((indices, scores, total, pcm_comp))
+            matches.append((indices, scores, total, pcm_comp, pair_scores))
         return matches
 
     matches = match_states(({}, {}))
@@ -869,7 +898,7 @@ def pega_energias(file, return_matching=False):
                 new >= old for new, old in zip(relabeled_totals, baseline_totals)
             ):
                 matches = relabeled
-    (match_singlets, scores_s, _, comp_s), (match_triplets, scores_t, _, comp_t) = matches
+    match_singlets, match_triplets = (match[0] for match in matches)
 
     singlets_vac = vac_data['singlets'][:min_len_s]
     triplets_vac = vac_data['triplets'][:min_len_t]
@@ -892,15 +921,16 @@ def pega_energias(file, return_matching=False):
 
     if return_matching:
         matching = {'two_calculations': len(blocks) >= 3}
-        for spin, count, indices, scores, raw_shift in (
-            ('s', min_len_s, match_singlets, scores_s, y_s),
-            ('t', min_len_t, match_triplets, scores_t, y_t),
+        for spin, (indices, scores, _, pcm_comp, pair_scores), raw_shift in zip(
+            ('s', 't'), matches, (y_s, y_t)
         ):
             key = 'comp_singlets' if spin == 's' else 'comp_triplets'
+            count = len(indices)
             matching[spin] = {
                 'pcm_roots': indices + 1,
                 'scores': scores[np.arange(count), indices],
-                'matrix': composition_scores(vac_data[key], comp_s if spin == 's' else comp_t),
+                'assignment_scores': pair_scores,
+                'matrix': composition_scores(vac_data[key], pcm_comp),
                 'retained': count,
                 'raw_shift': raw_shift.copy(),
             }

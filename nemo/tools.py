@@ -971,13 +971,13 @@ def susceptibility_check(
         for i, (energy, chi, gamma) in enumerate(
             zip(s_vac, chi_s, y_s), start=1
         ):
-            score = matching['s']['scores'][i-1]
+            score = matching['s']['assignment_scores'][i-1]
             print(f"{f'S{i}':<6} {energy:<12.3f} {chi:<10.3f} {gamma:<10.3f} "
                   f"{score:<10.4f}")
         for i, (energy, chi, gamma) in enumerate(
             zip(t_vac, chi_t, y_t), start=1
         ):
-            score = matching['t']['scores'][i-1]
+            score = matching['t']['assignment_scores'][i-1]
             print(f"{f'T{i}':<6} {energy:<12.3f} {chi:<10.3f} {gamma:<10.3f} "
                   f"{score:<10.4f}")
 

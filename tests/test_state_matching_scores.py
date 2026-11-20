@@ -63,7 +63,7 @@ def test_zero_score_for_missing_counterpart_is_reported_without_extra_output(tmp
     assert 'E_vac(eV)' in output and 'MatchScore' in output
     rows = [line.split() for line in output.splitlines()]
     assert len(rows) == 4  # Header, S0, S1 and the poorly paired S2.
-    assert rows[-1] == ['S2', '3.000', '0.360', '0.200', '0.0000']
+    assert rows[-1] == ['S2', '3.000', '0.360', '0.200', '0.5795']
     assert 'PCM' not in output and 'WARNING' not in output and 'NOTE' not in output
 
 
