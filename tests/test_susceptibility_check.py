@@ -54,7 +54,7 @@ def test_plain_check_preserves_report_only_mode(monkeypatch, capsys):
         for spin in ('s', 't'):
             matching[spin] = dict(pcm_roots=np.array([1]), scores=np.array([1.]),
                                   matrix=np.ones((1, 1)), retained=1,
-                                  raw_shift=np.array([0.1]))
+                                  raw_shift=np.array([0.1]),assignment_scores=np.array([1.]),)
         return parser_result + (matching,) if return_matching else parser_result
     monkeypatch.setattr(nemo.tools.nemo.parser, "pega_energias", parse)
     monkeypatch.setattr(nemo.tools, "fetch_nr", lambda _: (3.0, np.sqrt(2.0)))
