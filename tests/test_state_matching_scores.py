@@ -115,5 +115,5 @@ def test_real_log_report_preserves_parser_outputs_and_selected_pcm_roots(capsys)
     table = capsys.readouterr().out
     rows = {line.split()[0]: line.split() for line in table.splitlines()
             if len(line.split()) == 5 and line.split()[0] in ('S4', 'S5')}
-    assert float(rows['S4'][4]) == pytest.approx(info['scores'][3], abs=5e-5)
-    assert float(rows['S5'][4]) == pytest.approx(info['scores'][4], abs=5e-5)
+    assert float(rows['S4'][4]) == pytest.approx(info['assignment_scores'][3], abs=5e-5)
+    assert float(rows['S5'][4]) == pytest.approx(info['assignment_scores'][4], abs=5e-5)
