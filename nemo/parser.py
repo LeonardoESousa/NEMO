@@ -1,5 +1,7 @@
 import sys
 import re
+from math import fsum
+
 import numpy as np
 from scipy.optimize import linear_sum_assignment
 
@@ -634,29 +636,84 @@ def composition_scores(comp_list_1, comp_list_2):
                          len(comp_list_1), len(comp_list_2))
 
 
-def _singlet_anchors(vacuum, pcm):
-    """High-similarity transition dipoles, aligned by the common nuclear geometry."""
+def _dipole_rotation(vacuum, pcm):
+    """Align vacuum vectors with the PCM nuclear frame."""
     x, y = vacuum['geometry'], pcm['geometry']
     if (x.shape != y.shape or len(x) < 3 or vacuum['atoms'] != pcm['atoms']
             or not np.isfinite(x).all() or not np.isfinite(y).all()):
-        return []
+        return None
     x, y = x - x.mean(axis=0), y - y.mean(axis=0)
     u, singular, vh = np.linalg.svd(x.T @ y)
     if singular[1] < 1e-10:
-        return []  # A linear geometry does not fix rotation about its molecular axis.
+        return None  # A linear geometry does not fix rotation about its molecular axis.
     rotation = u @ np.diag([1., 1., np.linalg.det(u @ vh)]) @ vh
     if np.sqrt(np.mean(np.sum((x @ rotation - y)**2, axis=1))) > 1e-3:
-        return []
-    a = np.nan_to_num(vacuum['tdm_singlets']) @ rotation
-    b = np.nan_to_num(pcm['tdm_singlets'])
+        return None
+    return rotation
+
+
+def _dipole_scores(a, b, rotation, transition=False):
+    """Compare aligned vectors, leaving unavailable comparisons as NaN."""
+    if rotation is None:
+        return np.full((len(a), len(b)), np.nan)
+    a = a @ rotation
     aa, bb = np.sum(a*a, axis=1)[:, None], np.sum(b*b, axis=1)[None, :]
-    scores = np.divide(2*np.abs(a @ b.T), aa + bb,
-                       out=np.zeros((len(a), len(b))), where=(aa > 1e-6) & (bb > 1e-6))
+    dots = a @ b.T
+    if transition:
+        # A transition vector can change sign with the phase of the excited state.
+        dots = np.where((aa > 1e-6) & (bb > 1e-6), np.abs(dots), 0.)
+    else:
+        dots = np.maximum(dots, 0.)
+    floor = 1e-6 if transition else 0.
+    return np.divide(2*dots, aa + bb, out=np.full(dots.shape, np.nan),
+                     where=np.isfinite(aa + bb) & ((aa > floor) | (bb > floor)))
+
+
+def _singlet_anchors(vacuum, pcm):
+    """High-similarity transition dipoles for inferring the orbital map."""
+    scores = np.nan_to_num(_dipole_scores(vacuum['tdm_singlets'], pcm['tdm_singlets'],
+                                         _dipole_rotation(vacuum, pcm), transition=True))
+    n_vac, n_pcm = scores.shape
     # Dummy columns leave weak optical matches out of orbital-map inference.
-    rows, cols = linear_sum_assignment(-np.hstack((scores - 0.9, np.zeros((len(a), len(a))))))
+    rows, cols = linear_sum_assignment(-np.hstack((scores - 0.9, np.zeros((n_vac, n_vac)))))
     return [(i, j, scores[i, j]) for i, j in zip(rows, cols)
-            if j < len(b) and scores[i, j] > 0.9
+            if j < n_pcm and scores[i, j] > 0.9
             and any(vacuum['comp_singlets'][i].values()) and any(pcm['comp_singlets'][j].values())]
+
+
+def _triplet_dipole_changes(block, data, pcm=False):
+    """Read unrelaxed triplet minus ground-state permanent dipoles in Debye."""
+    number = r'([+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[Ee][+-]?\d+)?)'
+    if pcm:
+        ground = re.findall(r'Dipole Moment \(Debye\)\s*\n\s*X\s+' + number
+                            + r'\s+Y\s+' + number + r'\s+Z\s+' + number, block)
+        summary = block.partition('Excited-state properties with unrelaxed density')[2]
+        summary = summary.partition('END OF SUMMARY')[0]
+        states = re.split(r'Unrelaxed (?:singlet|triplet) excited state\s+(\d+):', summary)
+        moments = {}
+        for root, state in zip(states[1::2], states[2::2]):
+            match = re.search(r'Dipole Mom\. \(Debye\):\s*' + number + r'\s+X\s+'
+                              + number + r'\s+Y\s+' + number + r'\s+Z', state)
+            if match:
+                moments[int(root)] = match.groups()
+        ground = np.array(ground[-1] if ground else [np.nan]*3, dtype=float)
+        scale = 1.
+    else:
+        moments = {}
+        for label in ('Ground State', 'Triplet Excited State'):
+            _, header, table = block.rpartition('Electron Dipole Moments of ' + label)
+            if not header:
+                continue
+            sections = re.split(r'^[ \t]*-{5,}[ \t]*$', table, maxsplit=3, flags=re.MULTILINE)
+            if len(sections) == 4:
+                rows = re.findall(r'^[ \t]*(\d+)[ \t]+' + r'[ \t]+'.join([number]*3)
+                                  + r'[ \t]*$', sections[2], re.MULTILINE)
+                moments.update({int(root): (x, y, z) for root, x, y, z in rows})
+        ground = np.array(moments.get(0, [np.nan]*3), dtype=float)
+        scale = -2.541746  # The vacuum table prints electron position moments in a.u.
+    roots = [root for root, spin in zip(data['indices'], data['spins']) if spin == 'Triplet']
+    excited = np.array([moments.get(root, [np.nan]*3) for root in roots], dtype=float)
+    return scale * (excited.reshape(-1, 3) - ground)
 
 
 def _orbital_relabeling(vacuum, pcm):
@@ -714,27 +771,34 @@ def _relabel_compositions(compositions, occupied, virtual):
             for comp in compositions]
 
 
-def match_compositions(comp_list_1, comp_list_2, return_scores=False):
+def match_compositions(comp_list_1, comp_list_2, return_scores=False, dipole_scores=None):
     """
     Globally matches states from comp_list_1 to comp_list_2
-    using maximum composition similarity.
+    using composition similarity, averaged with dipole similarity where available.
 
-    With return_scores, also return the full similarity matrix used by the assignment.
+    With return_scores, also return the composition similarity matrix.
     """
+    indices, matrix, _ = _match_compositions(comp_list_1, comp_list_2, dipole_scores)
+    return (indices, matrix) if return_scores else indices
+
+
+def _match_compositions(comp_list_1, comp_list_2, dipole_scores):
     n1 = len(comp_list_1)
     n2 = len(comp_list_2)
 
     sim_matrix = composition_scores(comp_list_1, comp_list_2)
     if n1 == 0 or n2 == 0:
-        empty = np.array([], dtype=int)
-        return (empty, sim_matrix) if return_scores else empty
+        return np.array([], dtype=int), sim_matrix, 0.
 
-    rows, cols = linear_sum_assignment(-sim_matrix)
+    scores = sim_matrix
+    if dipole_scores is not None:
+        scores = np.where(np.isfinite(dipole_scores), (sim_matrix + dipole_scores)/2, sim_matrix)
+    rows, cols = linear_sum_assignment(-scores)
 
     match_indices = np.full(n1, -1, dtype=int)
     match_indices[rows] = cols
 
-    return (match_indices, sim_matrix) if return_scores else match_indices
+    return match_indices, sim_matrix, fsum(scores[rows, cols])
 
 
 def pega_energias(file, return_matching=False):
@@ -754,18 +818,37 @@ def pega_energias(file, return_matching=False):
     min_len_s = min(vac_data['len_s'], corr_data['len_s'])
     min_len_t = min(vac_data['len_t'], corr_data['len_t'])
 
-    occupied, virtual = _orbital_relabeling(vac_data, corr_data) if len(blocks) >= 3 else ({}, {})
-    comp_s = _relabel_compositions(corr_data['comp_singlets'], occupied, virtual)
-    comp_t = _relabel_compositions(corr_data['comp_triplets'], occupied, virtual)
-    match_singlets, scores_s = match_compositions(
-        vac_data['comp_singlets'][:min_len_s],
-        comp_s, return_scores=True
-    )
+    dipole_s = dipole_t = None
+    if len(blocks) >= 3:
+        rotation = _dipole_rotation(vac_data, corr_data)
+        dipole_s = _dipole_scores(vac_data['tdm_singlets'][:min_len_s], corr_data['tdm_singlets'],
+                                 rotation, transition=True)
+        dipole_t = _dipole_scores(_triplet_dipole_changes(blocks[0], vac_data)[:min_len_t],
+                                 _triplet_dipole_changes(blocks[1], corr_data, pcm=True), rotation)
+    def match_states(orbital_map):
+        matches = []
+        for key, count, dipoles in (('comp_singlets', min_len_s, dipole_s),
+                                    ('comp_triplets', min_len_t, dipole_t)):
+            pcm_comp = corr_data[key]
+            if any(orbital_map):
+                pcm_comp = _relabel_compositions(pcm_comp, *orbital_map)
+            indices, scores, total = _match_compositions(vac_data[key][:count], pcm_comp, dipoles)
+            matches.append((indices, scores, total, pcm_comp))
+        return matches
 
-    match_triplets, scores_t = match_compositions(
-        vac_data['comp_triplets'][:min_len_t],
-        comp_t, return_scores=True
-    )
+    matches = match_states(({}, {}))
+    if len(blocks) >= 3:
+        orbital_map = _orbital_relabeling(vac_data, corr_data)
+        if any(orbital_map):
+            relabeled = match_states(orbital_map)
+            baseline_totals = tuple(result[2] for result in matches)
+            relabeled_totals = tuple(result[2] for result in relabeled)
+            # Apply the shared map only if it helps one spin manifold without hurting the other.
+            if relabeled_totals != baseline_totals and all(
+                new >= old for new, old in zip(relabeled_totals, baseline_totals)
+            ):
+                matches = relabeled
+    (match_singlets, scores_s, _, comp_s), (match_triplets, scores_t, _, comp_t) = matches
 
     singlets_vac = vac_data['singlets'][:min_len_s]
     triplets_vac = vac_data['triplets'][:min_len_t]
