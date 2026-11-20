@@ -782,7 +782,17 @@ def match_compositions(comp_list_1, comp_list_2, return_scores=False, dipole_sco
     return (indices, matrix) if return_scores else indices
 
 
-def _match_compositions(comp_list_1, comp_list_2, dipole_scores):
+def _energy_scores(vacuum, pcm):
+    """Compare excitation energies in units of a typical same-spin root spacing."""
+    gaps = np.concatenate((np.diff(np.sort(vacuum)), np.diff(np.sort(pcm))))
+    gaps = gaps[np.isfinite(gaps) & (gaps > 0)]
+    if not gaps.size:
+        return None
+    scale = np.median(gaps)
+    return scale / (scale + np.abs(vacuum[:, None] - pcm))
+
+
+def _match_compositions(comp_list_1, comp_list_2, dipole_scores, energy_scores=None):
     n1 = len(comp_list_1)
     n2 = len(comp_list_2)
 
@@ -790,9 +800,14 @@ def _match_compositions(comp_list_1, comp_list_2, dipole_scores):
     if n1 == 0 or n2 == 0:
         return np.array([], dtype=int), sim_matrix, 0.
 
-    scores = sim_matrix
-    if dipole_scores is not None:
-        scores = np.where(np.isfinite(dipole_scores), (sim_matrix + dipole_scores)/2, sim_matrix)
+    scores = sim_matrix.copy()
+    counts = np.ones(sim_matrix.shape, dtype=int)
+    for extra in (dipole_scores, energy_scores):
+        if extra is not None:
+            valid = np.isfinite(extra)
+            scores[valid] += extra[valid]
+            counts += valid
+    scores /= counts
     rows, cols = linear_sum_assignment(-scores)
 
     match_indices = np.full(n1, -1, dtype=int)
@@ -818,21 +833,27 @@ def pega_energias(file, return_matching=False):
     min_len_s = min(vac_data['len_s'], corr_data['len_s'])
     min_len_t = min(vac_data['len_t'], corr_data['len_t'])
 
-    dipole_s = dipole_t = None
+    dipole_s = dipole_t = energy_s = energy_t = None
     if len(blocks) >= 3:
         rotation = _dipole_rotation(vac_data, corr_data)
         dipole_s = _dipole_scores(vac_data['tdm_singlets'][:min_len_s], corr_data['tdm_singlets'],
                                  rotation, transition=True)
         dipole_t = _dipole_scores(_triplet_dipole_changes(blocks[0], vac_data)[:min_len_t],
                                  _triplet_dipole_changes(blocks[1], corr_data, pcm=True), rotation)
+        energy_s = _energy_scores(vac_data['singlets'], corr_data['singlets'])
+        energy_t = _energy_scores(vac_data['triplets'], corr_data['triplets'])
+
     def match_states(orbital_map):
         matches = []
-        for key, count, dipoles in (('comp_singlets', min_len_s, dipole_s),
-                                    ('comp_triplets', min_len_t, dipole_t)):
+        for key, count, dipoles, energies in (('comp_singlets', min_len_s, dipole_s, energy_s),
+                                              ('comp_triplets', min_len_t, dipole_t, energy_t)):
             pcm_comp = corr_data[key]
             if any(orbital_map):
                 pcm_comp = _relabel_compositions(pcm_comp, *orbital_map)
-            indices, scores, total = _match_compositions(vac_data[key][:count], pcm_comp, dipoles)
+            indices, scores, total = _match_compositions(
+                vac_data[key][:count], pcm_comp, dipoles,
+                energies[:count] if energies is not None else None,
+            )
             matches.append((indices, scores, total, pcm_comp))
         return matches
 
