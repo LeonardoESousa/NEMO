@@ -12,7 +12,7 @@ from nemo import __version__ as nemo_version
 from nemo.analysis import rates, export_results, gather_data, absorption
 # pylint: disable=unbalanced-tuple-unpacking
 
-def interface():
+def interface(correction=None):
     """
     This function displays a menu of options for the user to choose from
     and prompts the user for input.
@@ -53,6 +53,10 @@ def interface():
     print('\n')
     nemo.tools.check_for_updates('nemophoto')
     operation = input()
+    if operation in ("5", "6", "7") and correction is None:
+        correction = input("PCM correction (both or ss) [both]: ").strip().lower() or "both"
+        while correction not in nemo.parser.PCM_CORRECTIONS:
+            correction = input("Enter both or ss [both]: ").strip().lower() or "both"
     if operation == "1":
         nemo.tools.setup_ensemble()
     elif operation == "2":
@@ -91,7 +95,7 @@ def interface():
         )
         states = state.split(",")
         for state in states:
-            absorption(state, [epsilon, refractive_index], save=True)
+            absorption(state.strip(), [epsilon, refractive_index], save=True, correction=correction)
     elif operation == "6":
         epsilon, refractive_index = nemo.tools.get_nr()
         print("The rates will be calculated with the following parameters:\n")
@@ -123,7 +127,7 @@ def interface():
 
         states = state.split(",")
         for state in states:
-            res, emi = rates(state, [epsilon, refractive_index])
+            res, emi = rates(state.strip(), [epsilon, refractive_index], correction=correction)
             export_results(res, emi, [epsilon, refractive_index])
     elif operation == "7":
         state = input(
@@ -132,7 +136,7 @@ def interface():
         )
         states = state.split(",")
         for state in states:
-            gather_data(state, save=True)
+            gather_data(state.strip(), save=True, correction=correction)
     elif operation == "8":
         input_file = nemo.tools.fetch_file("input", ['.com', '.in'])
         with open(input_file, 'r', encoding='utf-8') as f:
@@ -162,6 +166,11 @@ def main():
 
     parser.add_argument('-g', '--geom', type=str, help="Gets geometry from a log file.")
     parser.add_argument(
+        "--correction",
+        choices=nemo.parser.PCM_CORRECTIONS,
+        help="PCM correction for TDDFT/TDA (default: both; -c with a fit compares both and ss).",
+    )
+    parser.add_argument(
         '-e',
         '--ensemble-file',
         nargs=2,
@@ -174,7 +183,7 @@ def main():
         help="Optional fit file: nemo -c output.log fit.npy",
     )
     # Parse arguments
-    args = parser.parse_args()
+    args = parser.parse_intermixed_args()
     
     # If `-c` is provided, call the susceptibility_check function
     if args.check:
@@ -183,7 +192,7 @@ def main():
                 "When using -c, provide either no fit file or exactly one .npy fit file"
             )
         fit = args.fit_values[0] if args.fit_values else None
-        nemo.tools.susceptibility_check(args.check, fit=fit)
+        nemo.tools.susceptibility_check(args.check, fit=fit, correction=args.correction)
         sys.exit(0)
 
     elif args.fit_values:
@@ -193,7 +202,8 @@ def main():
         log_file, state_arg = args.ensemble_file
         states = state_arg.split(",")
         for state in states:
-            gather_data(state.strip(), save=True, filename=log_file)
+            gather_data(state.strip(), save=True, filename=log_file,
+                        correction=args.correction or "both")
         sys.exit(0)
 
     elif args.geom:
@@ -208,9 +218,9 @@ def main():
             sys.exit(0)
 
         except FileNotFoundError:
-            interface()
+            interface(args.correction)
     else:
-        interface()
+        interface(args.correction)
 
 if __name__ == "__main__":
     sys.exit(main())

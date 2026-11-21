@@ -913,6 +913,8 @@ def susceptibility_check(
     tuning=0,
     chemical_accuracy=0.043,
     state_tolerance=5.99,
+    *,
+    correction=None,
 ):
     """Report susceptibilities and optionally compare singlets with a fit.
 
@@ -920,6 +922,7 @@ def susceptibility_check(
     empirical tuning can optimize the selected excited state. The fit ``.npy``
     dictionary must contain ``E_vac``, ``chi`` and ``covariance_matrix``; the
     covariance ordering is ``(chi, E_vac)``.
+    A regular check with a fit compares both correction modes by default.
     """
     C = 0.3243
     if tuning not in (0, 1, 2):
@@ -928,9 +931,13 @@ def susceptibility_check(
         raise ValueError("chemical_accuracy must be non-negative.")
     if state_tolerance < 0.0:
         raise ValueError("state_tolerance must be non-negative.")
+    if correction is not None and correction not in nemo.parser.PCM_CORRECTIONS:
+        raise ValueError("PCM correction must be 'both' or 'ss'.")
 
+    mode = correction or "both"
     if tuning == 1:
-        parsed = nemo.parser.pega_energias(file)
+        options = {"correction": mode} if correction is not None else {}
+        parsed = nemo.parser.pega_energias(file, **options)
     else:
         *parsed, matching = nemo.parser.pega_energias(file, return_matching=True)
     (
@@ -943,6 +950,8 @@ def susceptibility_check(
         y_s,
         y_t,
     ) = parsed
+    if mode == "ss" and tuning != 1:
+        ss_s, ss_t = (matching[spin]["ptss"] for spin in ("s", "t"))
 
     eps, nr = fetch_nr(file)
     if eps is None or nr is None:
@@ -963,6 +972,8 @@ def susceptibility_check(
     y_t = np.asarray(y_t, dtype=float) / alpha_st
 
     if tuning != 1:
+        if (fit is not None and tuning == 0) or mode == "ss":
+            print(f"PCM correction for state table: {mode}")
         print(
             f"{'State':<6} {'E_vac(eV)':<12} "
             f"{'χ(eV)':<10} {'γ(eV)':<10} {'MatchScore':<10}"
@@ -1020,34 +1031,35 @@ def susceptibility_check(
         effective_cov[0, 0] * effective_cov[1, 1]
     )
 
+    susceptibilities = {mode: chi_s}
+    if tuning == 0 and correction is None:
+        susceptibilities["ss"] = matching["s"]["ptss"] / alpha_opt
+
     diagnostics = []
-    for root, (energy, chi, gamma) in enumerate(
-        zip(s_vac, chi_s, y_s), start=1
-    ):
-        delta_gamma = gamma - y_g
-        E_pred = energy - 0.5 * delta_gamma * C
-        chi_pred = chi + 0.5 * delta_gamma
-        dE = E_vac_fit - E_pred
-        dchi = chi_fit - chi_pred
-        residual = np.array([dchi, dE], dtype=float)
-        distance_squared = float(
-            residual @ np.linalg.solve(effective_cov, residual)
-        )
-        diagnostics.append(
-            {
+    for candidate_mode, chis in susceptibilities.items():
+        for root, (energy, chi, gamma) in enumerate(zip(s_vac, chis, y_s), start=1):
+            delta_gamma = gamma - y_g
+            E_pred = energy - 0.5 * delta_gamma * C
+            chi_pred = chi + 0.5 * delta_gamma
+            dE = E_vac_fit - E_pred
+            dchi = chi_fit - chi_pred
+            residual = np.array([dchi, dE], dtype=float)
+            distance_squared = float(residual @ np.linalg.solve(effective_cov, residual))
+            diagnostics.append({
                 "root": root,
                 "state": f"S{root}",
+                "correction": candidate_mode,
                 "E_pred": E_pred,
                 "chi_pred": chi_pred,
                 "delta_gamma": delta_gamma,
                 "dE": dE,
                 "dchi": dchi,
                 "distance": np.sqrt(max(distance_squared, 0.0)),
-            }
-        )
+            })
     if not diagnostics:
         raise ValueError(f"No singlet excited states were parsed from {file}.")
 
+    # The stable sort favors both, then the lower root, at an exact distance tie.
     diagnostics.sort(key=lambda row: row["distance"])
     numerical_best = diagnostics[0]
     minimum_distance_squared = numerical_best["distance"] ** 2
@@ -1055,10 +1067,18 @@ def susceptibility_check(
         row["delta_j2"] = max(
             row["distance"] ** 2 - minimum_distance_squared, 0.0
         )
-    similar_states = [
-        row for row in diagnostics if row["delta_j2"] <= state_tolerance
-    ]
-    selected = min(similar_states, key=lambda row: row["root"])
+    if tuning == 0:
+        errors = np.abs([(row["dE"], row["dchi"]) for row in diagnostics])
+        dominates = (errors[:, None] <= errors).all(axis=2) & (
+            errors[:, None] < errors
+        ).any(axis=2)
+        frontier = ~dominates.any(axis=0)
+        selected = diagnostics[np.flatnonzero(frontier)[0]]
+    else:
+        similar_states = [
+            row for row in diagnostics if row["delta_j2"] <= state_tolerance
+        ]
+        selected = min(similar_states, key=lambda row: row["root"])
 
     if tuning == 1:
         return selected["distance"], selected["root"]
@@ -1073,30 +1093,34 @@ def susceptibility_check(
     print(
         f"{'State':<6} {'E_pred':<10} {'χ_pred':<10} {'Δγ':<10} "
         f"{'dE':<10} {'dχ':<10} {'M-dist':<10} {'ΔJ²':<10}"
+        + ("Correction  Pareto" if tuning == 0 else "")
     )
-    for row in diagnostics:
+    for i, row in enumerate(diagnostics):
         print(
             f"{row['state']:<6} {row['E_pred']:<10.3f} "
             f"{row['chi_pred']:<10.3f} {row['delta_gamma']:<10.3f} "
             f"{row['dE']:<10.3f} {row['dchi']:<10.3f} "
             f"{row['distance']:<10.3f} {row['delta_j2']:<10.3f}"
+            + (f"{row['correction']:<12}{'yes' if frontier[i] else 'no'}" if tuning == 0 else "")
         )
     print("\nDistance Evaluation\n-------------------")
     print(
         f"Numerical best match: {numerical_best['state']} "
-        f"(Mahalanobis distance = {numerical_best['distance']:.3f})"
+        + (f"[{numerical_best['correction']}] " if tuning == 0 else "")
+        + f"(Mahalanobis distance = {numerical_best['distance']:.3f})"
     )
-    similar_names = ", ".join(
-        row["state"] for row in sorted(similar_states, key=lambda row: row["root"])
-    )
-    print(f"States within ΔJ² ≤ {state_tolerance:.2f}: {similar_names}")
-    if selected is numerical_best:
+    if tuning == 0:
         print(f"Selected state: {selected['state']}")
+        print(f"Selected correction: --correction {selected['correction']}")
     else:
-        print(
-            f"Selected state: {selected['state']} because it is the lowest "
-            "state within the ambiguity region."
+        similar_names = ", ".join(
+            row["state"] for row in sorted(similar_states, key=lambda row: row["root"])
         )
+        print(f"States within ΔJ² ≤ {state_tolerance:.2f}: {similar_names}")
+        reason = "" if selected is numerical_best else (
+            " because it is the lowest state within the ambiguity region."
+        )
+        print(f"Selected state: {selected['state']}{reason}")
     confidence_limit = np.sqrt(2.30)
     relation = "within" if selected["distance"] <= confidence_limit else "outside"
     print(

@@ -76,6 +76,10 @@ def test_matching_uses_all_calculated_pcm_candidates(tmp_path, capsys):
     for old, new in zip(default, diagnostic):
         np.testing.assert_array_equal(old, new)
     info = diagnostic[-1]['s']
+    ss_only = parser.pega_energias(log, return_matching=True, correction="ss")
+    np.testing.assert_allclose(ss_only[3], info['ptss'])
+    assert np.any(ss_only[3] < default[3])
+    np.testing.assert_array_equal(ss_only[-1]['s']['pcm_roots'], info['pcm_roots'])
     assert info['matrix'].shape == (2, 3)
     assert info['matrix'][1, 2] == 1.
     np.testing.assert_array_equal(info['pcm_roots'], [1, 3])

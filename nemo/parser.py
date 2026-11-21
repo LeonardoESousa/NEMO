@@ -842,8 +842,13 @@ def _match_compositions(comp_list_1, comp_list_2, dipole_scores, energy_scores=N
     return match_indices, sim_matrix, pair_scores, fsum(objective[rows, cols])
 
 
-def pega_energias(file, return_matching=False):
-    """Read energies/corrections; optionally append vacuum/PCM matching diagnostics."""
+PCM_CORRECTIONS = ("both", "ss")
+
+
+def pega_energias(file, return_matching=False, *, correction="both"):
+    """Read energies and the selected PCM correction, optionally with matching diagnostics."""
+    if correction not in PCM_CORRECTIONS:
+        raise ValueError("PCM correction must be 'both' or 'ss'.")
     with open(file, "r", encoding="utf-8") as f:
         content = f.read()
 
@@ -912,8 +917,12 @@ def pega_energias(file, return_matching=False):
     s0_pcm = corr_data['total_energy'][0]
     s0_corr = s0_vac - s0_pcm
 
-    ss_s = corr_data['ss_s'][match_singlets]
-    ss_t = corr_data['ss_t'][match_triplets]
+    spins = np.asarray(corr_data['spins'])
+    ptss = np.asarray(corr_data['correction'])
+    ptss_s = ptss[spins == 'Singlet'][match_singlets]
+    ptss_t = ptss[spins == 'Triplet'][match_triplets]
+    ss_s = ptss_s if correction == "ss" else corr_data['ss_s'][match_singlets]
+    ss_t = ptss_t if correction == "ss" else corr_data['ss_t'][match_triplets]
 
 
     y_s = (singlets_vac - singlets_pcm) + s0_corr
@@ -921,8 +930,8 @@ def pega_energias(file, return_matching=False):
 
     if return_matching:
         matching = {'two_calculations': len(blocks) >= 3}
-        for spin, (indices, scores, _, pcm_comp, pair_scores), raw_shift in zip(
-            ('s', 't'), matches, (y_s, y_t)
+        for spin, (indices, scores, _, pcm_comp, pair_scores), raw_shift, ss_only in zip(
+            ('s', 't'), matches, (y_s, y_t), (ptss_s, ptss_t)
         ):
             key = 'comp_singlets' if spin == 's' else 'comp_triplets'
             count = len(indices)
@@ -933,6 +942,7 @@ def pega_energias(file, return_matching=False):
                 'matrix': composition_scores(vac_data[key], pcm_comp),
                 'retained': count,
                 'raw_shift': raw_shift.copy(),
+                'ptss': ss_only,
             }
 
     y_s[y_s < 0] = 0

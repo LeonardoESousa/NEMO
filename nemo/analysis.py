@@ -5,6 +5,7 @@ import shutil
 import tempfile
 import warnings
 from contextlib import contextmanager
+from functools import partial
 import numpy as np
 import pandas as pd
 from scipy.optimize import brentq
@@ -249,12 +250,16 @@ get_avg_socs = {'tddft': nemo.parser.avg_socs, 'eom-ccsd': nemo.eom.avg_socs}
 get_phosph_osc = {'tddft': nemo.parser.phosph_osc, 'eom-ccsd': nemo.eom.phosph_osc}
 
 
-def _build_gather_dataframe(initial, files, total_states, calculation_type, eps_i, nr_i):
+def _build_gather_dataframe(initial, files, total_states, calculation_type, eps_i, nr_i,
+                            correction="both"):
     """Build the gather_data dataframe from parsed log-file data."""
     formats = {}
     n_state = int(initial[1:]) - 1
     alphaopt1 = nemo.tools.get_alpha(nr_i**2)
     alphast1 = nemo.tools.get_alpha(eps_i)
+    parse_energies = get_energies[calculation_type]
+    if calculation_type == "tddft" and correction != "both":
+        parse_energies = partial(parse_energies, correction=correction)
     (
         numbers,
         singlets,
@@ -265,7 +270,7 @@ def _build_gather_dataframe(initial, files, total_states, calculation_type, eps_
         ground_pol,
         y_s,
         y_t,
-    ) = analysis(files, total_states, get_energies[calculation_type])
+    ) = analysis(files, total_states, parse_energies)
 
     ss_s = ss_s / alphaopt1
     ss_t = ss_t / alphaopt1
@@ -364,7 +369,9 @@ def _build_gather_dataframe(initial, files, total_states, calculation_type, eps_
 
 
 ###SAVES ENSEMBLE DATA#################################################################
-def gather_data(initial, save=True, filename=None, source_dir=None):
+def gather_data(initial, save=True, filename=None, source_dir=None, *, correction="both"):
+    if correction not in nemo.parser.PCM_CORRECTIONS:
+        raise ValueError("PCM correction must be 'both' or 'ss'.")
     kbt = nemo.tools.detect_sigma()
 
     if filename is None:
@@ -380,6 +387,7 @@ def gather_data(initial, save=True, filename=None, source_dir=None):
             calculation_type,
             eps_i,
             nr_i,
+            correction=correction,
         )
     else:
         log_path = _resolve_log_file(filename, source_dir=source_dir)
@@ -398,6 +406,7 @@ def gather_data(initial, save=True, filename=None, source_dir=None):
                 calculation_type,
                 eps_i,
                 nr_i,
+                correction=correction,
             )
 
     arquivo = output_name
@@ -616,9 +625,10 @@ def lambda_solvent(chi_f, alphaopt, alphast):
     return lambda_b
 
 ###CALCULATES ISC AND EMISSION RATES & SPECTRA#########################################
-def rates(initial, dielec, data=None, ensemble_average=False, detailed=False):
+def rates(initial, dielec, data=None, ensemble_average=False, detailed=False, *,
+          correction="both"):
     if data is None:
-        data = gather_data(initial, save=True)
+        data = gather_data(initial, save=True, correction=correction)
         kbt = nemo.tools.detect_sigma()
     else:
         kbt = data["kbT"][0]
@@ -891,9 +901,10 @@ def another_dimension(nstates, *args):
     return new_args
 
 ###COMPUTES ABSORPTION SPECTRA###########################################################
-def absorption(initial, dielec, data=None, save=False, detailed=False, nstates=-1):
+def absorption(initial, dielec, data=None, save=False, detailed=False, nstates=-1, *,
+               correction="both"):
     if data is None:
-        data = gather_data(initial, save=True)
+        data = gather_data(initial, save=True, correction=correction)
         kbt = nemo.tools.detect_sigma()
     else:
         kbt = data["kbT"][0]
