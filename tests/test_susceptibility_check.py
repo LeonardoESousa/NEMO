@@ -89,3 +89,21 @@ def test_fit_discards_dominated_root_and_reports_correction(tmp_path, monkeypatc
     output = capsys.readouterr().out
     assert "Selected state: S2" in output
     assert "Selected correction: --correction ss" in output
+
+
+def test_fit_gives_vacuum_energy_more_uncertainty_than_chi(tmp_path, monkeypatch, capsys):
+    parsed = (
+        np.array([2.00, 2.28]), np.array([]), None,
+        np.array([0.03, 0.15]) / 3.0, np.array([]),
+        0.1, np.array([0.1, 0.1]), np.array([]),
+        {"s": {"assignment_scores": [1, 1]}, "t": {"assignment_scores": []}},
+    )
+    monkeypatch.setattr(nemo.parser, "pega_energias", lambda *args, **kwargs: parsed)
+    monkeypatch.setattr(nemo.tools, "fetch_nr", lambda _: (3.0, np.sqrt(2.0)))
+    fit = tmp_path / "fit.npy"
+    np.save(fit, {"E_vac": 2.0, "chi": 0.15, "covariance_matrix": np.eye(2) * 0.01**2})
+
+    nemo.tools.susceptibility_check("calculation.log", fit=fit, correction="both")
+    output = capsys.readouterr().out
+    assert "χ = 0.043 eV, E_vac = 0.150 eV" in output
+    assert "Selected state: S2" in output

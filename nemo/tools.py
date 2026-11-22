@@ -923,6 +923,7 @@ def susceptibility_check(
     dictionary must contain ``E_vac``, ``chi`` and ``covariance_matrix``; the
     covariance ordering is ``(chi, E_vac)``.
     A regular check with a fit compares both correction modes by default.
+    Its score adds uncertainties of ``chemical_accuracy`` in chi and 0.150 eV in E_vac.
     """
     C = 0.3243
     if tuning not in (0, 1, 2):
@@ -1023,7 +1024,8 @@ def susceptibility_check(
     except np.linalg.LinAlgError as error:
         raise ValueError("covariance_matrix must be positive definite.") from error
 
-    effective_cov = cov_matrix + chemical_accuracy**2 * np.eye(2)
+    energy_uncertainty = 0.150 if tuning == 0 else chemical_accuracy
+    effective_cov = cov_matrix + np.diag([chemical_accuracy**2, energy_uncertainty**2])
     sigma_chi = np.sqrt(cov_matrix[0, 0])
     sigma_E = np.sqrt(cov_matrix[1, 1])
     correlation = cov_matrix[0, 1] / (sigma_chi * sigma_E)
@@ -1087,7 +1089,11 @@ def susceptibility_check(
     print(f"E_vac: {E_vac_fit:.3f} ± {sigma_E:.3f} eV")
     print(f"χ:     {chi_fit:.3f} ± {sigma_chi:.3f} eV")
     print(f"Experimental correlation: {correlation:.3f}")
-    print(f"Computational uncertainty: {chemical_accuracy:.3f} eV")
+    if tuning == 0:
+        print(f"Computational uncertainty: χ = {chemical_accuracy:.3f} eV, "
+              f"E_vac = {energy_uncertainty:.3f} eV")
+    else:
+        print(f"Computational uncertainty: {chemical_accuracy:.3f} eV")
     print(f"Effective correlation: {effective_correlation:.3f}")
     print("\nExperimental Comparison\n-----------------------")
     print(
