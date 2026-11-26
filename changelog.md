@@ -1,3 +1,11 @@
+## Version 1.5
+
+1 - Anchored solvent shifts to a single reference PCM calculation per geometry, using ptSS + ptLR for TD(A)-DFT.
+
+2 - Added weighted kernel broadening for spectra and ISC rates, with solvent reorganization setting a minimum width.
+
+3 - Compute phosphorescence oscillator strengths by diagonalizing the spin–orbit Hamiltonian.
+
 ## Version 1.4.0
 
 1 - Fixed bugs in phosphorescence rates and reordering of states.

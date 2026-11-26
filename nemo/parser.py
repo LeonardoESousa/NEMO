@@ -1,5 +1,7 @@
 import sys
+import re
 import numpy as np
+from scipy.optimize import linear_sum_assignment
 
 ##SOME CONSTANTS##############################################
 EPSILON_0 = 8.854187817e-12  # F/m
@@ -457,36 +459,59 @@ def pega_dipolos(file, ind, frase, state):
 #########################################################################################
 
 ##CALCULATES TRANSITION DIPOLE MOMENTS FOR Tn TO S0 TRANSITIONS##########################
-def moment(file, ess, ets, dipss, dipts, n_triplet):
-    # Conversion factor between a.u. = e*bohr to SI
-    conversion = 8.4783533e-30
-    ess = np.array(ess)
-    ets = np.array(ets)
-    ess = np.insert(ess, 0, 0)
-    moments = []
-    for mqn in ["1", "-1", "0"]:
-        socst1 = soc_t1(file, mqn, n_triplet)[:len(ess)-1]
-        socss0 = soc_s0(file, mqn)[:len(ets)]
-        socst1 = np.vstack((socss0[n_triplet, :], socst1))
-        # Conjugate to get <S0|H|T1>
-        socst1[0] = socst1[0].conjugate()
-        # Now conjugate socst1
-        socst1 = socst1.conjugate()
-        ess = ess[: np.shape(socst1)[0]]
-        if 0 in ets[n_triplet] - ess:
-            return 0
-        for i in [0, 1, 2]:
-            part_1 = (socss0[:, 0] / (0 - ets)) * dipts[:, i]
-            part_1 = np.sum(part_1)
-            part_2 = (socst1[:, 0] / (ets[n_triplet] - ess)) * dipss[:, i]
-            part_2 = np.sum(part_2)
-            complex_dipole = part_1 + part_2
-            # append magnitude squared
-            moments.append((complex_dipole * complex_dipole.conjugate()).real)
+def spin_orbit_oscillators(singlets, triplets, soc, singlet_dipoles, triplet_dipoles,
+                          triplet_soc=None):
+    """Sum dressed oscillator strengths over the three sublevels of each triplet."""
+    n_singlets = len(singlets) + 1
+    n_triplets = len(triplets)
+    if not n_triplets:
+        return np.empty((1, 0))
 
-    moments = np.array(moments)
-    moments = np.sum(moments) * (conversion**2)
-    return moments
+    energies = np.concatenate(([0.0], singlets, np.repeat(triplets, 3)))
+    hamiltonian = np.diag(energies.astype(complex))
+    hamiltonian[:n_singlets, n_singlets:] = soc.reshape(n_singlets, 3 * n_triplets)
+    hamiltonian[n_singlets:, :n_singlets] = hamiltonian[:n_singlets, n_singlets:].conj().T
+    if triplet_soc is not None:
+        hamiltonian[n_singlets:, n_singlets:] += triplet_soc
+    eigenvalues, vectors = np.linalg.eigh(hamiltonian)
+
+    # Assign each dressed state once. Sum the projection over a triplet's
+    # three spin components so the assignment is independent of their basis.
+    ground = np.argmax(np.abs(vectors[0])**2)
+    available = np.delete(np.arange(len(energies)), ground)
+    projections = np.abs(vectors[n_singlets:, available])**2
+    triplet_character = projections.reshape(n_triplets, 3, -1).sum(axis=1)
+    _, columns = linear_sum_assignment(np.repeat(triplet_character, 3, axis=0), maximize=True)
+    states = available[columns]
+
+    ground_s = vectors[:n_singlets, ground].conj()
+    ground_t = vectors[n_singlets:, ground].conj()
+    ground_t = ground_t.reshape(n_triplets, 3)
+    moments_s = np.einsum("i,ijx,jk->xk", ground_s, singlet_dipoles, vectors[:n_singlets, states])
+    moments_t = np.einsum(
+        "im,ijx,jmk->xk", ground_t, triplet_dipoles,
+        vectors[n_singlets:, states].reshape(n_triplets, 3, -1),
+    )
+    conversion = 8.4783533e-30  # a.u. of electric dipole moment to C m
+    moments_squared = np.sum(np.abs(moments_s + moments_t)**2, axis=0) * conversion**2
+    gaps = np.maximum(eigenvalues[states] - eigenvalues[ground], 0.0)
+    strengths = 2 * MASS_E / (3 * E_CHARGE * HBAR_J**2) * gaps * moments_squared
+    return strengths.reshape(1, n_triplets, 3).sum(axis=2)
+
+
+def singlet_triplet_soc(file, n_singlets, n_triplets, ground_soc, excited_soc):
+    """Build <S|H_SO|T,m> in the order m = 1, -1, 0, in eV."""
+    couplings = np.zeros((n_singlets + 1, n_triplets, 3), dtype=complex)
+    for component, ms in enumerate(("1", "-1", "0")):
+        ground = ground_soc(file, ms).ravel()
+        if ground.size:
+            couplings[0, :, component] = ground[:n_triplets].conj()
+        for triplet in range(n_triplets):
+            excited = excited_soc(file, ms, triplet).ravel()
+            if excited.size:
+                couplings[1:, triplet, component] = excited[:n_singlets]
+    return couplings
+
 
 def _state_numbers(file, spin):
     """Read combined dipole-table IDs locally, in printed per-spin order."""
@@ -507,43 +532,66 @@ def _state_numbers(file, spin):
     return np.array(numbers, dtype=int)
 
 
+def _dipole_block(file, roots, spin):
+    dipoles = np.zeros((len(roots), len(roots), 3))
+    moments = f"Electron Dipole Moments of {spin} Excited State"
+    transitions = f"Transition Moments Between {spin} Excited States"
+    for index in range(len(roots)):
+        dipoles[index, index] = pega_dipolos(file, roots, moments, index)[0]
+        if len(roots) > 1:
+            others = np.arange(len(roots)) != index
+            dipoles[index, others] = pega_dipolos(file, roots, transitions, index)
+    return dipoles
+
+
+def _triplet_soc_block(file, n_triplets):
+    heading = re.compile(r"^SOC between the T(\d+) \(ms=(-?\d)\) state and excited triplet states")
+    spin_index = {"1": 0, "-1": 1, "0": 2}
+    matrix = np.zeros((3 * n_triplets, 3 * n_triplets), dtype=complex)
+    source = None
+    with open("Geometries/" + file, "r", encoding="utf-8") as log_file:
+        for line in log_file:
+            line = line.strip()
+            match = heading.match(line)
+            if match:
+                root, ms = match.groups()
+                source = 3 * (int(root) - 1) + spin_index[ms]
+            elif source is not None:
+                if not line.startswith("T") or "(ms=" not in line:
+                    source = None
+                    continue
+                label, real, sign, imaginary, *_ = line.split()
+                root, ms = label[1:-1].split("(ms=")
+                target = 3 * (int(root) - 1) + spin_index[ms]
+                if source < len(matrix) and target < len(matrix):
+                    value = float(real) + complex((sign + imaginary).replace("i", "j"))
+                    matrix[source, target] = value
+                    matrix[target, source] = value.conjugate()
+    return matrix * 0.12398 / 1000
+
+
 def phosph_osc(file, n_state, singlets, triplets):
-    zero = ["0"]
-    zero.extend(_state_numbers(file, "Singlet")[:len(singlets)])
-    triplet_states = _state_numbers(file, "Triplet")[:len(triplets)]
-    total_moments = []
-    ground_dipoles = pega_dipolos(
-        file, zero, "Electron Dipole Moments of Ground State", 0
+    if not len(triplets):
+        return np.empty((1, 0))
+    roots_s = _state_numbers(file, "Singlet")[:len(singlets)]
+    roots_t = _state_numbers(file, "Triplet")[:len(triplets)]
+    if len(roots_s) != len(singlets) or len(roots_t) != len(triplets):
+        raise ValueError(f"{file}: missing dipole-table roots for phosphorescence.")
+    roots = np.insert(roots_s, 0, 0)
+    dipoles_s = np.zeros((len(roots), len(roots), 3))
+    dipoles_s[0, 0] = pega_dipolos(file, roots, "Electron Dipole Moments of Ground State", 0)[0]
+    if len(singlets):
+        dipoles_s[0, 1:] = pega_dipolos(
+            file, roots, "Transition Moments Between Ground and Singlet Excited States", 0
+        )
+        dipoles_s[1:, 0] = dipoles_s[0, 1:]
+        dipoles_s[1:, 1:] = _dipole_block(file, roots_s, "Singlet")
+    dipoles_t = _dipole_block(file, roots_t, "Triplet")
+    couplings = singlet_triplet_soc(file, len(singlets), len(triplets), soc_s0, soc_t1)
+    return spin_orbit_oscillators(
+        singlets, triplets, couplings, dipoles_s, dipoles_t, _triplet_soc_block(file, len(triplets))
     )
-    ground_singlet_dipoles = pega_dipolos(
-        file, zero, "Transition Moments Between Ground and Singlet Excited States", 0
-    )
-    ground_dipoles = np.vstack((ground_dipoles, ground_singlet_dipoles))
-    for n_triplet in range(len(triplets)):
-        triplet_dipoles = pega_dipolos(
-            file, triplet_states, "Electron Dipole Moments of Triplet Excited State", n_triplet
-        )
-        triplet_triplet_dipoles = pega_dipolos(
-            file, triplet_states, "Transition Moments Between Triplet Excited States", n_triplet
-        )
-        triplet_dipoles = np.vstack((triplet_dipoles, triplet_triplet_dipoles))
-        # Fixing the order
-        order = np.arange(1, len(triplets))
-        order = np.insert(order, n_triplet, 0)
-        triplet_dipoles = triplet_dipoles[order, :]
-        moments = moment(
-            file,
-            singlets,
-            triplets,
-            ground_dipoles,
-            triplet_dipoles,
-            n_triplet,
-        )
-        total_moments.append(moments)
-    total_moments = np.array(total_moments)
-    term = E_CHARGE * (HBAR_J**2) / triplets
-    osc_strength = (2 * MASS_E) * total_moments / (3 * term)
-    return osc_strength[np.newaxis, :]
+
 
 ##GETS TRANSITION DIPOLE MOMENTS#########################################################
 def pega_oscs(files, initial, nstates=None):

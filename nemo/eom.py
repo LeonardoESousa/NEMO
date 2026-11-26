@@ -2,12 +2,6 @@ import sys
 import numpy as np
 import nemo.parser
 
-##SOME CONSTANTS##############################################
-HBAR_J      = nemo.parser.HBAR_J # J s
-MASS_E      = nemo.parser.MASS_E # kg
-E_CHARGE    = nemo.parser.E_CHARGE # C
-###############################################################
-
 ##GETS ENERGIES AND OSCS FOR Sn AND Tn STATES##################################
 def pega_energias(file):
     with open(file, "r", encoding="utf-8") as log_file:
@@ -220,40 +214,6 @@ def pega_dipolos(file, ind, frase, state):
 #########################################################################################
 
 ##CALCULATES TRANSITION DIPOLE MOMENTS FOR Tn TO S0 TRANSITIONS##########################
-def moment(file, ess, ets, dipss, dipts, n_triplet):
-    # Conversion factor between a.u. = e*bohr to SI
-    conversion = 8.4783533e-30
-    ess = np.array(ess)
-    ets = np.array(ets)
-    ess = np.insert(ess, 0, 0)
-    moments = []
-    for mqn in ["1", "-1", "0"]:
-        socst1 = soc_t1(file, mqn, n_triplet)[:len(ess)-1]
-        socss0 = soc_s0(file, mqn)[:len(ets)]
-        socst1 = np.vstack((socss0[n_triplet, :], socst1))
-        # Conjugate to get <S0|H|T1>
-        socst1[0] = socst1[0].conjugate()
-        # Now conjugate socst1
-        socst1 = socst1.conjugate()
-        ess = ess[: np.shape(socst1)[0]]
-        if 0 in ets[n_triplet] - ess:
-            return 0
-        for i in [0, 1, 2]:
-            part_1 = (socss0[:, 0] / (0 - ets)) * dipts[:, i]
-            part_1 = np.sum(part_1)
-            part_2 = (socst1[:, 0] / (ets[n_triplet] - ess)) * dipss[:, i]
-            part_2 = np.sum(part_2)
-            complex_dipole = part_1 + part_2
-            # append magnitude squared
-            moments.append((complex_dipole * complex_dipole.conjugate()).real)
-
-    moments = np.array(moments)
-    moments = np.sum(moments) * (conversion**2)
-    return moments
-
-
-#########################################################################################
-
 def pega_dipole_ground(file):
     with open("Geometries/" + file, "r", encoding="utf-8") as log_file:
         catch = False
@@ -267,99 +227,66 @@ def pega_dipole_ground(file):
                 break    
     return np.array(dipole)[np.newaxis, :] / 2.541746
 
-def pega_dipole_ground_singlet(file):
-    dipole = np.zeros((1, 3))
+def _eom_dipoles(file, n_singlets, n_triplets):
+    """Build Hermitian effective dipoles from the two EOM transition directions."""
+    dipoles = {
+        "singlets": np.zeros((n_singlets + 1, n_singlets + 1, 3)),
+        "triplets": np.zeros((n_triplets, n_triplets, 3)),
+    }
+    dipoles["singlets"][0, 0] = pega_dipole_ground(file)[0]
+    spin, root = "singlets", 1
+    first = second = None
+    reading_transition = False
     with open("Geometries/" + file, "r", encoding="utf-8") as log_file:
-        catch_A, catch_B = False, False
         for line in log_file:
-            if 'State A: ccsd: 0/A' in line:
-                catch_A = True
-            elif catch_A and "State B: eomee_ccsd/rhfref/singlets:" in line:   
-                catch_B = True
-            elif '-----------------------------------------------------' in line:
-                catch_A, catch_B = False, False    
-            elif catch_A and catch_B and 'A->B:' in line:
-                line = line.split()
-                dipole = np.vstack((dipole,[float(line[3].replace(',','')),float(line[5].replace(',','')),float(line[7].replace(')',''))]))
-                catch_A, catch_B = False, False
-    dipole = dipole[1:, :]
-    return dipole
+            if "Solving for EOMEE-CCSD A triplet states." in line:
+                spin, root = "triplets", 0
+            elif "Dipole moment (a.u.):" in line:
+                if root < len(dipoles[spin]):
+                    dipoles[spin][root, root] = _eom_dipole_components(line)
+                root += 1
+            elif "State A:" in line:
+                first = _eom_dipole_state(line)
+                second, reading_transition = None, False
+            elif "State B:" in line:
+                second = _eom_dipole_state(line)
+            elif "Transition dipole moment (a.u.):" in line:
+                reading_transition = first is not None and second is not None
+            elif reading_transition and "A->B:" in line:
+                forward = _eom_dipole_components(line)
+            elif reading_transition and "B->A:" in line:
+                first_spin, i = first
+                second_spin, j = second
+                if first_spin == second_spin and max(i, j) < len(dipoles[first_spin]):
+                    moment = (forward + _eom_dipole_components(line)) / 2
+                    dipoles[first_spin][i, j] = dipoles[first_spin][j, i] = moment
+                reading_transition = False
+    return dipoles["singlets"], dipoles["triplets"]
 
-def pega_dipole_triplets(file, state):
-    dipole = np.zeros((1, 3))
-    with open("Geometries/" + file, "r", encoding="utf-8") as log_file:
-        catch_A = False
-        for line in log_file:
-            if 'Solving for EOMEE-CCSD A triplet states.' in line:
-                catch_A = True
-            elif catch_A and "Dipole moment (a.u.)" in line:   
-                line = line.split()
-                dipole = np.vstack((dipole,[float(line[5].replace(',','')),float(line[7].replace(',','')),float(line[9].replace(')',''))]))
-                
-    dipole = dipole[1:, :]
-    dipole = dipole[state, :]
-    return np.array(dipole)[np.newaxis, :] 
 
-def pega_dipole_triplet_triplet(file,state):
-    dipole = np.zeros((1, 4))
-    with open("Geometries/" + file, "r", encoding="utf-8") as log_file:
-        catch = False
-        states = []
-        for line in log_file:
-            if '----------------------------------------' in line:
-                states = []
-                catch = False
-            if 'State A: eomee_ccsd/rhfref/triplets:' in line and len(states) == 0:
-                line = line.split()
-                state_num = int(line[-1].replace('/A',''))
-                states.append(state_num)
-            elif 'State B: eomee_ccsd/rhfref/triplets:' in line and len(states) == 1:
-                line = line.split()
-                state_num = int(line[-1].replace('/A',''))
-                states.append(state_num)
-                if state+1 in states:
-                    catch = True    
-            elif catch and "A->B:" in line:
-                if states[0] == state+1:
-                    x = states[1]
-                else:
-                    x = states[0]       
-                line = line.split()
-                dipole = np.vstack((dipole,[x,float(line[3].replace(',','')),float(line[5].replace(',','')),float(line[7].replace(')',''))]))
-                catch = False
-                states = []
-    dipole = dipole[1:, :]
-    #sort by first column
-    dipole = dipole[dipole[:,0].argsort()]
-    return dipole[:,1:]
+def _eom_dipole_components(line):
+    coordinates = line.rsplit("(X", 1)[1].replace("Y", "").replace("Z", "").rstrip().rstrip(")")
+    return np.array([float(value) for value in coordinates.split(",")])
+
+
+def _eom_dipole_state(line):
+    if "ccsd: 0/" in line:
+        return "singlets", 0
+    marker = "eomee_ccsd/rhfref/"
+    if marker + "singlets:" in line or marker + "triplets:" in line:
+        spin, label = line.split(marker, 1)[1].split(":")
+        root = int(label.split("/")[0])
+        return spin, root if spin == "singlets" else root - 1
+    return None
+
 
 def phosph_osc(file, n_state, singlets, triplets):
-    total_moments = []
-    ground_dipoles = pega_dipole_ground(file)
-    ground_singlet_dipoles = pega_dipole_ground_singlet(file)[:len(singlets)]
-    ground_dipoles = np.vstack((ground_dipoles, ground_singlet_dipoles))
-    for n_triplet in range(len(triplets)):
-        triplet_dipoles = pega_dipole_triplets(file,n_triplet)
-        triplet_triplet_dipoles = pega_dipole_triplet_triplet(file,n_triplet)
-        triplet_dipoles = np.vstack((triplet_dipoles, triplet_triplet_dipoles))
-        # Fixing the order
-        order = np.arange(1, len(triplets))
-        order = np.insert(order, n_triplet, 0)
-        triplet_dipoles = triplet_dipoles[order, :]
-        moments = moment(
-            file,
-            singlets,
-            triplets,
-            ground_dipoles,
-            triplet_dipoles,
-            n_triplet,
-        )
-        total_moments.append(moments)
-    total_moments = np.array(total_moments)
-    term = E_CHARGE * (HBAR_J**2) / triplets
-    #print(total_moments.shape,term.shape)
-    osc_strength = (2 * MASS_E) * total_moments / (3 * term)
-    return osc_strength[np.newaxis, :]
+    if not len(triplets):
+        return np.empty((1, 0))
+    dipoles_s, dipoles_t = _eom_dipoles(file, len(singlets), len(triplets))
+    couplings = nemo.parser.singlet_triplet_soc(file, len(singlets), len(triplets), soc_s0, soc_t1)
+    return nemo.parser.spin_orbit_oscillators(singlets, triplets, couplings, dipoles_s, dipoles_t)
+
 
 ##GETS TRANSITION DIPOLE MOMENTS#########################################################
 def pega_oscs(files, initial, nstates=None):
